@@ -5,7 +5,6 @@ import hashlib
 
 from dataclasses import dataclass
 from datetime import datetime
-from pyspark import SparkSession
 from .stage import Stage
 from .logger import Logger
 from pathlib import Path
@@ -15,7 +14,6 @@ class Pipeline:
             self, 
             name: str = None,
             backend: str = "python",    # Either python or R or maybe Spark depending on the use case
-            sparksession: SparkSession = None,
             config: dict | str | Path = None, 
             stages: Stage | list[Stage] | list[Pipeline] | list[Stage, Pipeline] = None, 
             logger: Logger = None
@@ -23,7 +21,6 @@ class Pipeline:
         self.name = name
         self.id = self._create_runtime_id()
         self.backend = backend
-        self.sparksession = sparksession
         self.config = config if config is not None else self._construct_default_config()
         self.stages = stages if stages is not None else []
         self.logger = logger if logger is not None else Logger()
