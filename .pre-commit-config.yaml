@@ -1,0 +1,40 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.8.1
+    hooks:
+      - id: nbstripout
+        name: nbstripout - Strip outputs from notebooks (auto-fixes)
+        args:
+          - --extra-keys
+          - "metadata.colab metadata.kernelspec cell.metadata.colab cell.metadata.executionInfo cell.metadata.id cell.metadata.outputId"
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        name: Check for files larger than 5 MB
+        args: [ "--maxkb=5120" ]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.12
+    hooks:
+      # Run ruff linter.
+      - id: ruff-check
+        args: [ --fix ]
+      # Run ruff formatter.
+      - id: ruff-format
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: detect-secrets - Detect secrets in staged code
+        args: [ "--baseline", ".secrets.baseline" ]
+        exclude: .*/tests/.*|^\.cruft\.json$
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.3
+    hooks:
+      - id: bandit
+        name: bandit - Checks for vulnerabilities
+        args: ["-c", "pyproject.toml"]
+        additional_dependencies: ["bandit[toml]"]
