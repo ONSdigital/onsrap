@@ -18,13 +18,11 @@ class PipelineRunner:
 
     def run(self, pipeline: "Pipeline") -> PipelineRun:
         pipeline.validate()
-        runtime_id = pipeline._create_runtime_id()
-        pipeline.id = runtime_id
 
         started_at = utcnow()
         context = ExecutionContext(
             pipeline_name=pipeline.name,
-            run_id=runtime_id.get_id(),
+            run_id=pipeline.id,
             config=pipeline.config,
             logger=self.logger,
             started_at=started_at,
@@ -32,14 +30,14 @@ class PipelineRunner:
         )
 
         ordered_stages = pipeline.ordered_stages()
-        manifest = pipeline._construct_manifest(runtime_id=runtime_id)
+        manifest = pipeline._construct_manifest(runtime_id=pipeline.id)
         manifest.stages_run = []
         manifest.outputs = {}
 
         self.logger.event(
             "Pipeline started",
             name=pipeline.name,
-            run_id=runtime_id.get_id(),
+            run_id=pipeline.id.get_id(),
             stages=[stage.name for stage in ordered_stages],
         )
 
@@ -73,7 +71,7 @@ class PipelineRunner:
             self.logger.event(
                 "Pipeline failed",
                 name=pipeline.name,
-                run_id=runtime_id.get_id(),
+                run_id=pipeline.id.get_id(),
                 error=str(exc),
             )
             raise
@@ -93,7 +91,7 @@ class PipelineRunner:
         self.logger.event(
             "Pipeline completed",
             name=pipeline.name,
-            run_id=runtime_id.get_id(),
+            run_id=pipeline.id.get_id(),
             stages=len(stage_results),
         )
         return run
