@@ -54,12 +54,12 @@ package.
 
 ## Running the pipeline (Python only)
 
-The entry point for the pipeline is stored within the package and called `run_pipeline.py`.
-To run the pipeline, run the following code in the terminal (either in the root directory of the
-project, or by specifying the path to `run_pipeline.py` from elsewhere).
+The main runnable example now lives in `examples/pipeline_1/main.py`.
+It builds a three-stage pipeline from numbered scripts under `examples/pipeline_1/scripts/`.
+To run the example, use:
 
 ```shell
-python src/onsrap/run_pipeline.py
+python examples/pipeline_1/main.py
 ```
 
 Alternatively, most Python IDEs allow you to run the code directly using a `run` button.
@@ -80,22 +80,27 @@ Once you've added them, [load these environment variables][docs-loading-environm
 
 ## Project structure layout
 
-The cookiecutter template generated for each project will follow this folder structure:
+The repository now includes a concrete example pipeline layout under `examples/pipeline_1/`:
 
 ```shell
 .
-├── onsrap/
-│   ├── data/
-│   │   ├── raw/
-│   │   ├── interim/
-│   │   └── processed/
-│   └── onsrap/
-│       ├── example_modules/
-│       │   ├── __init__.py
-│       │   └── example_module.py
-│       ├── __init__.py
-│       ├── example_config.yml
-│       └── run_pipeline.py
+├── examples/
+│   └── pipeline_1/
+│       ├── main.py
+│       ├── scripts/
+│       │   ├── 0_data_validation.py
+│       │   ├── 1_preprocessing.py
+│       │   └── 2_reporting.py
+│       ├── data/
+│       │   ├── raw/
+│       │   │   └── orders.csv
+│       │   ├── interim/
+│       │   │   ├── 0_validation_report.json
+│       │   │   └── 1_clean_orders.csv
+│       │   └── processed/
+│       │       ├── 2_sales_summary.json
+│       │       └── 2_revenue_by_region.csv
+│       └── logs/
 └── ...
 ```
 
