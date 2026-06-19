@@ -80,27 +80,22 @@ Once you've added them, [load these environment variables][docs-loading-environm
 
 ## Project structure layout
 
-The repository now includes a concrete example pipeline layout under `examples/pipeline_1/`:
+The cookiecutter template generated for each project will follow this folder structure:
 
 ```shell
 .
-├── examples/
-│   └── pipeline_1/
-│       ├── main.py
-│       ├── scripts/
-│       │   ├── 0_data_validation.py
-│       │   ├── 1_preprocessing.py
-│       │   └── 2_reporting.py
-│       ├── data/
-│       │   ├── raw/
-│       │   │   └── orders.csv
-│       │   ├── interim/
-│       │   │   ├── 0_validation_report.json
-│       │   │   └── 1_clean_orders.csv
-│       │   └── processed/
-│       │       ├── 2_sales_summary.json
-│       │       └── 2_revenue_by_region.csv
-│       └── logs/
+├── onsrap/
+│   ├── data/
+│   │   ├── raw/
+│   │   ├── interim/
+│   │   └── processed/
+│   └── onsrap/
+│       ├── example_modules/
+│       │   ├── __init__.py
+│       │   └── example_module.py
+│       ├── __init__.py
+│       ├── example_config.yml
+│       └── run_pipeline.py
 └── ...
 ```
 
