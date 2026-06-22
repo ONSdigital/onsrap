@@ -1,139 +1,222 @@
-import os
-import time
-import json
-import hashlib
+from __future__ import annotations
 
-from dataclasses import dataclass
+import getpass
+import hashlib
+import subprocess
+import sys
 from datetime import datetime
-from pyspark import SparkSession
-from .stage import Stage
-from .logger import Logger
+from importlib import metadata as importlib_metadata
 from pathlib import Path
+from typing import Any, Callable, Iterable, Mapping, Sequence
+
+from .errors import StageConfigurationError
+from .execution import PythonStageExecutor, StageExecutor
+from .graph import StageGraph
+from .logger import Logger
+from .models import PipelineConfig, PipelineRun, PipelineStatus, RAPConfig, RunManifest, RuntimeID, StageResult, utcnow
+from .stage import Stage
+
 
 class Pipeline:
     def __init__(
-            self, 
-            name: str = None,
-            backend: str = "python",    # Either python or R or maybe Spark depending on the use case
-            sparksession: SparkSession = None,
-            config: dict | str | Path = None, 
-            stages: Stage | list[Stage] | list[Pipeline] | list[Stage, Pipeline] = None, 
-            logger: Logger = None
-            ):
-        self.name = name
+        self,
+        name: str | None = None,
+        backend: str = "python",
+        config: PipelineConfig | RAPConfig | Mapping[str, Any] | str | Path | None = None,
+        stages: Sequence[Stage | Mapping[str, Any] | str | Path | Callable[..., Any]] | None = None,
+        logger: Logger | None = None,
+        executor: StageExecutor | None = None,
+    ):
+        self.name = name or "pipeline"
+        self.backend = backend or "python"
+        self.config = PipelineConfig.from_any(config)
+        if self.config.name is None:
+            self.config.name = self.name
+        self.config.backend = self.backend
+
+        self.logger = logger or Logger(log_dir=self.config.log_dir)
+        self.executor = executor or PythonStageExecutor()
+        self.stages = [self._coerce_stage(stage) for stage in (stages or [])]
+        self.graph = StageGraph.from_stages(self.stages)
         self.id = self._create_runtime_id()
-        self.backend = backend
-        self.sparksession = sparksession
-        self.config = config if config is not None else self._construct_default_config()
-        self.stages = stages if stages is not None else []
-        self.logger = logger if logger is not None else Logger()
-        self.manifest = self._construct_manifest()
+        self.manifest = self._construct_manifest(runtime_id=self.id)
+        self.last_run: PipelineRun | None = None
 
-        self.logger.event("Pipeline initialized", name=self.name, backend=self.backend, id=self.id.get_id())
-
-    def init_stages(self):
-        for stage in self.stages:
-            self.stages.append(Stage(stage))
-
-        self.logger.event("Stages initialized", stages=[stage.name for stage in self.stages])
-
-    def add_stage(self, *stages: Stage | Pipeline):
-        for stage in stages:
-            self.stages.append(stage)
-        self.logger.event("Stage added", stages=[stage.name for stage in stages])
-
-    def run(self):
-        self.validate()
-        self.logger.event("Pipeline started", name=self.name, config=self.config)
-        
-        for stage in self.stages:
-            self.logger.event("Executing stage", name=stage.name)
-        self.logger.event("Pipeline completed", name=self.name)
-
-    def validate(self):
-        self.logger.event("Validating pipeline", name=self.name)
-        # Validation logic
-
-    def _construct_manifest(self) -> RunManifest:
-        # Construct a manifest based on the pipeline's configuration and stages
-        pass
-
-    def _construct_default_config(self) -> RAPConfig:
-        # Construct a default config based on the pipeline's stages and other parameters
-        return RAPConfig()
-    
-    def _create_runtime_id(self) -> str:
-        # Create a unique runtime ID for this pipeline execution
-        now = datetime.now()
-        hash = hashlib.sha256(f"{self.name}_{now}".encode()).hexdigest()
-        short_hash = hash[:8]
-        return RuntimeID(id=f"{now.strftime('%Y-%m-%d_%H%M')}_{short_hash}", timestamp=now, hash=hash, short_hash=short_hash)
-
-    @classmethod
-    def from_dict(cls, cfg: dict) -> Pipeline:
-        return cls(
-            name = cfg.get("name"),
-            backend = cfg.get("backend", "python"),
-            stages = cfg.get("stages", [])      # And so on for all other class args to exhaustion
+        self.logger.event(
+            "Pipeline initialized",
+            name=self.name,
+            backend=self.backend,
+            id=self.id.get_id(),
+            stages=[stage.name for stage in self.stages],
         )
 
-@dataclass
-class RuntimeID:
-    id: str
-    timestamp: datetime
-    hash: str
-    short_hash: str
+    def _coerce_stage(
+        self,
+        stage: Stage | Mapping[str, Any] | str | Path | Callable[..., Any],
+    ) -> Stage:
+        if isinstance(stage, Stage):
+            return stage
 
-    def get_id(self) -> str:
-        return self.id
-    
-    def get_timestamp(self) -> datetime:
-        return self.timestamp
-    
-    def get_hash(self) -> str:
-        return self.hash
-    
-    def get_short_hash(self) -> str:
-        return self.short_hash
+        if isinstance(stage, Mapping):
+            return Stage.from_dict(stage)
 
-@dataclass
-class RAPConfig:
-    log_dir: str = "logs/"
-    data_dir: str = "data/"
+        if callable(stage):
+            return Stage.from_callable(stage)
 
-class RAPDataset:
-    def __init__(self):
-        self.name = "RAPDataset"
+        if isinstance(stage, (str, Path)):
+            return Stage.from_file(stage)
 
-class Logger:
-    def __call__(self, *args, **kwds):
-        print(*args, **kwds)
+        raise StageConfigurationError(f"Unsupported stage specification: {type(stage)!r}.")
 
-    def event(self, event_name: str, **kwargs):
-        # Log the event at this Pipeline's logging location with the provided details
-        pass
+    def _rebuild_graph(self) -> None:
+        self.graph = StageGraph.from_stages(self.stages)
 
-@dataclass
-class RunManifest:
-    rap_name: str
-    run_id: str
-    git_commit: str
-    stages_run: list[str]
-    parameters: dict
-    inputs: dict
-    outputs: dict
-    backend: str
-    package_versions: list[str] | str
-    timestamp: str
-    reason: str | None
-    user: str | None
+    def add_stage(self, *stages: Stage | Mapping[str, Any] | str | Path | Callable[..., Any]) -> None:
+        added_stages = [self._coerce_stage(stage) for stage in stages]
+        self.stages.extend(added_stages)
+        self._rebuild_graph()
+        self.logger.event("Stage added", stages=[stage.name for stage in added_stages])
 
-@dataclass
-class RAPConfig:
-    contents: dict
+    def ordered_stages(self) -> list[Stage]:
+        return self.graph.topological_order()
 
-@dataclass
-class Catalog:
-    name: str
-    description: str
-    contents: dict
+    def validate(self) -> "Pipeline":
+        self.logger.event("Validating pipeline", name=self.name)
+        for stage in self.stages:
+            stage.validate()
+        self.graph.validate()
+        return self
+
+    def run(self) -> PipelineRun:
+        from .runner import PipelineRunner
+
+        return PipelineRunner(logger=self.logger).run(self)
+
+    def _construct_manifest(self, *, runtime_id: RuntimeID) -> RunManifest:
+        return RunManifest(
+            rap_name=self.name,
+            run_id=runtime_id.get_id(),
+            git_commit=self._discover_git_commit(),
+            stages_run=[],
+            parameters=self.config.to_dict(),
+            inputs={stage.name: list(stage.dependencies) for stage in self.stages},
+            outputs={},
+            backend=self.backend,
+            package_versions=self._package_versions(),
+            timestamp=runtime_id.timestamp.isoformat(),
+            reason=self.config.metadata.get("reason"),
+            user=self._current_user(),
+        )
+
+    def _create_runtime_id(self) -> RuntimeID:
+        now = utcnow()
+        digest = hashlib.sha256(f"{self.name}:{self.backend}:{now.isoformat()}".encode("utf-8")).hexdigest()
+        short_hash = digest[:8]
+        return RuntimeID(
+            id=f"{now.strftime('%Y-%m-%d_%H%M%S')}_{short_hash}",
+            timestamp=now,
+            hash=digest,
+            short_hash=short_hash,
+        )
+
+    def _discover_git_commit(self) -> str | None:
+        try:
+            completed = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            return None
+
+        commit = completed.stdout.strip()
+        return commit or None
+
+    def _package_versions(self) -> list[str]:
+        versions = [f"python={sys.version.split()[0]}"]
+        try:
+            versions.append(f"pyyaml={importlib_metadata.version('PyYAML')}")
+        except importlib_metadata.PackageNotFoundError:
+            pass
+        return versions
+
+    def _current_user(self) -> str | None:
+        try:
+            return getpass.getuser()
+        except Exception:
+            return None
+
+    @classmethod
+    def from_files(
+        cls,
+        file_paths: Iterable[str | Path],
+        *,
+        name: str | None = None,
+        backend: str = "python",
+        config: PipelineConfig | RAPConfig | Mapping[str, Any] | str | Path | None = None,
+        dependencies: Mapping[str, Sequence[str]] | None = None,
+        logger: Logger | None = None,
+        executor: StageExecutor | None = None,
+    ) -> "Pipeline":
+        stages: list[Stage] = []
+        for position, file_path in enumerate(file_paths):
+            path = Path(file_path)
+            stage_name = path.stem
+            stage_dependencies = cls._dependencies_for_stage(stage_name, path, dependencies)
+            stages.append(
+                Stage.from_file(
+                    path,
+                    name=stage_name,
+                    dependencies=stage_dependencies,
+                    backend=backend,
+                )
+            )
+
+        return cls(
+            name=name or (stages[0].name if stages else "pipeline"),
+            backend=backend,
+            config=config,
+            stages=stages,
+            logger=logger,
+            executor=executor,
+        )
+
+    @classmethod
+    def from_dict(cls, cfg: Mapping[str, Any]) -> "Pipeline":
+        payload = dict(cfg)
+
+        name = payload.pop("name", None)
+        backend = payload.pop("backend", "python")
+        config = payload.pop("config", None)
+        stages = payload.pop("stages", [])
+
+        if config is None and payload:
+            config = payload
+        elif isinstance(config, Mapping) and payload:
+            combined_config = dict(config)
+            combined_config.update(payload)
+            config = combined_config
+
+        return cls(
+            name=name,
+            backend=backend,
+            config=config,
+            stages=stages,
+        )
+
+    @staticmethod
+    def _dependencies_for_stage(
+        stage_name: str,
+        path: Path,
+        dependencies: Mapping[str, Sequence[str]] | None,
+    ) -> tuple[str, ...]:
+        if not dependencies:
+            return ()
+
+        candidates = (stage_name, path.name, path.stem, str(path), path.as_posix())
+        for candidate in candidates:
+            if candidate in dependencies:
+                return tuple(str(dependency) for dependency in dependencies[candidate])
+
+        return ()
