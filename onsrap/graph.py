@@ -13,9 +13,17 @@ class StageGraph:
 
     @classmethod
     def from_stages(cls, stages: Iterable[Stage]) -> "StageGraph":
+        """
+        This is the primary constructor for StageGraph, which performs validation and normalization of the stage list.
+        """
         return cls(list(stages))
 
     def validate(self) -> None:
+        """
+        Validate the stage graph for issues such as duplicate stage names, missing dependencies, and cycles.
+        """
+
+        # Check for duplicate stages
         names = [stage.name for stage in self.stages]
         seen = set()
         duplicates = []
@@ -31,6 +39,7 @@ class StageGraph:
                 )
             )
 
+        # Check for defined dependencies which are not present in the stage list
         stage_names = set(names)
         missing = []
         for stage in self.stages:
@@ -46,6 +55,25 @@ class StageGraph:
         self.topological_order()
 
     def topological_order(self) -> list[Stage]:
+        """
+        Return the stages in an order that respects their dependencies.
+
+        In graph terms, this is a *topological sort*: if stage ``B`` depends on
+        stage ``A``, then ``A`` will always appear before ``B`` in the returned
+        list. The word "topological" here does not refer to geographic maps or
+        terrain; it means we are arranging nodes in a dependency-safe order.
+
+        The implementation works by repeatedly selecting stages that currently
+        have no unmet dependencies. Those stages are "ready" to run because
+        nothing else needs to happen first. After a ready stage is placed in the
+        output order, the algorithm removes it from the dependency lists of the
+        stages that depend on it. That may free up more stages, which are then
+        added to the ready list.
+
+        If the algorithm cannot place every stage, the graph contains either a
+        cycle or a dependency that could not be resolved. In that case a
+        ``DependencyCycleError`` is raised.
+        """
         stage_by_name = {stage.name: stage for stage in self.stages}
         incoming = {stage.name: set(stage.dependencies) for stage in self.stages}
         dependents = {stage.name: set() for stage in self.stages}
