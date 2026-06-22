@@ -54,12 +54,12 @@ package.
 
 ## Running the pipeline (Python only)
 
-The entry point for the pipeline is stored within the package and called `run_pipeline.py`.
-To run the pipeline, run the following code in the terminal (either in the root directory of the
-project, or by specifying the path to `run_pipeline.py` from elsewhere).
+The main runnable example now lives in `examples/pipeline_1/main.py`.
+It builds a three-stage pipeline from numbered scripts under `examples/pipeline_1/scripts/`.
+To run the example, use:
 
 ```shell
-python src/onsrap/run_pipeline.py
+python examples/pipeline_1/main.py
 ```
 
 Alternatively, most Python IDEs allow you to run the code directly using a `run` button.
