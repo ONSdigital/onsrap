@@ -29,7 +29,7 @@ def resolve_raw_path(context: Any | None, data_root: Path) -> Path:
             if raw_path:
                 return Path(raw_path)
 
-    return data_root / "raw" / "orders.csv"
+    return data_root / "orders.csv"
 
 
 def load_orders(csv_path: Path) -> list[dict[str, str]]:

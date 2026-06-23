@@ -101,7 +101,7 @@ def write_report(report_path: Path, report: dict[str, object]) -> None:
 def main(context=None) -> dict[str, object]:
     data_root = resolve_data_root(context)
     output_root = resolve_output_root(context)
-    raw_path = data_root / "raw" / "orders.csv"
+    raw_path = data_root / "orders.csv"
     report_path = output_root / "interim" / "0_validation_report.json"
 
     rows = load_orders(raw_path)
