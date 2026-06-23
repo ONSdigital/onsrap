@@ -908,3 +908,5 @@ docs/_linkcheck/
 !examples/**/*.csv
 !examples/**/*.xls
 !examples/**/*.xlsx
+
+examples/**/runs/**/

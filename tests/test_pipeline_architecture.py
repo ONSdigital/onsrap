@@ -45,6 +45,40 @@ def test_pipeline_from_files_executes_python_entrypoints(tmp_path: Path) -> None
     assert run.stage_outputs == {"first_stage": "alpha", "second_stage": "alpha-beta"}
 
 
+def test_pipeline_uses_run_specific_output_directory(tmp_path: Path) -> None:
+    writer_stage = tmp_path / "writer_stage.py"
+    writer_stage.write_text(
+        dedent(
+            """
+            from pathlib import Path
+
+            def main(context):
+                output_path = Path(context.run_dir) / "data" / "interim" / "artifact.txt"
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(context.run_id, encoding="utf-8")
+                return {"output_path": str(output_path), "run_id": context.run_id}
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    pipeline = Pipeline.from_files([writer_stage])
+
+    first_run = pipeline.run()
+    second_run = pipeline.run()
+
+    first_output = Path(first_run.stage_outputs["writer_stage"]["output_path"])
+    second_output = Path(second_run.stage_outputs["writer_stage"]["output_path"])
+
+    assert first_run.manifest.run_id != second_run.manifest.run_id
+    assert first_output != second_output
+    assert first_output.exists()
+    assert second_output.exists()
+    assert first_output.parents[2].name == first_run.manifest.run_id
+    assert second_output.parents[2].name == second_run.manifest.run_id
+
+
 def test_pipeline_falls_back_to_subprocess_for_plain_python_scripts(tmp_path: Path) -> None:
     script_stage = tmp_path / "script_stage.py"
     script_stage.write_text("print('script fallback works')\n", encoding="utf-8")

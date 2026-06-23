@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .errors import StageExecutionError
-from .execution import ExecutionContext, utcnow
+from .execution import ExecutionContext
 from .logger import Logger
-from .models import PipelineRun, PipelineStatus
+from .models import PipelineRun, PipelineStatus, now
 
 if TYPE_CHECKING:
     from .pipeline import Pipeline
@@ -19,25 +20,34 @@ class PipelineRunner:
     def run(self, pipeline: "Pipeline") -> PipelineRun:
         pipeline.validate()
 
-        started_at = utcnow()
+        runtime_id = pipeline._create_runtime_id()
+        pipeline.id = runtime_id
+
+        project_root = Path(pipeline.config.project_root or pipeline.config.work_dir)
+        run_dir = project_root / "runs" / runtime_id.get_id()
+        run_dir.mkdir(parents=True, exist_ok=True)
+
+        started_at = now()
         context = ExecutionContext(
             pipeline_name=pipeline.name,
-            run_id=pipeline.id,
+            run_id=runtime_id.get_id(),
             config=pipeline.config,
             logger=self.logger,
+            run_dir=run_dir,
             started_at=started_at,
             working_directory=pipeline.config.work_dir,
         )
 
         ordered_stages = pipeline.ordered_stages()
-        manifest = pipeline._construct_manifest(runtime_id=pipeline.id)
+        manifest = pipeline._construct_manifest(runtime_id=runtime_id)
         manifest.stages_run = []
         manifest.outputs = {}
+        pipeline.manifest = manifest
 
         self.logger.event(
             "Pipeline started",
             name=pipeline.name,
-            run_id=pipeline.id.get_id(),
+            run_id=runtime_id.get_id(),
             stages=[stage.name for stage in ordered_stages],
         )
 
@@ -57,7 +67,7 @@ class PipelineRunner:
                 manifest.stages_run.append(exc.result.name)
                 manifest.outputs[exc.result.name] = exc.result.outputs
 
-            completed_at = utcnow()
+            completed_at = now()
             run = PipelineRun(
                 manifest=manifest,
                 status=PipelineStatus.FAILED,
@@ -71,12 +81,12 @@ class PipelineRunner:
             self.logger.event(
                 "Pipeline failed",
                 name=pipeline.name,
-                run_id=pipeline.id.get_id(),
+                run_id=runtime_id.get_id(),
                 error=str(exc),
             )
             raise
 
-        completed_at = utcnow()
+        completed_at = now()
         run = PipelineRun(
             manifest=manifest,
             status=PipelineStatus.SUCCEEDED,
@@ -91,7 +101,7 @@ class PipelineRunner:
         self.logger.event(
             "Pipeline completed",
             name=pipeline.name,
-            run_id=pipeline.id.get_id(),
+            run_id=runtime_id.get_id(),
             stages=len(stage_results),
         )
         return run

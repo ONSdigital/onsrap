@@ -11,7 +11,7 @@ from typing import Any, Protocol, TYPE_CHECKING
 from .errors import StageExecutionError, StageLoadError
 from .loader import PREFERRED_ENTRYPOINTS, discover_python_entrypoint, load_python_callable
 from .logger import Logger
-from .models import PipelineConfig, StageResult, StageStatus, utcnow
+from .models import PipelineConfig, StageResult, StageStatus, now
 
 if TYPE_CHECKING:
     from .stage import Stage
@@ -23,7 +23,8 @@ class ExecutionContext:
     run_id: str
     config: PipelineConfig
     logger: Logger
-    started_at: datetime = field(default_factory=utcnow)
+    run_dir: Path
+    started_at: datetime = field(default_factory=now)
     working_directory: Path = field(default_factory=Path.cwd)
     stage_results: dict[str, StageResult] = field(default_factory=dict)
     variables: dict[str, Any] = field(default_factory=dict)
@@ -70,7 +71,7 @@ class PythonStageExecutor:
         callable_object: Any,
         source_label: str | None,
     ) -> StageResult:
-        started_at = utcnow()
+        started_at = now()
         context.logger.event(
             "Stage started",
             stage=stage.name,
@@ -81,7 +82,7 @@ class PythonStageExecutor:
         try:
             output = _invoke_callable(callable_object, stage, context)
         except Exception as exc:
-            finished_at = utcnow()
+            finished_at = now()
             result = StageResult(
                 name=stage.name,
                 status=StageStatus.FAILED,
@@ -100,7 +101,7 @@ class PythonStageExecutor:
                 result=result,
             ) from exc
 
-        finished_at = utcnow()
+        finished_at = now()
         result = _build_success_result(
             stage,
             started_at,
@@ -129,8 +130,8 @@ class PythonStageExecutor:
                     failed_result = StageResult(
                         name=stage.name,
                         status=StageStatus.FAILED,
-                        started_at=utcnow(),
-                        finished_at=utcnow(),
+                        started_at=now(),
+                        finished_at=now(),
                         outputs=None,
                         metadata=dict(stage.metadata),
                         error=str(exc),
@@ -150,8 +151,8 @@ class PythonStageExecutor:
                 failed_result = StageResult(
                     name=stage.name,
                     status=StageStatus.FAILED,
-                    started_at=utcnow(),
-                    finished_at=utcnow(),
+                    started_at=now(),
+                    finished_at=now(),
                     outputs=None,
                     metadata=dict(stage.metadata),
                     error="No callable entrypoint was found in the Python file.",
@@ -170,7 +171,7 @@ class PythonStageExecutor:
         path = stage.source
         assert isinstance(path, Path)
 
-        started_at = utcnow()
+        started_at = now()
         context.logger.event(
             "Stage started",
             stage=stage.name,
@@ -190,7 +191,7 @@ class PythonStageExecutor:
             check=False,
         )
 
-        finished_at = utcnow()
+        finished_at = now()
         result = StageResult(
             name=stage.name,
             status=StageStatus.SUCCEEDED if completed.returncode == 0 else StageStatus.FAILED,
