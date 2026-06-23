@@ -14,6 +14,13 @@ def resolve_data_root(context: Any | None = None) -> Path:
     return Path(__file__).resolve().parents[1] / "data"
 
 
+def resolve_output_root(context: Any | None = None) -> Path:
+    if context is not None and getattr(context, "run_dir", None) is not None:
+        return Path(context.run_dir) / "data"
+
+    return Path(__file__).resolve().parents[1] / "data"
+
+
 def resolve_raw_path(context: Any | None, data_root: Path) -> Path:
     if context is not None:
         validation_result = context.result_for("0_data_validation")
@@ -106,8 +113,9 @@ def build_summary(source_path: Path, clean_path: Path, rows: list[dict[str, obje
 
 def main(context=None) -> dict[str, object]:
     data_root = resolve_data_root(context)
+    output_root = resolve_output_root(context)
     raw_path = resolve_raw_path(context, data_root)
-    clean_path = data_root / "interim" / "1_clean_orders.csv"
+    clean_path = output_root / "interim" / "1_clean_orders.csv"
 
     rows = load_orders(raw_path)
     cleaned_rows = clean_rows(rows)

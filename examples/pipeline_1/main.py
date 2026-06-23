@@ -27,6 +27,7 @@ def build_pipeline() -> Pipeline:
         name="pipeline_1",
         backend="python",
         work_dir=PIPELINE_ROOT,
+        project_root=PIPELINE_ROOT,
         data_dir=DATA_DIR,
         log_dir=LOG_DIR,
         metadata={

@@ -24,6 +24,13 @@ def resolve_data_root(context: Any | None = None) -> Path:
     return Path(__file__).resolve().parents[1] / "data"
 
 
+def resolve_output_root(context: Any | None = None) -> Path:
+    if context is not None and getattr(context, "run_dir", None) is not None:
+        return Path(context.run_dir) / "data"
+
+    return Path(__file__).resolve().parents[1] / "data"
+
+
 def load_orders(csv_path: Path) -> list[dict[str, str]]:
     with csv_path.open(newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle))
@@ -93,8 +100,9 @@ def write_report(report_path: Path, report: dict[str, object]) -> None:
 
 def main(context=None) -> dict[str, object]:
     data_root = resolve_data_root(context)
+    output_root = resolve_output_root(context)
     raw_path = data_root / "raw" / "orders.csv"
-    report_path = data_root / "interim" / "0_validation_report.json"
+    report_path = output_root / "interim" / "0_validation_report.json"
 
     rows = load_orders(raw_path)
     issues = validate_rows(rows)

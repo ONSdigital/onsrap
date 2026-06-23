@@ -14,6 +14,13 @@ def resolve_data_root(context: Any | None = None) -> Path:
     return Path(__file__).resolve().parents[1] / "data"
 
 
+def resolve_output_root(context: Any | None = None) -> Path:
+    if context is not None and getattr(context, "run_dir", None) is not None:
+        return Path(context.run_dir) / "data"
+
+    return Path(__file__).resolve().parents[1] / "data"
+
+
 def resolve_clean_path(context: Any | None, data_root: Path) -> Path:
     if context is not None:
         preprocessing_result = context.result_for("1_preprocessing")
@@ -88,9 +95,10 @@ def write_region_breakdown(region_path: Path, summary: dict[str, object]) -> Non
 
 def main(context=None) -> dict[str, object]:
     data_root = resolve_data_root(context)
+    output_root = resolve_output_root(context)
     clean_path = resolve_clean_path(context, data_root)
-    summary_path = data_root / "processed" / "2_sales_summary.json"
-    region_breakdown_path = data_root / "processed" / "2_revenue_by_region.csv"
+    summary_path = output_root / "processed" / "2_sales_summary.json"
+    region_breakdown_path = output_root / "processed" / "2_revenue_by_region.csv"
 
     rows = load_orders(clean_path)
     summary = build_summary(rows)
