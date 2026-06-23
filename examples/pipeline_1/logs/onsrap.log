@@ -24,3 +24,22 @@
 2026-06-22 13:17:50,195 Stage started | {"mode": "callable", "source": "D:\\hub\\onsrap\\examples\\pipeline_1\\scripts\\2_reporting.py", "stage": "2_reporting"}
 2026-06-22 13:17:50,222 Stage finished | {"mode": "callable", "stage": "2_reporting", "status": "succeeded"}
 2026-06-22 13:17:50,223 Pipeline completed | {"name": "pipeline_1", "run_id": "2026-06-22_121749_ae8ff387", "stages": 3}
+2026-06-23 10:17:19,051 Pipeline initialized | {"backend": "python", "name": "pipeline_1", "stages": ["0_data_validation", "1_preprocessing", "2_reporting"]}
+2026-06-23 10:17:19,052 Validating pipeline | {"name": "pipeline_1"}
+2026-06-23 10:17:19,109 Pipeline started | {"name": "pipeline_1", "run_id": "2026-06-23_101719_878fcb33", "stages": ["0_data_validation", "1_preprocessing", "2_reporting"]}
+2026-06-23 10:17:19,109 Executing stage | {"name": "0_data_validation", "source": "D:\\hub\\onsrap\\examples\\pipeline_1\\scripts\\0_data_validation.py"}
+2026-06-23 10:17:19,114 Stage started | {"mode": "callable", "source": "D:\\hub\\onsrap\\examples\\pipeline_1\\scripts\\0_data_validation.py", "stage": "0_data_validation"}
+2026-06-23 10:17:19,114 Pipeline failed | {"error": "Callable stage failed.", "name": "pipeline_1", "run_id": "2026-06-23_101719_878fcb33"}
+2026-06-23 10:19:03,621 Pipeline initialized | {"backend": "python", "name": "pipeline_1", "stages": ["0_data_validation", "1_preprocessing", "2_reporting"]}
+2026-06-23 10:19:03,621 Validating pipeline | {"name": "pipeline_1"}
+2026-06-23 10:19:03,676 Pipeline started | {"name": "pipeline_1", "run_id": "2026-06-23_101903_e95b29dc", "stages": ["0_data_validation", "1_preprocessing", "2_reporting"]}
+2026-06-23 10:19:03,677 Executing stage | {"name": "0_data_validation", "source": "D:\\hub\\onsrap\\examples\\pipeline_1\\scripts\\0_data_validation.py"}
+2026-06-23 10:19:03,681 Stage started | {"mode": "callable", "source": "D:\\hub\\onsrap\\examples\\pipeline_1\\scripts\\0_data_validation.py", "stage": "0_data_validation"}
+2026-06-23 10:19:03,683 Stage finished | {"mode": "callable", "stage": "0_data_validation", "status": "succeeded"}
+2026-06-23 10:19:03,683 Executing stage | {"name": "1_preprocessing", "source": "D:\\hub\\onsrap\\examples\\pipeline_1\\scripts\\1_preprocessing.py"}
+2026-06-23 10:19:03,687 Stage started | {"mode": "callable", "source": "D:\\hub\\onsrap\\examples\\pipeline_1\\scripts\\1_preprocessing.py", "stage": "1_preprocessing"}
+2026-06-23 10:19:03,688 Stage finished | {"mode": "callable", "stage": "1_preprocessing", "status": "succeeded"}
+2026-06-23 10:19:03,688 Executing stage | {"name": "2_reporting", "source": "D:\\hub\\onsrap\\examples\\pipeline_1\\scripts\\2_reporting.py"}
+2026-06-23 10:19:03,692 Stage started | {"mode": "callable", "source": "D:\\hub\\onsrap\\examples\\pipeline_1\\scripts\\2_reporting.py", "stage": "2_reporting"}
+2026-06-23 10:19:03,695 Stage finished | {"mode": "callable", "stage": "2_reporting", "status": "succeeded"}
+2026-06-23 10:19:03,695 Pipeline completed | {"name": "pipeline_1", "run_id": "2026-06-23_101903_e95b29dc", "stages": 3}
