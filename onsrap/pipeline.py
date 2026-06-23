@@ -4,7 +4,6 @@ import getpass
 import hashlib
 import subprocess
 import sys
-from datetime import datetime
 from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
@@ -13,7 +12,7 @@ from .errors import StageConfigurationError
 from .execution import PythonStageExecutor, StageExecutor
 from .graph import StageGraph
 from .logger import Logger
-from .models import PipelineConfig, PipelineRun, PipelineStatus, RAPConfig, RunManifest, RuntimeID, StageResult, utcnow
+from .models import PipelineConfig, PipelineRun, PipelineStatus, RAPConfig, RunManifest, RuntimeID, StageResult, now
 from .stage import Stage
 
 
@@ -38,15 +37,14 @@ class Pipeline:
         self.executor = executor or PythonStageExecutor()
         self.stages = [self._coerce_stage(stage) for stage in (stages or [])]
         self.graph = StageGraph.from_stages(self.stages)
-        self.id = self._create_runtime_id()
-        self.manifest = self._construct_manifest(runtime_id=self.id)
+        self.id: RuntimeID | None = None
+        self.manifest: RunManifest | None = None
         self.last_run: PipelineRun | None = None
 
         self.logger.event(
             "Pipeline initialized",
             name=self.name,
             backend=self.backend,
-            id=self.id.get_id(),
             stages=[stage.name for stage in self.stages],
         )
 
@@ -109,12 +107,12 @@ class Pipeline:
         )
 
     def _create_runtime_id(self) -> RuntimeID:
-        now = utcnow()
-        digest = hashlib.sha256(f"{self.name}:{self.backend}:{now.isoformat()}".encode("utf-8")).hexdigest()
+        current_time = now()
+        digest = hashlib.sha256(f"{self.name}:{self.backend}:{current_time.isoformat()}".encode("utf-8")).hexdigest()
         short_hash = digest[:8]
         return RuntimeID(
-            id=f"{now.strftime('%Y-%m-%d_%H%M%S')}_{short_hash}",
-            timestamp=now,
+            id=f"{current_time.strftime('%Y-%m-%d_%H%M%S')}_{short_hash}",
+            timestamp=current_time,
             hash=digest,
             short_hash=short_hash,
         )
