@@ -81,7 +81,7 @@ class StageGraph:
             for dependency in stage.dependencies:
                 if dependency not in dependents:
                     raise MissingDependencyError(
-                        "Unknown stage dependency: {0} -> {1}".format(stage.name, dependency)
+                        f"Unknown stage dependency: {stage.name} -> {dependency}"
                     )
                 dependents[dependency].add(stage.name)
 
