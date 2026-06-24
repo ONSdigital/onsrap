@@ -36,6 +36,11 @@ def test_pipeline_from_files_executes_python_entrypoints(tmp_path: Path) -> None
     pipeline = Pipeline.from_files(
         [first_stage, second_stage],
         dependencies={"second_stage": ("first_stage",)},
+        config={
+            "work_dir": tmp_path,
+            "project_root": tmp_path,
+            "log_dir": tmp_path / "logs",
+        },
     )
 
     run = pipeline.run()
@@ -90,7 +95,15 @@ def test_pipeline_falls_back_to_subprocess_for_plain_python_scripts(tmp_path: Pa
     script_stage = tmp_path / "script_stage.py"
     script_stage.write_text("print('script fallback works')\n", encoding="utf-8")
 
-    pipeline = Pipeline.from_files([script_stage], name="script-pipeline")
+    pipeline = Pipeline.from_files(
+        [script_stage],
+        name="script-pipeline",
+        config={
+            "work_dir": tmp_path,
+            "project_root": tmp_path,
+            "log_dir": tmp_path / "logs",
+        },
+    )
     run = pipeline.run()
 
     assert run.stage_results[0].outputs.strip() == "script fallback works"
