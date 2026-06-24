@@ -63,7 +63,14 @@ def test_pipeline_uses_run_specific_output_directory(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    pipeline = Pipeline.from_files([writer_stage])
+    pipeline = Pipeline.from_files(
+        [writer_stage],
+        config={
+            "work_dir": tmp_path,
+            "project_root": tmp_path,
+            "log_dir": tmp_path / "logs",
+        },
+    )
 
     first_run = pipeline.run()
     second_run = pipeline.run()
