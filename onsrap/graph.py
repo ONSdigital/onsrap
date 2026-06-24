@@ -5,7 +5,6 @@ from typing import Iterable
 
 from .errors import DependencyCycleError, DuplicateStageError, MissingDependencyError
 from .stage import Stage
-from onsrap import stage
 
 
 @dataclass
