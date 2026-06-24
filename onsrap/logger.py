@@ -20,7 +20,8 @@ class Logger:
         self.log_dir = Path(self.config.log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
-        self._logger = logging.getLogger(self.config.logger_name)
+        logger_name = f"{self.config.logger_name}:{self.log_dir.resolve()}"
+        self._logger = logging.getLogger(logger_name)
         if not getattr(self._logger, "_onsrap_configured", False):
             self._logger.setLevel(getattr(logging, self.config.log_level.upper(), logging.INFO))
             self._logger.propagate = False
