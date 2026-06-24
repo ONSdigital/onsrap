@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Mapping, Optional, Union
@@ -24,10 +24,6 @@ class PipelineStatus(str, Enum):
 
 def now() -> datetime:
     return datetime.now()
-
-
-def utcnow() -> datetime:
-    return now()
 
 
 @dataclass

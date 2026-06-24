@@ -13,9 +13,7 @@ class StageGraph:
 
     @classmethod
     def from_stages(cls, stages: Iterable[Stage]) -> "StageGraph":
-        """
-        This is the primary constructor for StageGraph, which performs validation and normalization of the stage list.
-        """
+        """Primary constructor for :class:`StageGraph` that normalizes the stage list."""
         return cls(list(stages))
 
     def validate(self) -> None:
@@ -80,6 +78,10 @@ class StageGraph:
 
         for stage in self.stages:
             for dependency in stage.dependencies:
+                if dependency not in dependents:
+                    raise MissingDependencyError(
+                        f"Unknown stage dependency: {stage.name} -> {dependency}"
+                    )
                 dependents[dependency].add(stage.name)
 
         original_order = [stage.name for stage in self.stages]

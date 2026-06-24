@@ -12,7 +12,7 @@ from .errors import StageConfigurationError
 from .execution import PythonStageExecutor, StageExecutor
 from .graph import StageGraph
 from .logger import Logger
-from .models import PipelineConfig, PipelineRun, PipelineStatus, RAPConfig, RunManifest, RuntimeID, StageResult, now
+from .models import PipelineConfig, PipelineRun, RAPConfig, RunManifest, RuntimeID, now
 from .stage import Stage
 
 
@@ -158,7 +158,7 @@ class Pipeline:
         executor: StageExecutor | None = None,
     ) -> "Pipeline":
         stages: list[Stage] = []
-        for position, file_path in enumerate(file_paths):
+        for file_path in file_paths:
             path = Path(file_path)
             stage_name = path.stem
             stage_dependencies = cls._dependencies_for_stage(stage_name, path, dependencies)
