@@ -19,6 +19,30 @@ if TYPE_CHECKING:
 
 @dataclass
 class ExecutionContext:
+    """
+    Holds information needed to run the pipeline.
+
+    Parameters 
+    ----------
+    ``pipeline_name`` : str
+        The name of the pipeline.
+    ``run_id`` : str
+        The unique identifier for the current run of the pipeline.
+    ``config`` : ``PipelineConfig`` class instance
+        The configuration required for the pipeline.
+    ``logger`` : ``Logger`` class instance
+        The logger used for this pipeline run.
+    ``run_dir``: Path
+        The directory that the run saved to.
+    ``started_at`` : datetime, default = current time
+        The time that the pipeline run started.
+    ``working_directory`` : Path, default = current working directory
+        The directory that the work is taking place in.
+    ``stage_results`` : dict[str, StageResult], default = dict
+        Stores the logs for the stage run.
+    ``variables`` : dict[str, Any], default = dict
+        Stores relevant variables regarding the stage run and their results.
+    """
     pipeline_name: str
     run_id: str
     config: PipelineConfig
@@ -30,28 +54,105 @@ class ExecutionContext:
     variables: dict[str, Any] = field(default_factory=dict)
 
     def record(self, result: StageResult) -> StageResult:
+        """
+        Extracts key information from ``StageResult``.
+
+        Saves all information on the results of the Stage to the ``stage_results`` attribute
+        and exclusively metadata outputs regarding the run to the ``variables`` attribute.
+
+        Parameters 
+        ----------
+        ``result`` : ``StageResult``
+            An instance of a ``StageResult`` class
+
+        Returns
+        ------
+        ``result``
+            An unchanged ``StageResult`` instance.
+        """ 
         self.stage_results[result.name] = result
         self.variables[result.name] = result.outputs
         return result
 
     def result_for(self, stage_name: str) -> StageResult | None:
+        """
+        Getter function that returns the stage_results for a specific ``Stage``.
+
+        Parameters
+        ----------
+        ``stage_name`` : str
+            The name of the ``Stage`` that you are calling the results for.
+
+        Returns 
+        -------
+        ``stage_results`` 
+            Attribute for the specific `Stage` named.
+        """
         return self.stage_results.get(stage_name)
 
     @property
     def stage_outputs(self) -> dict[str, Any]:
+        """
+        Creates a ``stage_outputs`` attribute for the ``ExecutionContext`` class. 
+
+        Extracts the ```outputs`` attribute from the ``stage_results`` class for each
+        ``Stage`` name.
+
+        Returns 
+        ------- 
+        ``stage_outputs``
+            Dictionary containing the name of the stage and the associated outputs of 
+            the run.
+        """
         return {name: result.outputs for name, result in self.stage_results.items()}
 
 
 class StageExecutor(Protocol):
+    """
+    Child class of ``Protocol`` 
+    Implementation required
+    """
     def execute(self, stage: "Stage", context: ExecutionContext) -> StageResult:
+        """
+        Method to run ``Stage`` however implementation required
+        """
         ...
 
 
 class PythonStageExecutor:
+    """
+    Class to run Python `Stage`.
+
+    Contains methods that allow automatic running of individual `Stage` processes for
+    a pipeline. 
+    """
     def __init__(self, preferred_entrypoints: tuple[str, ...] = PREFERRED_ENTRYPOINTS):
         self.preferred_entrypoints = preferred_entrypoints
 
     def execute(self, stage: "Stage", context: ExecutionContext) -> StageResult:
+        """
+        Main function to select how ``Stage`` is run.
+
+        Identifies the type of ``source`` within the ``Stage`` and runs the relevant 
+        function for that type.
+
+        Parameters
+        ----------
+        ``stage`` : ``Stage`` class
+            The ``Stage`` that is attempting to be run.
+
+        ``context`` : ``ExecutionContext`` class
+            The metadata required to run the ``Stage``.
+
+        Return
+        ------
+        ``StageResult`` instance.
+
+        Raise
+        -----
+        ``StageExecutionError``
+            If the ``source`` is not a Path or a callable object. 
+        """
         if callable(stage.source):
             return self._execute_callable(stage, context, stage.source, stage.source_label)
 
@@ -71,6 +172,36 @@ class PythonStageExecutor:
         callable_object: Any,
         source_label: str | None,
     ) -> StageResult:
+        """
+        Attempt to run a callable object.
+
+        Creates a logging instance and attempts to run the callable parsed. If
+        the callable cannot be run, an error is flagged and the ``StageResult``
+        instance created shows a failure. If it can be run, the callable is run
+        and the ``StageResult`` instance shows a success. Metadata is kept for 
+        the attempt including duration, ``name``, ``outputs``, ``source``, ``mode`` 
+        attempted, and ``errors``.
+
+        Parameters
+        ----------
+        ``stage`` : ``Stage`` class
+            A ``Stage`` class instance for the stage being run.
+        ``context`` : ``ExecutionContext`` class
+            The metadata required to run the ``Stage``.
+        ``callable_object`` : Any
+            The callable attempting to be run.
+        ``source_label`` : str or None
+            The type of ``source`` for the ``Stage``.
+
+        Return
+        ------
+        ``StageResult`` class instance
+
+        Raise
+        -----
+        ``StageExecutionError``
+            If the callable object cannot be run
+        """
         started_at = now()
         context.logger.event(
             "Stage started",
@@ -118,6 +249,33 @@ class PythonStageExecutor:
         return result
 
     def _execute_file(self, stage: "Stage", context: ExecutionContext) -> StageResult:
+        """
+        Attempt to run a file.
+
+        Creates a logging instance and attempts to run the file parsed based on an entrypoint.
+        If there is no entrypoint or the entrypoint is not a callable object, an error will be 
+        raised. ``_execute_subprocess()`` method called if no entrypoint is found. A 
+        ``StageResult`` instance will be created to log the results of the ``Stage``run regardless 
+        of success or failure.
+
+        Parameters
+        ----------
+        ``stage`` : ``Stage`` class
+            A ``Stage`` class instance for the stage being run.
+        ``context`` : ``ExecutionContext`` class
+            The metadata required to run the ``Stage``.
+
+        Return
+        ------
+        ``StageResult`` class instance
+
+        Raise
+        -----
+        ``StageLoadError``
+            If the entrypoint in the stage is unable to be run.
+        ``StageExecutionError``
+            If the entrypoint is not found.
+        """
         path = stage.source
         assert isinstance(path, Path)
 
@@ -168,6 +326,30 @@ class PythonStageExecutor:
         return self._execute_subprocess(stage, context)
 
     def _execute_subprocess(self, stage: "Stage", context: ExecutionContext) -> StageResult:
+        """
+        Run the entire Python file for the ``Stage`` from the top.
+
+        If the ``Stage`` source is a file but does not have a callable entrypoint, this method
+        will run the entire script top to bottom. The results of the ``Stage`` are recorded
+        as a ``StageResult`` instance and logging processes are complete.
+
+        Parameters
+        ----------
+        ``stage`` : ``Stage`` class
+            A ``Stage`` class instance for the stage being run.
+        ``context`` : ``ExecutionContext`` class
+            The metadata required to run the ``Stage``.
+        
+        Return
+        ------
+        ``result``
+            A ``StageResult`` instance holding information on the ``Stage``.
+
+        Raise
+        -----
+        ``StageExecutionError``
+            If the ``Stage`` script was unable to be run successfully.
+        """
         path = stage.source
         assert isinstance(path, Path)
 
@@ -228,6 +410,26 @@ class PythonStageExecutor:
 
 
 def _invoke_callable(callable_object: Any, stage: "Stage", context: ExecutionContext) -> Any:
+    """
+    Assigns appropriate parameters for a callable and runs it. 
+
+    Searches for parameter terms that likely refer to context or stage. If none of these are found, 
+    assigns ``context`` as the first parameter and ``stage`` as the second.  
+
+    Parameters
+    ----------
+    ``callable_object`` : Any 
+        The callable item that is going to be run. 
+    ``stage`` : ``Stage`` class 
+        The ``Stage`` class instance to be a parameter for the ``callable_object``. 
+    ``context`` : ``ExecutionContext`` class
+        The ``ExecutionContext`` class instance to be a parameter for the ``callable_object``. 
+    
+    Returns
+    -------
+    ``callable_object``
+        An invocation of the ``callable_object`` with appropriately assigned parameters.
+    """
     signature = inspect.signature(callable_object)
     parameters = list(signature.parameters.values())
 
@@ -282,6 +484,30 @@ def _build_success_result(
     *,
     source: str | None = None,
 ) -> StageResult:
+    """
+    Create a ``StageResult`` instance showing a successful stage run.
+
+    If the output of a ``Stage`` run is a ``StageResult`` class, set missing attributes to relevant
+    information from the ``Stage``. 
+
+    Parameters
+    ----------
+    ``stage`` : ``Stage`` class
+        The ``Stage`` class instance being run.
+    ``started_at`` : datetime
+        The time and date that the run started. 
+    ``finished_at`` : datetime
+        The time and date that the run ended.
+    ``output`` : Any
+        The output produced from the stage run.
+    ``source`` : str or None
+        The file/callable being run in the stage.
+        
+    Return
+    ------
+    ``StageResult`` instance
+        Containing metadata for the stage run and showing that the run was a success. 
+    """
     if isinstance(output, StageResult):
         if output.name != stage.name:
             output.name = stage.name
