@@ -9,16 +9,42 @@ from .stage import Stage
 
 @dataclass
 class StageGraph:
+    """
+    Represents an order to run stages.
+
+    Holds an order that stages need to run in based on dependencies and logic. 
+
+    Parameters
+    ----------
+    ``stages`` : list of ``Stage`` class items
+    """
     stages: list[Stage] = field(default_factory=list)
 
     @classmethod
     def from_stages(cls, stages: Iterable[Stage]) -> "StageGraph":
-        """Primary constructor for :class:`StageGraph` that normalizes the stage list."""
+        """
+        This is the primary constructor for StageGraph, which performs validation and normalization of the stage list.
+
+        Parameters
+        ----------
+        ``stages`` : Iterable of ``Stage`` class instances
+
+        Returns
+        -------
+        The ``stages`` parameter as a list.
+        """
         return cls(list(stages))
 
     def validate(self) -> None:
         """
         Validate the stage graph for issues such as duplicate stage names, missing dependencies, and cycles.
+
+        Raises
+        ------
+        ``DuplicateStageError``
+            If the stage name appears multiple times in the stage list. 
+        ``MissingDependencyError``
+            If there are unknown dependencies.
         """
 
         # Check for duplicate stages
@@ -68,9 +94,16 @@ class StageGraph:
         stages that depend on it. That may free up more stages, which are then
         added to the ready list.
 
-        If the algorithm cannot place every stage, the graph contains either a
-        cycle or a dependency that could not be resolved. In that case a
-        ``DependencyCycleError`` is raised.
+        Returns 
+        -------
+        A list of stages ordered in the way that they need to be run through the 
+        pipeline. 
+
+        Raises
+        ------
+        ``DependencyCycleError``
+            If the algorithm cannot place every stage, the graph contains either a
+            cycle or a dependency that could not be resolved.
         """
         stage_by_name = {stage.name: stage for stage in self.stages}
         incoming = {stage.name: set(stage.dependencies) for stage in self.stages}
