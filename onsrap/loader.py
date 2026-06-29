@@ -23,9 +23,23 @@ def discover_python_entrypoint(path: Path) -> str | None:
     the module. That keeps discovery fast and avoids running stage code just to
     learn how it should be invoked.
 
-    Returns ``None`` when the file exists but does not define a preferred
+    Parameters
+    ----------
+    ``path`` : Path 
+        File path for the stage being run. 
+
+    Returns
+    -------
+    String item containing the name of the ``PREFERRED_ENTRYPOINTS`` item relevant 
+    for the stages.
+    ``None`` when the file exists but does not define a preferred
     callable, which signals to the executor that it should treat the file as a
     script-style stage instead.
+
+    Raises
+    ------
+    ``StageConfigurationError``
+        If the file path requested for the ``Stage`` does not exist.
     """
     
     file_path = Path(path)
@@ -61,9 +75,23 @@ def load_python_callable(path: Path, entrypoint: str):
     receive the execution context. It is kept separate from module loading so
     the executor can reuse the same import path for multiple runtime strategies.
 
-    A ``StageConfigurationError`` is raised if the chosen entrypoint does not
-    exist or is not callable, because that means the stage definition and the
-    executable surface no longer agree.
+    Parameters
+    ----------
+    ``path`` : Path
+        The file path for the stage being run. 
+    ``entrypoint`` : str
+        The name of the entrypoint function defined in the stage script.
+
+    Raises
+    ------
+    ``StageConfigurationError`` 
+    If the chosen entrypoint does not exist or is not callable, because that means 
+    the stage definition and the executable surface no longer agree.
+
+    Returns
+    -------
+    ``target`` 
+        The ``entrypoint`` attribute of the module called to run the stage.
     """
     module = load_python_module(path)
     target = getattr(module, entrypoint, None)
@@ -87,9 +115,23 @@ def load_python_module(path: Path) -> ModuleType:
 
     The generated name is derived from the file path so repeated loads of the
     same stage remain stable during a run, while still avoiding collisions with
-    other Python modules. Import failures are converted into ``StageLoadError``
-    so callers can report a stage-specific problem rather than a raw import
-    exception.
+    other Python modules. 
+    
+    Parameters
+    ----------
+    ``path`` : Path 
+        The path for the stage. 
+
+    Returns
+    -------
+    ``module``
+        The set of code being run for the stage. 
+    
+    Raises
+    ------
+    ``StageLoadError`` 
+        If the file is unable to be imported so callers can report a stage-specific
+        problem rather than a raw import exception.
     """
     file_path = Path(path)
     if not file_path.exists():
