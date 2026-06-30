@@ -64,7 +64,7 @@ class Pipeline:
         self.config.backend = self.backend
 
         self.logger = logger or Logger(log_dir=self.config.log_dir)
-        self.executor = executor or PythonStageExecutor()
+        self.executor = PythonStageExecutor() if executor is None else executor
         self.stages = [self._coerce_stage(stage) for stage in (stages or [])]
         self.dependencies = dependencies
         if dependencies is not None and stages is None:
@@ -73,7 +73,8 @@ class Pipeline:
             "parse them to the Pipeline Constructor.")
         if dependencies is not None:
             self._assign_dependencies(dependencies,self.stages)
-        self.graph = StageGraph.from_stages(self.stages)
+        self.graph = StageGraph.from_stages(self.stages) if len(self.stages) > 0 else StageGraph()
+        # TODO: assess this graph and Executor default value instantiation behaviour
         self.id: RuntimeID | None = None
         self.manifest: RunManifest | None = None
         self.last_run: PipelineRun | None = None
@@ -93,6 +94,8 @@ class Pipeline:
 
         return stages
 
+    # TODO: Add a method to add dependencies to the pipeline after initialization
+    # TODO: Re-order methods to be more logical/readable in order (public, private, classmethods, staticmethods)
     def _coerce_stage(
         self,
         stage: Stage | Mapping[str, Any] | str | Path | Callable[..., Any],
