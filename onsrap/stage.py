@@ -83,7 +83,7 @@ class Stage:
         If the stage ``name`` is empty or if the source is not a supported type.
     """
     name: str
-    source: Union[Path, Callable[..., Any], None] = None
+    source: Path | Callable[..., Any] | None = None
     dependencies: tuple[str, ...] = field(default_factory=tuple)
     metadata: dict[str, Any] = field(default_factory=dict)
     entrypoint: Optional[str] = None
