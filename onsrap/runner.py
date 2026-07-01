@@ -14,10 +14,39 @@ if TYPE_CHECKING:
 
 
 class PipelineRunner:
+    """
+    Represents the information required to run the Pipeline. 
+
+    Parameters
+    ----------
+    ``logger`` : Logger class type
+        Information used to log progress throughout the Pipeline. 
+    """
     def __init__(self, logger: Logger | None = None):
         self.logger = logger or Logger()
 
     def run(self, pipeline: "Pipeline") -> PipelineRun:
+        """
+        Method that runs a ``Pipeline`` instance. 
+
+        This method validates the source information, establishes the directories and 
+        the context to run the pipeline within, sets out the manifest for the run, attempts
+        to run the stages in the order outlined by the ``StageGraph`` instance and logs all
+        progress alongside relevant statuses.
+
+        It returns a PipelineRun instance containing metadata and logging information for the 
+        specific run of the whole Pipeline. 
+
+        Parameters
+        ----------
+        ``pipeline`` : Pipeline
+            A Pipeline instance that this method will run. 
+
+        Raises
+        ------
+        ``StageExecutionError``
+            If the stage is unable to be run. Logs will be created to show a failed stage. 
+        """
         pipeline.validate()
 
         runtime_id = pipeline._create_runtime_id()
@@ -108,6 +137,11 @@ class PipelineRunner:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """
+    Determines what arguments are needed when running a Pipeline from the command line. 
+
+    Enables stages to be input, followed by a name if provided. 
+    """
     parser = argparse.ArgumentParser(description="Run an onsrap pipeline from Python files.")
     parser.add_argument("stages", nargs="+", help="One or more Python stage files to run.")
     parser.add_argument("--name", default=None, help="Optional pipeline name.")
@@ -115,6 +149,24 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """
+    Entrypoint to the pipeline. 
+
+    This function can be called from the command line. It builds a parser which enables
+    the arguments to be held before using those arguments to build a Pipeline instance.
+    The pipeline.run() method is then run which runs the entire pipeline. If this runs 
+    successfully, a 0 is returned which is the success code. 
+
+    Parameters
+    ----------
+    ``argv`` : list[str] or None
+        Command line arguments to parse. 
+    
+    Returns
+    -------
+    int 
+        Success code for completion of the run. 
+    """
     from .pipeline import Pipeline
 
     args = build_parser().parse_args(argv)

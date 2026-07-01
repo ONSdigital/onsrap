@@ -16,7 +16,32 @@ from .models import PipelineConfig, PipelineRun, RAPConfig, RunManifest, Runtime
 from .stage import Stage
 
 
+
 class Pipeline:
+    """
+    Represents an end-to-end code run. This class brings together class instances 
+    from other modules within the package to establish what the Pipeline is. 
+
+    Sets up the metadata, configurations, logging, and executors required to run the 
+    Pipeline. Assigns multiple attributes including those not initialised such as, 
+    ``id``, ``graph``, ``manifest``, and ``last_run``. These take the forms of other 
+    classes defined in other modules within this package. 
+
+    Parameters
+    ----------
+    ``name`` : str or None
+        What the pipeline is called.
+    ``backend`` : str, default = "python"
+        The system used to run the pipeline. 
+    ``config`` : PipelineConfig | RAPConfig | Mapping[str, Any] | str | Path | None 
+        The instance containing the required information on running the Pipeline. 
+    ``stages`` : sequence of Stage, Mapping[str, Any], str, Path, Callable, or None. 
+        The required steps within the Pipeline. 
+    ``logger`` : Logger or None
+        The system that is used to track the progress of the Pipeline. 
+    ``executor`` : StageExecutor or None
+        The way that the Pipeline is actively run. 
+    """
     def __init__(
         self,
         name: str | None = None,
@@ -52,6 +77,28 @@ class Pipeline:
         self,
         stage: Stage | Mapping[str, Any] | str | Path | Callable[..., Any],
     ) -> Stage:
+        """
+        Extracts the ``Stage`` information from the provided stages in the Pipeline. 
+
+        Enables mappings, strings, paths, or callables to be parsed and converted into 
+        a useable ``Stage`` class instance. If a ``Stage`` class instance is parsed, return 
+        itself. 
+
+        Parameters
+        ----------
+        ``stage`` : Stage | Mapping[str, Any] | str | Path | Callable[..., Any]
+            The information attempting to be converted into a ``Stage`` class instance.
+
+        Raises
+        ------
+        ``StageConfigurationError``
+            If the information parsed is not in a suitable format to be converted into 
+            a ``Stage`` class instance. 
+
+        Returns
+        -------
+        ``Stage`` class instance for the stage being run. 
+        """
         if isinstance(stage, Stage):
             return stage
 
@@ -67,18 +114,42 @@ class Pipeline:
         raise StageConfigurationError(f"Unsupported stage specification: {type(stage)!r}.")
 
     def _rebuild_graph(self) -> None:
+        """
+        Updates the ``graph`` attribute with the latest stage information. 
+        """
         self.graph = StageGraph.from_stages(self.stages)
 
     def add_stage(self, *stages: Stage | Mapping[str, Any] | str | Path | Callable[..., Any]) -> None:
+        """
+        Adds a step to the Pipeline.
+
+        Creates a list called ``added_stages`` that runs the _coerce_stage() method
+        to extract the information from the given ``stages`` parameter. It then appends
+        this list to the ``stages`` attribute of the ``Pipeline`` class and updates the 
+        StageGraph using the _rebuild_graph() method. A log instance is created to 
+        reflect the changes. 
+
+        Parameters
+        ----------
+        ``stages`` : Stage | Mapping[str, Any] | str | Path | Callable[..., Any]
+            The new steps being added to the Pipeline. 
+        """
         added_stages = [self._coerce_stage(stage) for stage in stages]
         self.stages.extend(added_stages)
         self._rebuild_graph()
         self.logger.event("Stage added", stages=[stage.name for stage in added_stages])
 
     def ordered_stages(self) -> list[Stage]:
+        """
+        Runs the topological_order() method on the ``graph`` attribute to extract the 
+        correct order for the ``stages`` to be run in. 
+        """
         return self.graph.topological_order()
 
     def validate(self) -> "Pipeline":
+        """
+        Confirms that the source files for the stage exist. 
+        """
         self.logger.event("Validating pipeline", name=self.name)
         for stage in self.stages:
             stage.validate()
@@ -86,11 +157,24 @@ class Pipeline:
         return self
 
     def run(self) -> PipelineRun:
+        """
+        Returns an instance of ``PipelineRunner`` which actually runs the pipeline. 
+        """
         from .runner import PipelineRunner
-
+        
         return PipelineRunner(logger=self.logger).run(self)
 
     def _construct_manifest(self, *, runtime_id: RuntimeID) -> RunManifest:
+        """
+        Creates a ``RunManifest`` instance that contains the information about 
+        the run of the Pipeline. 
+
+        Parameters
+        ----------
+        ``runtime_id`` : RuntimeID
+            Contains information about the run to be extracted and placed into 
+            the ``RunManifest`` instance. 
+        """
         return RunManifest(
             rap_name=self.name,
             run_id=runtime_id.get_id(),
@@ -107,6 +191,12 @@ class Pipeline:
         )
 
     def _create_runtime_id(self) -> RuntimeID:
+        """
+        Creates a RuntimeID instance for the specific run. 
+
+        Establishes attributes for this specific run and returns 
+        as a ``RuntimeID`` instance. 
+        """
         current_time = now()
         digest = hashlib.sha256(f"{self.name}:{self.backend}:{current_time.isoformat()}".encode("utf-8")).hexdigest()
         short_hash = digest[:8]
@@ -118,6 +208,18 @@ class Pipeline:
         )
 
     def _discover_git_commit(self) -> str | None:
+        """
+        Finds the specific version of the repository used for this run. 
+
+        Attempts to run a Git command to establish the current git commit hash
+        to be held in the ``RunManifest`` instance for this run. 
+
+        Returns
+        -------
+        ``OSError``
+            If Git is unable to be loaded or the Git command cannot be run for
+            another reason. 
+        """
         try:
             completed = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
@@ -132,6 +234,14 @@ class Pipeline:
         return commit or None
 
     def _package_versions(self) -> list[str]:
+        """
+        Creates a list of packages and their versions used in this run. 
+
+        Raises
+        ------
+        ``importlib_metadata.PackageNotFoundError``
+            If the package used cannot be found in the library. 
+        """
         versions = [f"python={sys.version.split()[0]}"]
         try:
             versions.append(f"pyyaml={importlib_metadata.version('PyYAML')}")
@@ -140,6 +250,10 @@ class Pipeline:
         return versions
 
     def _current_user(self) -> str | None:
+        """
+        Extracts the username for the individual completing the run. Returns a blank 
+        value if the username cannot be extracted. 
+        """
         try:
             return getpass.getuser()
         except Exception:
@@ -157,6 +271,32 @@ class Pipeline:
         logger: Logger | None = None,
         executor: StageExecutor | None = None,
     ) -> "Pipeline":
+        """
+        Extracts the information from files regarding exactly what is being run in the pipeline and
+        allows for configuration of how the Pipeline is run. 
+
+        Parameters
+        ----------
+        ``file_paths`` : Iterable[str or Path]
+            The files that contain the code for each stage in the pipeline. These are what
+            the Pipeline will run. 
+        ``name`` : str
+            The name of the pipeline.
+        ``backend`` : str, default = "python"
+            The system that the pipeline is written in. 
+        ``config`` : PipelineConfig | RAPConfig | Mapping[str, Any] | str | Path | None
+            The high level information required to run this specific pipeline. 
+        ``dependencies`` : Mapping[str, Sequence[str]] or None
+            An object containing which stages are required to be run before other stages. 
+        ``logger`` : Logger class or None
+            The logging sysem used for this Pipeline run. 
+        ``executor`` : StageExecutor class or None
+            The information on exactly how to run the Pipeline. 
+
+        Returns 
+        -------
+        A ``Pipeline`` class instance. 
+        """
         stages: list[Stage] = []
         for file_path in file_paths:
             path = Path(file_path)
@@ -182,6 +322,19 @@ class Pipeline:
 
     @classmethod
     def from_dict(cls, cfg: Mapping[str, Any]) -> "Pipeline":
+        """
+        Extracts information from a dictionary to configure a Pipeline instance as
+        well as what the Pipeline runs. 
+
+        Parameters 
+        ----------
+        ``cfg`` : Mapping[str, Any]
+            The Mapping item that contains the information needed to run the Pipeline. 
+        
+        Returns
+        -------
+        A ``Pipeline`` class instance. 
+        """
         payload = dict(cfg)
 
         name = payload.pop("name", None)
@@ -209,6 +362,23 @@ class Pipeline:
         path: Path,
         dependencies: Mapping[str, Sequence[str]] | None,
     ) -> tuple[str, ...]:
+        """
+        Extracts a tuple of ``dependencies`` for the requested stage. 
+
+        Will return a blank tuple if there are no ``dependencies`` for the requested
+        stage. Allows for ``dependencies`` to be found regardless of how the stage is 
+        referenced in the ``dependencies`` mapping. 
+
+        Parameters
+        ----------
+        ``stage_name`` : str
+            The name of the stage that you are extracting the ``dependencies`` for. 
+        ``path`` : Path
+            The filepath for the stage source. 
+        ``dependencies`` : Mapping[str, Sequence[str]] or None
+            Mapping of the stage source name to their relevant ``dependencies`` (stages
+            required to run before the ``stage_name`` Stage). 
+        """
         if not dependencies:
             return ()
 
