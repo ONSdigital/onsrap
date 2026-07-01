@@ -63,7 +63,7 @@ class ExecutionContext:
         Parameters 
         ----------
         ``result`` : ``StageResult``
-            An instance of a ``StageResult`` class
+            An instance of a ``StageResult`` class which is created from the Executor classes (StageExecutor, PythonStageExecutor).
 
         Returns
         ------
