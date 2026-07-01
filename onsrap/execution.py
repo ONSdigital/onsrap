@@ -63,7 +63,7 @@ class ExecutionContext:
         Parameters 
         ----------
         ``result`` : ``StageResult``
-            An instance of a ``StageResult`` class
+            An instance of a ``StageResult`` class which is created from the Executor classes (StageExecutor, PythonStageExecutor).
 
         Returns
         ------
@@ -175,12 +175,12 @@ class PythonStageExecutor:
         """
         Attempt to run a callable object.
 
-        Creates a logging instance and attempts to run the callable parsed. If
-        the callable cannot be run, an error is flagged and the ``StageResult``
-        instance created shows a failure. If it can be run, the callable is run
-        and the ``StageResult`` instance shows a success. Metadata is kept for 
-        the attempt including duration, ``name``, ``outputs``, ``source``, ``mode`` 
-        attempted, and ``errors``.
+        Calls the logger.event() method to record an event and attempts to 
+        run the callable parsed. If the callable cannot be run, an error is flagged 
+        and the ``StageResult`` instance created shows a failure. If it can be run, 
+        the callable is run and the ``StageResult`` instance shows a success. 
+        Metadata is kept for the attempt including ``duration``, ``name``, ``outputs``, 
+        ``source``, ``mode`` attempted, and ``errors``.
 
         Parameters
         ----------
@@ -252,7 +252,15 @@ class PythonStageExecutor:
         """
         Attempt to run a file.
 
-        Creates a logging instance and attempts to run the file parsed based on an entrypoint.
+        """
+        Attempt to run a callable object.
+
+        Calls the logger.event() method to record an event and attempts to run 
+        the callable parsed. If the callable cannot be run, an error is flagged and 
+        the ``StageResult`` instance created shows a failure. If it can be run, the 
+        callable is run and the ``StageResult`` instance shows a success. Metadata 
+        is kept for the attempt including ``duration``, ``name``, ``outputs``, ``source``,
+         ``mode`` attempted, and ``errors``.
         If there is no entrypoint or the entrypoint is not a callable object, an error will be 
         raised. ``_execute_subprocess()`` method called if no entrypoint is found. A 
         ``StageResult`` instance will be created to log the results of the ``Stage``run regardless 
@@ -328,6 +336,9 @@ class PythonStageExecutor:
     def _execute_subprocess(self, stage: "Stage", context: ExecutionContext) -> StageResult:
         """
         Run the entire Python file for the ``Stage`` from the top.
+        
+        Not desired method. Uses black-box design and obfuscates Pipeline running. Please refer 
+        to Wiki documentation on how to implement callable solutions instead.
 
         If the ``Stage`` source is a file but does not have a callable entrypoint, this method
         will run the entire script top to bottom. The results of the ``Stage`` are recorded
