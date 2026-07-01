@@ -179,7 +179,7 @@ class PythonStageExecutor:
         the callable cannot be run, an error is flagged and the ``StageResult``
         instance created shows a failure. If it can be run, the callable is run
         and the ``StageResult`` instance shows a success. Metadata is kept for 
-        the attempt including duration, ``name``, ``outputs``, ``source``, ``mode`` 
+        the attempt including ``duration``, ``name``, ``outputs``, ``source``, ``mode`` 
         attempted, and ``errors``.
 
         Parameters
