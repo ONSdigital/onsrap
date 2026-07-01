@@ -6,27 +6,45 @@ class OnsrapError(Exception):
 
 
 class PipelineValidationError(OnsrapError):
-    """Raised when the pipeline definition is invalid."""
+    """
+    Raised when the pipeline definition is invalid.
+    Child class with ``OnsrapError`` as the parent class.
+    """
 
 
 class StageConfigurationError(PipelineValidationError):
-    """Raised when a stage definition is malformed."""
+    """
+    Raised when a stage definition is malformed.
+    Child class with ``PipelineValidationError`` as the parent class.
+    """
 
 
 class DuplicateStageError(PipelineValidationError):
-    """Raised when two stages share the same name."""
+    """
+    Raised when two stages share the same name.
+    Child class with ``PipelineValidationError`` as the parent class.
+    """
 
 
 class MissingDependencyError(PipelineValidationError):
-    """Raised when a stage depends on an unknown stage."""
+    """
+    Raised when a stage depends on an unknown stage.
+    Child class with ``PipelineValidationError`` as the parent class.
+    """
 
 
 class DependencyCycleError(PipelineValidationError):
-    """Raised when the stage graph contains a cycle."""
+    """
+    Raised when the stage graph contains a cycle.
+    Child class with ``PipelineValidationError`` as the parent class.
+    """
 
 
 class StageExecutionError(OnsrapError):
-    """Raised when a stage fails during execution."""
+    """
+    Raised when a stage fails during execution.
+    Child class with ``OnsrapError`` as the parent class.
+    """
 
     def __init__(
         self,
@@ -44,4 +62,7 @@ class StageExecutionError(OnsrapError):
 
 
 class StageLoadError(StageExecutionError):
-    """Raised when a file-backed stage cannot be loaded."""
+    """
+    Raised when a file-backed stage cannot be loaded.
+    Child class with ``StageExecutionError`` as the parent class.
+    """
