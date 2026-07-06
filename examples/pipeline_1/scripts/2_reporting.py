@@ -7,31 +7,6 @@ from pathlib import Path
 from typing import Any
 
 
-def resolve_data_root(context: Any | None = None) -> Path:
-    if context is not None:
-        return Path(context.config.data_dir)
-
-    return Path(__file__).resolve().parents[1] / "data"
-
-
-def resolve_output_root(context: Any | None = None) -> Path:
-    if context is not None and getattr(context, "run_dir", None) is not None:
-        return Path(context.run_dir) / "data"
-
-    return Path(__file__).resolve().parents[1] / "data"
-
-
-def resolve_clean_path(context: Any | None, data_root: Path) -> Path:
-    if context is not None:
-        preprocessing_result = context.result_for("1_preprocessing")
-        if preprocessing_result is not None:
-            clean_path = preprocessing_result.outputs.get("clean_path")
-            if clean_path:
-                return Path(clean_path)
-
-    return data_root / "interim" / "1_clean_orders.csv"
-
-
 def load_orders(csv_path: Path) -> list[dict[str, str]]:
     with csv_path.open(newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle))
@@ -94,9 +69,11 @@ def write_region_breakdown(region_path: Path, summary: dict[str, object]) -> Non
 
 
 def main(context=None) -> dict[str, object]:
-    data_root = resolve_data_root(context)
-    output_root = resolve_output_root(context)
-    clean_path = resolve_clean_path(context, data_root)
+    data_root = context.resolve_data_root(config = context.config)
+    output_root = context.resolve_output_root(run_dir = context.run_dir)
+    clean_path = context.resolve_given_path("1_preprocessing", "clean_path",
+                                            "1_clean_orders.csv", output_root,
+                                            "interim")
     summary_path = output_root / "processed" / "2_sales_summary.json"
     region_breakdown_path = output_root / "processed" / "2_revenue_by_region.csv"
 
