@@ -118,4 +118,4 @@ def test_stage_outputs(execution, stageresult) -> None:
     execution.record(stageresult)
     assert execution.stage_outputs == {"stage_test":"example output"}
 
-"""TESTING TO CONTINUE FROM STAGEEXECUTOR CLASS"""
+"""TESTING TO CONTINUE RESOLVE CLASS METHODS"""
