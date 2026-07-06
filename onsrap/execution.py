@@ -105,6 +105,88 @@ class ExecutionContext:
             the run.
         """
         return {name: result.outputs for name, result in self.stage_results.items()}
+    
+    def resolve_data_root(self, config: PipelineConfig | None) -> Path:
+        """
+        Establishes the filepath that the data is held in. 
+
+        Parameters
+        ----------
+        ``config`` : PipelineConfig
+            The configuration of the Pipeline being run. This holds the location filepath 
+            for the pipeline as defined by the user in the main.py file.  
+        
+        Returns
+        -------
+        Path
+            The file path for the location of the data being used in the pipeline. 
+        """
+        if config is not None:
+            return Path(config.data_dir)
+        
+        return Path(__file__).resolve().parents[1] / "data"
+    
+    def resolve_output_root(self, run_dir: Path | None) -> Path:
+        """
+        Establishes the filepath that the outputs are going to be saved to. 
+
+        Parameters
+        ----------
+        ``run_dir`` : Path
+            The file directory that the run results are saved to.  
+        
+        Returns
+        -------
+        Path
+            The file path for the outputs of the run to be saved to. 
+        """
+        if run_dir is not None:
+            return Path(run_dir) / "data"
+        
+        return Path(__file__).resolve().parents[1] / "data"
+    
+    def resolve_given_path(self, stage_name: str, 
+                           path_name: str, 
+                           file_name:str,
+                           root: Path,
+                           add_folder: str | None = None) -> Path:
+        """
+        Returns a file path for a requested item.
+        
+        This investigates the result of a previous stage to extract a selected path. 
+        If the path is not available, it creates a path using a root previously derived 
+        in main.py, the chosen directory within the root (optional), and the file path. 
+
+        Parameters
+        ----------
+        ``stage_name`` : str
+            The name of the stage where the path was outputted. 
+        ``path_name`` : str
+            The name for the path within the stage results. This will be the key from the 
+            key/value pair within the output of the previous stage. 
+        ``root`` : Path
+            The file path for the root of the directory. This should be denoted through 
+            other methods. 
+        ``add_folder`` : str | None, default = None
+            Additional folder name to add into the returned file path. Additional functionality
+            should be added to allow for multiple folders to be added to the path. 
+
+        Returns
+        -------
+        Path
+            The file path where data has previously been saved to to allow for extraction of 
+            that data throughout the pipeline. 
+        """
+        result = self.result_for(stage_name)
+        if result is not None:
+            selected_path = result.outputs.get(path_name)
+            if selected_path: 
+                return Path(selected_path)
+        if add_folder is not None: 
+            #Would like to add functionality here for multiple additional folders
+            return root / add_folder / file_name    
+        
+        return root / file_name
 
 
 class StageExecutor(Protocol):
