@@ -149,7 +149,7 @@ class ExecutionContext:
                            path_name: str, 
                            file_name:str,
                            root: Path,
-                           add_folder: str | None = None) -> Path:
+                           add_folder: list[str] | str | None = None) -> Path:
         """
         Returns a file path for a requested item.
         
@@ -167,9 +167,8 @@ class ExecutionContext:
         ``root`` : Path
             The file path for the root of the directory. This should be denoted through 
             other methods. 
-        ``add_folder`` : str | None, default = None
-            Additional folder name to add into the returned file path. Additional functionality
-            should be added to allow for multiple folders to be added to the path. 
+        ``add_folder`` : list[str] | str | None, default = None
+            Additional folder name/s to add into the returned file path.
 
         Returns
         -------
@@ -183,7 +182,10 @@ class ExecutionContext:
             if selected_path: 
                 return Path(selected_path)
         if add_folder is not None: 
-            #Would like to add functionality here for multiple additional folders
+            if add_folder is list:
+                add_folder = add_folder.append(file_name)
+                new_path = root.joinpath(*add_folder)
+                return new_path
             return root / add_folder / file_name    
         
         return root / file_name
