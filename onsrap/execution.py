@@ -145,9 +145,9 @@ class ExecutionContext:
         
         return Path(__file__).resolve().parents[1] / "data"
     
-    def resolve_given_path(self, stage_name: str, 
-                           path_name: str, 
-                           file_name:str,
+    def resolve_given_path(self, stage_name: str | None, 
+                           path_name: str | None, 
+                           file_name:str | None,
                            root: Path,
                            add_folder: list[str] | str | None = None) -> Path:
         """
@@ -164,6 +164,8 @@ class ExecutionContext:
         ``path_name`` : str
             The name for the path within the stage results. This will be the key from the 
             key/value pair within the output of the previous stage. 
+        ``file_name`` : str
+            The name of the file that you are trying to access the Path for. 
         ``root`` : Path
             The file path for the root of the directory. This should be denoted through 
             other methods. 
@@ -177,18 +179,24 @@ class ExecutionContext:
             that data throughout the pipeline. 
         """
         result = self.result_for(stage_name)
-        if result is not None:
+        if result is not None and path_name is not None:
             selected_path = result.outputs.get(path_name)
             if selected_path: 
                 return Path(selected_path)
-        if add_folder is not None: 
-            if add_folder is list:
-                add_folder = add_folder.append(file_name)
-                new_path = root.joinpath(*add_folder)
+        if isinstance(add_folder, list):
+            if file_name is not None: 
+                new_path = root.joinpath(*add_folder, file_name)
                 return new_path
-            return root / add_folder / file_name    
+            new_path = root.joinpath(*add_folder)
+            return new_path
+        if isinstance(add_folder, str):
+            if file_name is not None:
+                return root/ add_folder/ file_name 
+            return root / add_folder
+        if file_name is not None:    
+            return root / file_name
+        return root
         
-        return root / file_name
 
 
 class StageExecutor(Protocol):

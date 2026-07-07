@@ -3,6 +3,7 @@ from onsrap.models import PipelineConfig, StageResult, StageStatus
 from onsrap.logger import Logger
 from pathlib import Path
 import pytest
+import onsrap.execution as execution_module
 
 @pytest.fixture
 def logger() -> Logger:
@@ -33,7 +34,7 @@ def config() -> PipelineConfig:
     )
 
 @pytest.fixture
-def execution(config, logger) -> ExecutionContext:
+def execution(config, logger, stageresult) -> ExecutionContext:
     """
     Create an ExecutionContext object for testing.
     """
@@ -48,7 +49,7 @@ def execution(config, logger) -> ExecutionContext:
         run_dir,
         '2024-05-06 15:45:30',
         work_dir,
-        {},
+        {"stage_test":stageresult},
         {}        
     )
 
@@ -67,7 +68,7 @@ def stageresult() -> StageResult:
     )
 
 
-def test_executioncontext_creation(execution, logger, config) -> None:
+def test_executioncontext_creation(execution, logger, config, stageresult) -> None:
     """
     Test that the ExecutionContext creates the right attributes. 
     """ 
@@ -78,7 +79,7 @@ def test_executioncontext_creation(execution, logger, config) -> None:
     assert execution.run_dir == Path("tmp/run")
     assert execution.started_at == '2024-05-06 15:45:30'
     assert execution.working_directory == Path('tmp/work_dir')
-    assert execution.stage_results == {}
+    assert execution.stage_results == {"stage_test":stageresult}
     assert execution.variables == {}
 
 def test_record(stageresult, execution) -> None:
@@ -133,7 +134,7 @@ def test_resolve_data_root(execution) -> None:
     """
     assert execution.resolve_data_root(execution.config) == Path("tmp/config_data")
     
-    import onsrap.execution as execution_module
+    
     result = execution.resolve_data_root(None)
     expected = (
         Path(execution_module.__file__).resolve().parents[1]
@@ -141,3 +142,91 @@ def test_resolve_data_root(execution) -> None:
     )
     assert result == expected
 
+def test_resolve_output_root(execution) -> None: 
+    """
+    Tests that resolve_output_root method extracts the path from the given run 
+    directory or, if None are given, returns the file path for the module itself
+    and the data directory within that. 
+    """
+    run_dir = Path("tmp/run")
+    assert execution.resolve_output_root(run_dir) == Path("tmp/run/data")
+
+    result = execution.resolve_output_root(None)
+    expected = (
+        Path(execution_module.__file__).resolve().parents[1]
+        / "data"
+    )
+    assert result == expected
+
+@pytest.mark.parametrize(
+        "add_folder,file_name,expected",
+        [
+            (
+                ["interim","testing_files"],
+                "clean.py",
+                Path("tmp/data/interim/testing_files/clean.py")
+            ),
+            (
+                "interim",
+                "clean.py",
+                Path("tmp/data/interim/clean.py")
+             ),
+             (
+                None, 
+                "clean.py",
+                Path("tmp/data/clean.py")
+             ),
+              (
+                ["interim","testing_files"],
+                None,
+                Path("tmp/data/interim/testing_files")
+            ),
+            (
+                "interim",
+                None,
+                Path("tmp/data/interim")
+             ),
+             (
+                None, 
+                None,
+                Path("tmp/data")
+              )
+        ],
+)
+
+
+def test_resolve_given_path_add_folders(execution, add_folder, file_name, expected) -> None: 
+    """
+    Tests the add_folder functionality for lists, single strings, or None type in 
+    the resolve_given_path class method as well as when the file_name is a valid string
+    or None type. 
+    """
+    path_name = "data_path"
+    root = Path("tmp/data")
+
+    assert execution.resolve_given_path(None, 
+                                         path_name, 
+                                         file_name, 
+                                         root, 
+                                         add_folder) == expected
+
+def test_resolve_given_path_norm(execution) -> None:  
+    """
+    Tests that resolve_given_path returns a file path that has been output in a
+    StageResult instance.
+    """  
+    execution.record(StageResult("stage_test2",
+                                StageStatus.PENDING,
+                                '2024-05-06 15:45:30',
+                                '2024-05-07 15:45:30',
+                                metadata={},
+                                outputs = {"data_path":"clean.py"} ))
+    stage_name = "stage_test2"
+    path_name = "data_path"
+    root = Path("tmp/data")
+
+    assert execution.resolve_given_path(stage_name,
+                                        path_name,
+                                        None,
+                                        root,
+                                        None) == Path("clean.py")
