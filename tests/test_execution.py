@@ -1,4 +1,4 @@
-from onsrap.execution import ExecutionContext
+from onsrap.execution import ExecutionContext, PythonStageExecutor
 from onsrap.models import PipelineConfig, StageResult, StageStatus
 from onsrap.logger import Logger
 from pathlib import Path
@@ -158,6 +158,10 @@ def test_resolve_output_root(execution) -> None:
     )
     assert result == expected
 
+"""
+Parameters for testing multiple add_folder options in 
+test_resolve_given_path_add_folders function.
+"""
 @pytest.mark.parametrize(
         "add_folder,file_name,expected",
         [
@@ -230,3 +234,14 @@ def test_resolve_given_path_norm(execution) -> None:
                                         None,
                                         root,
                                         None) == Path("clean.py")
+    
+"""TEST NOT RUN FOR StageExecutor AS COVERED UNDER PythonStageExecutor"""
+
+@pytest.fixture
+def pythonstageexecutor() -> PythonStageExecutor:
+    return PythonStageExecutor(("main.py","run.py"))
+
+def test_pythonstageexecutor_setup(pythonstageexecutor) -> None: 
+    assert pythonstageexecutor.preferred_entrypoints == ("main.py","run.py")
+
+"""CONTINUE FROM EXECUTE CLASS METHOD"""
