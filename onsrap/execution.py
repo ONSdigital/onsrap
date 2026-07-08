@@ -252,7 +252,6 @@ class PythonStageExecutor:
         """
         Attempt to run a file.
 
-        """
         Attempt to run a callable object.
 
         Calls the logger.event() method to record an event and attempts to run 
