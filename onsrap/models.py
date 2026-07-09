@@ -270,8 +270,8 @@ class PipelineConfig:
 
     def to_dict(self) -> dict[str, Any]:
         """
-        Converts attributes regarding how the pipeline runs into a dictionary and holds it in
-        the ``metadata`` attribute of the ``PipelineConfig`` class. 
+        Returns a prescriptive expression of the attributes within the PipelineConfig instance
+        that allows for easier processing by the user. 
         """
         data = {
             "name": self.name,
