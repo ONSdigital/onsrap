@@ -91,15 +91,14 @@ def test_stage_from_callable_name() -> None:
     test = Stage.from_callable(example_function)
     assert test.name == "example_function"
 
-@pytest.mark.skip
 def test_from_dict_norm() -> None:
     """
-    REVIEW WITH ALEX
+    Tests that a stage instance is created from a dictionary item. 
     """
     def example_function():
         pass
     data = {"name":"test_Stage",
-            "callable_source" : example_function}
+            "callable" : example_function}
     stage = Stage.from_dict(data)
     assert stage.source == example_function
 
@@ -107,31 +106,20 @@ def test_with_dependencies_list(stage_test) -> None:
     """
     Tests adding different types of dependencies when the original dependency is
     a list. 
-
-    REVIEW WITH ALEX 
-    This test works and passes however it doesn't behave how I was expecting it to. 
-    Was expecting the list/dictionary to be broken down so you have one tuple rather 
-    than a tuple of dict/lists. Is this a problem or just my understanding?
     """
     new_deps = ["stage2","stage3"]
-    new_dep_dict = {"stage1":"stage0"}
     new_deps_blank = []
     stage_test_list = stage_test.with_dependencies(new_deps)
-    stage_test_dict = stage_test.with_dependencies(new_dep_dict)
     stage_test_blank = stage_test.with_dependencies(new_deps_blank)
-    assert stage_test_list.dependencies == ("stage_1","['stage2', 'stage3']")
-    assert stage_test_dict.dependencies == ("stage_1","{'stage1': 'stage0'}")
-    assert stage_test_blank.dependencies == ("stage_1", '[]')
+    assert stage_test_list.dependencies == ("stage_1",'stage2', 'stage3')
+    assert stage_test_blank.dependencies == ("stage_1", )
+    stage_test = stage_test.with_dependencies("stage2","stage3")
+    assert stage_test.dependencies == ("stage_1",'stage2', 'stage3')
 
-@pytest.mark.skip
+
 def test_validate(stage_test, tmp_path) -> None: 
     """
     Tests whether an error is raised if the source file isn't suitable. 
-
-    REVIEW WITH ALEX 
-    Does not raise a StageConfigurationError is the source is a blank string. Is 
-    this a concern? Do we want this validate to be able to do other error checks
-    like if it is an int?
     """
     stage_test.source = None
     with pytest.raises(StageConfigurationError):
