@@ -151,6 +151,55 @@ def test_from_any(mapping, pipelineconfig, blankpipelineconfig, rapconfig) -> No
 
 """NOT SURE HOW TO TEST FROM_FILE()"""
 
+def test_from_file(tmp_path,) -> PipelineConfig:
+    pipeline_config = tmp_path / "configuration.py"
+    pipeline_config.write_text(
+        dedent(
+            """
+            {"name":"test_rap",
+                             "backend":"python",
+                             "work_dir":"tmp/work",
+                             "project_root":"project",
+                             "log_dir":"tmp/logs",
+                             "data_dir":"tmp/data",
+                             "allow_subprocess_fallback":True,
+                             "python_executable": ,
+                             "metadata":{"variables":["name","age"],
+                                         "num_stages":6}
+                                         }
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    no_map_pipeline_config = tmp_path / "not_valid.py"
+    no_map_pipeline_config.write_text(
+        dedent(
+            """
+            variable = "Hello world"
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    configuration = PipelineConfig.from_file(pipeline_config)
+    assert configuration == PipelineConfig(name = "test_rap",
+                                            backend = "python",
+                                            work_dir = Path("tmp/work"),
+                                            project_root = Path("project"),
+                                            log_dir = Path("tmp/logs"),
+                                            data_dir = Path("tmp/data"),
+                                            allow_subprocess_fallback = True,
+                                            python_executable = None,
+                                            metadata = {"variables":["name","age"],
+                                                        "num_stages":6})
+    
+    fake_file = "path_not_real"
+    with pytest.raises(FileNotFoundError):
+        PipelineConfig.from_file(fake_file)
+    with pytest.raises(TypeError):
+        PipelineConfig.from_file(no_map_pipeline_config)
+
 def test_to_dict(pipelineconfig) -> None:
     """
     Test of to_dict() class method for PipelineConfig that it outputs the PipelineConfig values
