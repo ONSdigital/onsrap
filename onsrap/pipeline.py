@@ -7,7 +7,7 @@ import warnings
 import sys
 from importlib import metadata as importlib_metadata
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence, Union
 
 from .errors import StageConfigurationError
 from .warnings import StageConfigurationWarning
@@ -15,7 +15,7 @@ from .execution import PythonStageExecutor, StageExecutor
 from .graph import StageGraph
 from .logger import Logger
 from .models import PipelineConfig, StageConfig, PipelineRun, RAPConfig, RunManifest, RuntimeID, now
-from .stage import Stage
+from .stage import Stage, _normalize_dependencies
 
 
 
@@ -50,6 +50,7 @@ class Pipeline:
         backend: str = "python",
         config: PipelineConfig | RAPConfig | Mapping[str, Any] | str | Path | None = None,
         stages: Sequence[Stage | Mapping[str, Any] | str | Path | Callable[..., Any]] | None = None,
+        dependencies: tuple[str]| dict[str, Sequence[str]] | None = None,
         logger: Logger | None = None,
         executor: StageExecutor | None = None,
     ):
@@ -67,6 +68,13 @@ class Pipeline:
         self.logger = logger or Logger(log_dir=self.config.log_dir)
         self.executor = executor or PythonStageExecutor()
         self.stages = [self._coerce_stage(stage) for stage in (stages or [])]
+        self.dependencies = dependencies
+        if dependencies is not None and stages is None:
+            raise PipelineInitialisationError("Stages need to be defined before you can parse your dependencies "
+            "for those stages. Try the from_files() method, or create your Stage objects and " \
+            "parse them to the Pipeline Constructor.")
+        if dependencies is not None:
+            self._assign_dependencies(dependencies,self.stages)
         self.graph = StageGraph.from_stages(self.stages)
         self.id: RuntimeID | None = None
         self.manifest: RunManifest | None = None
@@ -78,6 +86,14 @@ class Pipeline:
             backend=self.backend,
             stages=[stage.name for stage in self.stages],
         )
+    def _assign_dependencies(self, 
+                             dependencies:tuple[str]| dict[str, Sequence[str]] | None = None,
+                             stages: Stage | Sequence[Stage] | None = None,) -> Stage | Sequence[Stage]:
+        for stage in stages:
+            new_dependencies = self._dependencies_for_stage(stage.name,stage.source,dependencies)
+            stage.dependencies = _normalize_dependencies(new_dependencies)
+
+        return stages
 
     def _coerce_stage(
         self,
@@ -414,8 +430,8 @@ class Pipeline:
     @staticmethod
     def _dependencies_for_stage(
         stage_name: str,
-        path: Path,
-        dependencies: Mapping[str, Sequence[str]] | None,
+        path: Union[Path, Callable[..., Any], None] = None,
+        dependencies: Mapping[str, Sequence[str]] | None = None,
     ) -> tuple[str, ...]:
         """
         Extracts a tuple of ``dependencies`` for the requested stage. 
@@ -436,8 +452,11 @@ class Pipeline:
         """
         if not dependencies:
             return ()
-
-        candidates = (stage_name, path.name, path.stem, str(path), path.as_posix())
+        if isinstance(path, Path):
+            candidates = (stage_name, path.name, path.stem, str(path), path.as_posix())
+        else:
+            candidates = (stage_name, str(path.__name__)) 
+        print(candidates)
         for candidate in candidates:
             if candidate in dependencies:
                 return tuple(str(dependency) for dependency in dependencies[candidate])

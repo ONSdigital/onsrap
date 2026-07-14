@@ -72,3 +72,9 @@ class StageDependencyError(OnsrapError):
     Raised when incorrect inputs are provided to the dependency
     attribute of a Stage.
     """
+
+class PipelineInitialisationError(OnsrapError):
+    """
+    Raised when there is an error in definition of the Pipeline 
+    instance
+    """
