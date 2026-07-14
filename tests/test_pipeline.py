@@ -4,11 +4,7 @@ from onsrap.stage import Stage
 from pathlib import Path
 import pytest
 
-@pytest.fixture
-def pipelineconfig() -> PipelineConfig:
-    return PipelineConfig(name = "test_pipeline_config")
-
-def test_pipeline_name(pipelineconfig):
+def test_pipeline_name():
     """
     Test to confirm that Pipeline instance uses either defined name from 
     instance creation (shown in pipeline_named), utilises name from PipelineConfig
@@ -16,15 +12,22 @@ def test_pipeline_name(pipelineconfig):
     no name is provided through Pipeline instance creation or through the 
     PipelineConfig (shown through pipeline_no_name)
     """
+    pipeline_config = PipelineConfig(name = "test_pipeline_config")
     pipeline_named = Pipeline(name = "test_pipeline_name")
     assert pipeline_named.name == "test_pipeline_name"
-    pipeline_config = Pipeline(name = None, config = pipelineconfig)
+    pipeline_config = Pipeline(name = None, config = pipeline_config)
     assert pipeline_config.name == "test_pipeline_config"
     pipeline_no_name = Pipeline()
     assert pipeline_no_name.name == "pipeline"
 
 
 def test_assign_dependencies(tmp_path):
+    """
+    Test to ensure that different formats of dependencies can be parsed to the 
+    Pipeline creation and appropriately assigned to each stage within the 
+    Pipeline. Will also check for error raise if the dependencies are defined 
+    but there are no defined stages. 
+    """
     def example_function():
         pass
     dependencies_single = {"Stage_2":("Stage_1",)}

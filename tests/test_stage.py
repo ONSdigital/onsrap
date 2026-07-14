@@ -168,3 +168,29 @@ def test_source_label(stage_test, tmp_path) -> None:
 """
 TEST NOT CODED FOR RUN() AS ASSUMED THIS IS COVERED IN PIPELINE_ARCHITECTURE TEST
 """
+
+def test_stage_instance_from_file(tmp_path) -> None:
+    """
+    Tests that a Stage instance is created from a filepath. 
+    """
+    test_stage = tmp_path / "test_stage.py"
+    test_stage.write_text(
+        dedent(
+            """
+            def main():
+                variable = "Hello world"
+                return variable
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert Stage.from_file(test_stage,
+                           entrypoint = "main") == Stage("test_stage",
+                                            test_stage.resolve(),
+                                            (),
+                                            {},
+                                            "main",
+                                            "python")
+    
