@@ -1,0 +1,33 @@
+pipeline_variables:
+  name: "Pipeline 2"
+  backend: python
+  stages:
+    - 0_data_validation:
+        # TODO: Put name/alias of stage as attribute here, not as key for stage.
+        location: ""
+        run: true
+        dependencies: []
+    - 1_preprocessing:
+        location: ""
+        run: true
+        dependencies:
+          - 0_data_validation
+    - 2_reporting:
+        location: ""
+        run: true
+        dependencies:
+          - 1_preprocessing
+  working_dir: "examples/pipeline_2"
+  data_dir: "examples/pipeline_2/data"
+  output_dir: "examples/pipeline_2/output"
+  log_dir: "examples/pipeline_2/logs"
+  metadata:
+   example: retail-orders-using-configuration
+   description: "This is an example of a pipeline that uses configuration files to run a retail orders pipeline."
+
+
+stage_configuration:
+  0_data_validation:
+    years_to_run: 2017
+    time_col: "time"
+    target_variable: "classification"
