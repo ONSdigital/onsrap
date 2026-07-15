@@ -87,8 +87,8 @@ def build_summary(source_path: Path, clean_path: Path, rows: list[dict[str, obje
 
 
 def main(context=None) -> dict[str, object]:
-    data_root = context.resolve_data_root(config = context.config)
-    output_root = context.resolve_output_root(run_dir = context.run_dir)
+    data_root = context.get_data_dir()
+    output_root = context.resolve_output_root()
     raw_path = context.resolve_given_path("0_data_validation", "raw_path", 
                                           "orders.csv", data_root)
     clean_path = output_root / "interim" / "1_clean_orders.csv"
