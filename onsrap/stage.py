@@ -292,7 +292,6 @@ class Stage:
                 raise StageDependencyError("Nested lists are not valid arguments for this method! " \
                 "Please provided single list or individual string values")
 
-        print(unpacked_deps)
         return replace(
             self,
             dependencies=self.dependencies + _normalize_dependencies(unpacked_deps),
