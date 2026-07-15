@@ -54,7 +54,7 @@ class Pipeline:
     ):
         self.backend = backend or "python"
         self.config = PipelineConfig.from_any(config)
-        if (self.config.name is not None) and (name == None):
+        if (self.config.name is not None) and (name is None):
             self.name = self.config.name
         else:
             self.name = name or "pipeline"

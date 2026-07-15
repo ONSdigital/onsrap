@@ -280,18 +280,17 @@ class Stage:
             ``Stage`` class instance with normalised ``dependencies`` attribute.
         """
         unpacked_deps: list = []
-        for a in dependencies:
-            if isinstance(a,list):
-                unpacked_deps = unpacked_deps + a
+        for dependency in dependencies:
+            if isinstance(dependency, list):
+                unpacked_deps = unpacked_deps + dependency
             else:
-                unpacked_deps.append(a)
+                unpacked_deps.append(dependency)
 
-        for i in unpacked_deps:
-            if isinstance(i, list):
+        for dependency in unpacked_deps:
+            if isinstance(dependency, list):
                 raise StageDependencyError("Nested lists are not valid arguments for this method! " \
                 "Please provided single list or individual string values")
 
-        print(unpacked_deps)
         return replace(
             self,
             dependencies=self.dependencies + _normalize_dependencies(unpacked_deps),
