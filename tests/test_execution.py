@@ -4,6 +4,7 @@ from onsrap.logger import Logger
 from pathlib import Path
 import pytest
 import onsrap.execution as execution_module
+from onsrap.errors import PipelineConfigurationError
 
 @pytest.fixture
 def logger() -> Logger:
@@ -129,34 +130,47 @@ def test_stage_outputs(execution, stageresult) -> None:
 def test_resolve_data_root(execution) -> None: 
     """
     Tests that resolve_data_root method extracts the path from the execution context
-    or, if the context is None, returns the file path for the module itself and the 
-    data directory within that. 
+    or, if the context is None, returns an error to indicate that additional input is
+    required. 
     """
-    assert execution.resolve_data_root(execution.config) == Path("tmp/config_data")
+    assert execution.get_data_dir() == Path("tmp/config_data")
     
+    run_dir = Path("tmp/run")
+    work_dir = Path('tmp/work_dir')
+    execution_blank_config = ExecutionContext("test_pipeline",
+        "run_id_1234",
+        None, 
+        Logger(),
+        run_dir,
+        '2024-05-06 15:45:30',
+        work_dir,
+        {"stage_test":stageresult},
+        {} )
     
-    result = execution.resolve_data_root(None)
-    expected = (
-        Path(execution_module.__file__).resolve().parents[1]
-        / "data"
-    )
-    assert result == expected
+    with pytest.raises(PipelineConfigurationError): 
+        execution_blank_config.get_data_dir()
 
 def test_resolve_output_root(execution) -> None: 
     """
     Tests that resolve_output_root method extracts the path from the given run 
-    directory or, if None are given, returns the file path for the module itself
-    and the data directory within that. 
+    directory or, if None are given, raises an error to indicate additional input
+    is required.. 
     """
-    run_dir = Path("tmp/run")
-    assert execution.resolve_output_root(run_dir) == Path("tmp/run/data")
+    work_dir = Path('tmp/work_dir')
+    assert execution.resolve_output_root() == Path("tmp/run/data")
 
-    result = execution.resolve_output_root(None)
-    expected = (
-        Path(execution_module.__file__).resolve().parents[1]
-        / "data"
-    )
-    assert result == expected
+    execution_blank_config = ExecutionContext("test_pipeline",
+        "run_id_1234",
+        None, 
+        Logger(),
+        None,
+        '2024-05-06 15:45:30',
+        work_dir,
+        {"stage_test":stageresult},
+        {} )
+    
+    with pytest.raises(PipelineConfigurationError): 
+        execution_blank_config.resolve_output_root()
 
 """
 Parameters for testing multiple add_folder options in 

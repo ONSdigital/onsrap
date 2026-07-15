@@ -69,8 +69,8 @@ def write_region_breakdown(region_path: Path, summary: dict[str, object]) -> Non
 
 
 def main(context=None) -> dict[str, object]:
-    data_root = context.resolve_data_root(config = context.config)
-    output_root = context.resolve_output_root(run_dir = context.run_dir)
+    data_root = context.get_data_dir()
+    output_root = context.resolve_output_root()
     clean_path = context.resolve_given_path("1_preprocessing", "clean_path",
                                             "1_clean_orders.csv", output_root,
                                             "interim")

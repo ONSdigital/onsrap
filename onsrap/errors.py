@@ -78,3 +78,9 @@ class PipelineInitialisationError(OnsrapError):
     Raised when there is an error in definition of the Pipeline 
     instance
     """
+
+class PipelineConfigurationError(OnsrapError):
+    """
+    Raised when there has been an issue with the PipelineConfig
+    instance. 
+    """

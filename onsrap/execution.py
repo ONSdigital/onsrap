@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol, TYPE_CHECKING
 
-from .errors import StageExecutionError, StageLoadError
+from .errors import StageExecutionError, StageLoadError, PipelineConfigurationError
 from .loader import PREFERRED_ENTRYPOINTS, discover_python_entrypoint, load_python_callable
 from .logger import Logger
 from .models import PipelineConfig, StageResult, StageStatus, now
@@ -106,44 +106,35 @@ class ExecutionContext:
         """
         return {name: result.outputs for name, result in self.stage_results.items()}
     
-    def resolve_data_root(self, config: PipelineConfig | None) -> Path:
+    def get_data_dir(self) -> Path:
         """
         Establishes the filepath that the data is held in. 
-
-        Parameters
-        ----------
-        ``config`` : PipelineConfig
-            The configuration of the Pipeline being run. This holds the location filepath 
-            for the pipeline as defined by the user in the main.py file.  
         
         Returns
         -------
         Path
             The file path for the location of the data being used in the pipeline. 
         """
-        if config is not None:
-            return Path(config.data_dir)
+        if self.config is not None:
+            return Path(self.config.data_dir)
         
-        return Path(__file__).resolve().parents[1] / "data"
+        raise PipelineConfigurationError("Please parse a PipelineConfig instance to " \
+        "the ExecutionContext.")
     
-    def resolve_output_root(self, run_dir: Path | None) -> Path:
+    def resolve_output_root(self) -> Path:
         """
         Establishes the filepath that the outputs are going to be saved to. 
 
-        Parameters
-        ----------
-        ``run_dir`` : Path
-            The file directory that the run results are saved to.  
-        
         Returns
         -------
         Path
             The file path for the outputs of the run to be saved to. 
         """
-        if run_dir is not None:
-            return Path(run_dir) / "data"
+        if self.run_dir is not None:
+            return Path(self.run_dir) / "data"
         
-        return Path(__file__).resolve().parents[1] / "data"
+        raise PipelineConfigurationError("Please parse a run directory to " \
+        "the ExecutionContext.")
     
     def resolve_given_path(self, stage_name: str | None, 
                            path_name: str | None, 
