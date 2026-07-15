@@ -3,16 +3,18 @@ from __future__ import annotations
 import getpass
 import hashlib
 import subprocess
+import warnings
 import sys
 from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from .errors import StageConfigurationError
+from .warnings import StageConfigurationWarning
 from .execution import PythonStageExecutor, StageExecutor
 from .graph import StageGraph
 from .logger import Logger
-from .models import PipelineConfig, PipelineRun, RAPConfig, RunManifest, RuntimeID, now
+from .models import PipelineConfig, StageConfig, PipelineRun, RAPConfig, RunManifest, RuntimeID, now
 from .stage import Stage
 
 
@@ -53,7 +55,7 @@ class Pipeline:
     ):
         self.name = name or "pipeline"
         self.backend = backend or "python"
-        self.config = PipelineConfig.from_any(config)
+        self.config = self._resolve_config(config) #PipelineConfig.from_any(config)
         if self.config.name is None:
             self.config.name = self.name
         self.config.backend = self.backend
@@ -155,6 +157,9 @@ class Pipeline:
             stage.validate()
         self.graph.validate()
         return self
+    
+    def create_stage_config(self, s_config: str | Path) -> StageConfig:
+        pass
 
     def run(self) -> PipelineRun:
         """
@@ -258,6 +263,46 @@ class Pipeline:
             return getpass.getuser()
         except Exception:
             return None
+
+    def _resolve_config(self, config: PipelineConfig | RAPConfig | Mapping[str, Any] | str | Path | None) -> list[PipelineConfig, StageConfig] | PipelineConfig | StageConfig:
+        if config is None:
+            return PipelineConfig.from_any(config)
+        if isinstance(config, str):
+            if config.endswith(".yaml") or config.endswith(".yml"):
+                return PipelineConfig.from_yaml(config)
+            else:
+                raise StageConfigurationError(f"Unsupported config file format parsed as Stage Configuration: {config!r}.")
+        if isinstance(config, Path):
+            if config.suffix in (".yaml", ".yml"):
+                return PipelineConfig.from_yaml(config)
+            else:
+                raise StageConfigurationError(f"Unsupported config file format parsed as Stage Configuration: {config!r}.")
+        if isinstance(config, PipelineConfig):
+            if "stage_config" in config.metadata:
+                warnings.warn(
+                    "Stage Configuration found in PipelineConfig metadata. This should be moved to a separate location for StageConfiguration instantiation.",
+                    StageConfigurationWarning
+                )
+                self.logger.warning(
+                    "Stage Configuration found in PipelineConfig metadata. This should be moved to a separate location for StageConfiguration instantiation."
+                )
+            else:
+                warnings.warn(
+                    "No Stage Configuration found in parsed configuration. This may lead to unexpected behavior during pipeline execution.",
+                    StageConfigurationWarning
+                )
+                self.logger.warning(
+                    "No Stage Configuration found in parsed configuration. This may lead to unexpected behavior during pipeline execution."
+                )
+            return config
+        if isinstance(config, Mapping):
+            # Look for Pipeline Configuration and Stage Configuration in keys
+            pass
+        
+        pipeline_config = self.config
+        stage_config = StageConfig()
+        return [pipeline_config, stage_config]
+
 
     @classmethod
     def from_files(
