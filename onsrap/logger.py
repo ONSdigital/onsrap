@@ -98,3 +98,18 @@ class Logger:
         else:
             self._logger.info(message)
 
+    def warning(self, message: str, **kwargs: Any) -> None:
+        """
+        Logs a warning message with optional structured context. 
+
+        Parameters
+        ----------
+        ``message`` : str 
+            The main description of the warning to be logged. 
+        ``**kwargs`` : Any 
+            Additional information to be recorded in the log record. 
+        """
+        if kwargs:
+            self._logger.warning("%s | %s", message, json.dumps(kwargs, default=str, sort_keys=True))
+        else:
+            self._logger.warning(message)
