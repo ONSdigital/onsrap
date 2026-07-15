@@ -287,8 +287,8 @@ class Stage:
             else:
                 unpacked_deps.append(dependency)
 
-        for i in unpacked_deps:
-            if isinstance(i, list):
+        for dependency in unpacked_deps:
+            if isinstance(dependency, list):
                 raise StageDependencyError("Nested lists are not valid arguments for this method! " \
                 "Please provided single list or individual string values")
 
