@@ -149,7 +149,8 @@ class ExecutionContext:
                            path_name: str | None, 
                            file_name: str | None,
                            root: Path,
-                           add_folder: list[str] | str | None = None) -> Path:
+                           add_folder: list[str] | str | None = None
+                           ) -> Path:
         """
         Returns a file path for a requested item.
         
