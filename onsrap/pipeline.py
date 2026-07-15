@@ -290,7 +290,7 @@ class Pipeline:
         dependencies: Mapping[str, Sequence[str]] | None = None,
         logger: Logger | None = None,
         executor: StageExecutor | None = None,
-    ) -> "Pipeline":
+    ) -> Pipeline:
         """
         Extracts the information from files regarding exactly what is being run in the pipeline and
         allows for configuration of how the Pipeline is run. 
@@ -357,6 +357,7 @@ class Pipeline:
         """
         payload = dict(cfg)
 
+        # pipeline_variables contains pipeline information
         name = payload.pop("name", None)
         backend = payload.pop("backend", "python")
         config = payload.pop("config", None)
@@ -375,6 +376,11 @@ class Pipeline:
             config=config,
             stages=stages,
         )
+
+    def from_config(cls, config: dict) -> Pipeline:
+        # Wrapper for from_dict but expecting config Path/str or yaml object 
+        # Extract pipeline_variables aka do not parse stage_configuration section of config.yaml
+        pass
 
     @staticmethod
     def _dependencies_for_stage(
