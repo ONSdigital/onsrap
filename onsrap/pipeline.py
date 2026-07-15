@@ -55,7 +55,7 @@ class Pipeline:
         executor: StageExecutor | None = None,
     ):
         self.backend = backend or "python"
-        self.config = PipelineConfig.from_any(config)
+        self.config = self._resolve_config(config)
         if (self.config.name is not None) and (name is None):
             self.name = self.config.name
         else:
