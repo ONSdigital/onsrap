@@ -66,3 +66,21 @@ class StageLoadError(StageExecutionError):
     Raised when a file-backed stage cannot be loaded.
     Child class with ``StageExecutionError`` as the parent class.
     """
+
+class StageDependencyError(OnsrapError):
+    """
+    Raised when incorrect inputs are provided to the dependency
+    attribute of a Stage.
+    """
+
+class PipelineInitialisationError(OnsrapError):
+    """
+    Raised when there is an error in definition of the Pipeline 
+    instance
+    """
+
+class PipelineConfigurationError(OnsrapError):
+    """
+    Raised when there has been an issue with the PipelineConfig
+    instance. 
+    """

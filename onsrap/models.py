@@ -137,6 +137,7 @@ class PipelineConfig:
     backend: str = "python"
     work_dir: Path = field(default_factory=Path.cwd)
     project_root: Optional[Path] = None
+    output_dir: Optional[Path] = None
     log_dir: Path = field(default_factory=lambda: Path("logs"))
     data_dir: Path = field(default_factory=lambda: Path("data"))
     allow_subprocess_fallback: bool = True
@@ -207,6 +208,7 @@ class PipelineConfig:
         backend = payload.pop("backend", "python")
         work_dir = Path(payload.pop("work_dir", Path.cwd()))
         project_root_value = payload.pop("project_root", None)
+        output_dir_value = payload.pop("output_dir", None)
         project_root = Path(project_root_value) if project_root_value is not None else work_dir
         log_dir = Path(payload.pop("log_dir", "logs"))
         data_dir = Path(payload.pop("data_dir", "data"))
@@ -220,6 +222,7 @@ class PipelineConfig:
             backend=backend,
             work_dir=work_dir,
             project_root=project_root,
+            output_dir=output_dir_value,
             log_dir=log_dir,
             data_dir=data_dir,
             allow_subprocess_fallback=allow_subprocess_fallback,
@@ -270,14 +273,15 @@ class PipelineConfig:
 
     def to_dict(self) -> dict[str, Any]:
         """
-        Converts attributes regarding how the pipeline runs into a dictionary and holds it in
-        the ``metadata`` attribute of the ``PipelineConfig`` class. 
+        Returns a prescriptive expression of the attributes within the PipelineConfig instance
+        that allows for easier processing by the user. 
         """
         data = {
             "name": self.name,
             "backend": self.backend,
             "work_dir": str(self.work_dir),
             "project_root": str(self.project_root) if self.project_root is not None else None,
+            "output_dir": str(self.output_dir) if self.output_dir is not None else None,
             "log_dir": str(self.log_dir),
             "data_dir": str(self.data_dir),
             "allow_subprocess_fallback": self.allow_subprocess_fallback,

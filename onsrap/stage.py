@@ -5,14 +5,14 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Optional, TYPE_CHECKING, Union
 
-from .errors import StageConfigurationError
+from .errors import StageConfigurationError, StageDependencyError
 
 if TYPE_CHECKING:
     from .execution import ExecutionContext, StageExecutor
     from .models import StageResult
 
 
-def _normalize_dependencies(dependencies: Iterable[str] | str | None) -> tuple[str, ...]:
+def _normalize_dependencies(dependencies: list[str] | str | None) -> tuple[str, ...]:
     """
     Standardise the names of any stages dependant on other stages/processes.
 
@@ -32,13 +32,16 @@ def _normalize_dependencies(dependencies: Iterable[str] | str | None) -> tuple[s
     """
     if dependencies is None:
         return ()
-
+    if isinstance(dependencies, list) and dependencies == []:
+        return ()
     if isinstance(dependencies, str):
         candidate_items = [dependencies]
+
     else:
-        candidate_items = list(dependencies)
+        candidate_items = dependencies
 
     normalized: list[str] = []
+
     for dependency in candidate_items:
         dependency_name = str(dependency).strip()
         if dependency_name and dependency_name not in normalized:
@@ -276,9 +279,21 @@ class Stage:
         ``Stage``  
             ``Stage`` class instance with normalised ``dependencies`` attribute.
         """
+        unpacked_deps: list = []
+        for dependency in dependencies:
+            if isinstance(dependency, list):
+                unpacked_deps = unpacked_deps + dependency
+            else:
+                unpacked_deps.append(dependency)
+
+        for dependency in unpacked_deps:
+            if isinstance(dependency, list):
+                raise StageDependencyError("Nested lists are not valid arguments for this method! " \
+                "Please provided single list or individual string values")
+
         return replace(
             self,
-            dependencies=self.dependencies + _normalize_dependencies(dependencies),
+            dependencies=self.dependencies + _normalize_dependencies(unpacked_deps),
         )
 
     def validate(self) -> None:
@@ -290,8 +305,13 @@ class Stage:
         ``StageConfigurationError``  
             If ``source`` attribute does not define a source or does not exist.
         """
-        if self.source is None:
-            raise StageConfigurationError(f"Stage '{self.name}' does not define a source.")
+        if not (isinstance(self.source, Path) or callable(self.source)):
+            raise StageConfigurationError(f"Stage '{self.name}' must have a Path or Callable source.")
+        
+        if self.source is None or self.source == "":
+            raise StageConfigurationError(
+                f"Stage '{self.name}' does not define a source. Source provided: {self.source}"
+                )
 
         if isinstance(self.source, Path) and not self.source.is_file():
             raise StageConfigurationError(f"Stage source does not exist: {self.source}")

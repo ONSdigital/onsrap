@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol, TYPE_CHECKING
 
-from .errors import StageExecutionError, StageLoadError
+from .errors import StageExecutionError, StageLoadError, PipelineConfigurationError
 from .loader import PREFERRED_ENTRYPOINTS, discover_python_entrypoint, load_python_callable
 from .logger import Logger
 from .models import PipelineConfig, StageResult, StageStatus, now
@@ -105,6 +105,90 @@ class ExecutionContext:
             the run.
         """
         return {name: result.outputs for name, result in self.stage_results.items()}
+    
+    def get_data_dir(self) -> Path:
+        """
+        Establishes the filepath that the data is held in. 
+        
+        Returns
+        -------
+        Path
+            The file path for the location of the data being used in the pipeline. 
+        """
+        if self.config is not None:
+            return Path(self.config.data_dir)
+        
+        raise PipelineConfigurationError("Please parse a PipelineConfig instance to " \
+        "the ExecutionContext.")
+    
+    def resolve_output_root(self) -> Path:
+        """
+        Establishes the filepath that the outputs are going to be saved to. 
+
+        Returns
+        -------
+        Path
+            The file path for the outputs of the run to be saved to. 
+        """
+        if self.run_dir is not None:
+            return Path(self.run_dir)
+        
+        raise PipelineConfigurationError("Please parse a run directory to " \
+        "the ExecutionContext.")
+    
+    def resolve_given_path(self, stage_name: str | None, 
+                           path_name: str | None, 
+                           file_name: str | None,
+                           root: Path,
+                           add_folder: list[str] | str | None = None
+                           ) -> Path:
+        """
+        Returns a file path for a requested item.
+        
+        This investigates the result of a previous stage to extract a selected path. 
+        If the path is not available, it creates a path using a root previously derived 
+        in main.py, the chosen directory within the root (optional), and the file path. 
+
+        Parameters
+        ----------
+        ``stage_name`` : str
+            The name of the stage where the path was outputted. 
+        ``path_name`` : str
+            The name for the path within the stage results. This will be the key from the 
+            key/value pair within the output of the previous stage. 
+        ``file_name`` : str
+            The name of the file that you are trying to access the Path for. 
+        ``root`` : Path
+            The file path for the root of the directory. This should be denoted through 
+            other methods. 
+        ``add_folder`` : list[str] | str | None, default = None
+            Additional folder name/s to add into the returned file path.
+
+        Returns
+        -------
+        Path
+            The file path where data has previously been saved to to allow for extraction of 
+            that data throughout the pipeline. 
+        """
+        result = self.result_for(stage_name)
+        if result is not None and path_name is not None:
+            selected_path = result.outputs.get(path_name)
+            if selected_path: 
+                return Path(selected_path)
+        if isinstance(add_folder, list):
+            if file_name is not None: 
+                new_path = root.joinpath(*add_folder, file_name)
+                return new_path
+            new_path = root.joinpath(*add_folder)
+            return new_path
+        if isinstance(add_folder, str):
+            if file_name is not None:
+                return root/ add_folder/ file_name 
+            return root / add_folder
+        if file_name is not None:    
+            return root / file_name
+        return root
+        
 
 
 class StageExecutor(Protocol):
@@ -251,7 +335,6 @@ class PythonStageExecutor:
     def _execute_file(self, stage: "Stage", context: ExecutionContext) -> StageResult:
         """
         Attempt to run a file.
-
         Attempt to run a callable object.
 
         Calls the logger.event() method to record an event and attempts to run 
