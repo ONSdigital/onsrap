@@ -20,6 +20,7 @@ from .models import (
     RAPDataset,
     RunManifest,
     RuntimeID,
+    StageConfig,
     StageResult,
     StageStatus,
 )
@@ -47,6 +48,7 @@ __all__ = [
     "RAPDataset",
     "RunManifest",
     "RuntimeID",
+    "StageConfig",
     "Stage",
     "StageConfigurationError",
     "StageExecutionError",
