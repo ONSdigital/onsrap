@@ -65,7 +65,7 @@ def profit_per_order(df):
 
 
 def main():
-    df = pd.read_csv("examples/pipeline_2/processed_data/orders_cleaned.csv")
+    df = pd.read_csv("examples/pipeline_2/data/orders_cleaned.csv")
     delivery_times = {"north":14,
                       "south":4,
                       "east":7,
@@ -79,7 +79,7 @@ def main():
     df = postage_cost(df)
     df = production_cost(df)
     df = profit_per_order(df)
-    df.to_csv("examples/pipeline_2/processed_data/orders_prepped.csv", index = False)
+    df.to_csv("examples/pipeline_2/data/orders_prepped.csv", index = False)
 
 
 

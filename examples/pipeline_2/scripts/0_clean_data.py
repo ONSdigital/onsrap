@@ -33,7 +33,7 @@ def standardise_columns(df):
 
 
 def main():
-    orders = pd.read_csv("examples/pipeline_2/input_data/orders.csv")
+    orders = pd.read_csv("examples/pipeline_2/data/orders.csv")
 
     expected_variables = ["order_id",
                       "customer_name",
@@ -53,6 +53,6 @@ def main():
     print(orders.dtypes)
     orders = remove_identifiable(orders, identifiable_cols)
     orders = standardise_columns(orders)
-    orders.to_csv("examples/pipeline_2/processed_data/orders_cleaned.csv", index = False)
+    orders.to_csv("examples/pipeline_2/data/orders_cleaned.csv", index = False)
 
 main()
