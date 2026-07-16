@@ -210,6 +210,7 @@ def test_to_dict(pipelineconfig) -> None:
                                         "backend":"python",
                                         "work_dir":"tmp\\work",
                                         "project_root":"project",
+                                        "output_dir":None,
                                         "log_dir":"tmp\\logs",
                                         "data_dir":"tmp\\data",
                                         "allow_subprocess_fallback":True,
