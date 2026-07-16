@@ -33,7 +33,9 @@ class PipelineRunner:
         This method validates the source information, establishes the directories and 
         the context to run the pipeline within, sets out the manifest for the run, attempts
         to run the stages in the order outlined by the ``StageGraph`` instance and logs all
-        progress alongside relevant statuses.
+        progress alongside relevant statuses. Before each stage executes, the runner binds
+        the current stage name onto the ``ExecutionContext`` so ``context.stage_config``
+        resolves to the correct stage-specific configuration.
 
         It returns a PipelineRun instance containing metadata and logging information for the 
         specific run of the whole Pipeline. 
@@ -72,6 +74,7 @@ class PipelineRunner:
             run_dir=run_dir,
             started_at=started_at,
             working_directory=pipeline.config.work_dir,
+            stage_configs=dict(pipeline.stage_configs),
         )
 
         ordered_stages = pipeline.ordered_stages()
@@ -91,7 +94,11 @@ class PipelineRunner:
         try:
             for stage in ordered_stages:
                 self.logger.event("Executing stage", name=stage.name, source=stage.source_label)
-                result = stage.run(context, pipeline.executor)
+                context.set_active_stage(stage.name)
+                try:
+                    result = stage.run(context, pipeline.executor)
+                finally:
+                    context.set_active_stage(None)
                 context.record(result)
                 stage_results.append(result)
                 manifest.stages_run.append(result.name)
