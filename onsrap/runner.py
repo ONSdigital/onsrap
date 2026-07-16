@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -52,8 +53,14 @@ class PipelineRunner:
         runtime_id = pipeline._create_runtime_id()
         pipeline.id = runtime_id
 
-        project_root = Path(pipeline.config.project_root or pipeline.config.work_dir)
-        run_dir = project_root / "runs" / runtime_id.get_id()
+        if pipeline.config.output_dir is not None:
+            run_output = Path(pipeline.config.output_dir)
+        else:
+            warnings.warn(
+                "Output directory is not specified. Using project root or work directory as the run output."
+            )  # TODO: fill with warnings from Pipeline branch
+            run_output = Path(pipeline.config.project_root or pipeline.config.work_dir)
+        run_dir = run_output / "runs" / runtime_id.get_id()
         run_dir.mkdir(parents=True, exist_ok=True)
 
         started_at = now()
