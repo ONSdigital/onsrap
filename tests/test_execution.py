@@ -21,12 +21,13 @@ def config() -> PipelineConfig:
     work_dir = Path('tmp/work_dir')
     project_root = Path('tmp/project')
     log_dir = Path('tmp/log')
-    data_dir = "tmp/config_data"
+    data_dir = Path("tmp/config_data")
     return PipelineConfig(
         "test_pipeline",
         "python",
         work_dir, 
-        project_root, 
+        project_root,
+        None,
         log_dir, 
         data_dir, 
         True, 
@@ -157,7 +158,7 @@ def test_resolve_output_root(execution) -> None:
     is required.. 
     """
     work_dir = Path('tmp/work_dir')
-    assert execution.resolve_output_root() == Path("tmp/run/data")
+    assert execution.resolve_output_root() == Path("tmp/run")
 
     execution_blank_config = ExecutionContext("test_pipeline",
         "run_id_1234",
