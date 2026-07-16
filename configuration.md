@@ -105,7 +105,6 @@ handle the following types for the `config` parameter.
 |---|---|
 | `None` | Constructs a fully-defaulted `PipelineConfig`. No stage configs. |
 | `PipelineConfig` instance | Used directly. Stage configuration may optionally be embedded in `config.metadata["stage_configuration"]` (backwards-compatibility path; emits a `StageConfigurationWarning`). |
-| `RAPConfig` instance | Delegates to `PipelineConfig.from_mapping(config.contents)`. |
 | `Mapping[str, Any]` | Parsed as a composite or flat config payload (see below). |
 | `str` / `Path` | Read and YAML-parsed; the resulting mapping is treated as above. Only `.yaml` / `.yml` files are accepted. |
 
@@ -206,7 +205,6 @@ Pipeline._resolve_config()
                     ▼
           Pipeline._load_config_mapping()
           Normalises input to dict[str, Any]:
-            RAPConfig  → config.contents
             Mapping    → dict(mapping)
             str / Path → yaml.safe_load(file)
                     │

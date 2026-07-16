@@ -94,21 +94,6 @@ class RuntimeID:
 
 
 @dataclass
-class RAPConfig:
-    """
-    Holds information on how the Reproducible Analytical Pipeline is 
-    configured. 
-
-    Parameters
-    ----------
-    ``contents`` : dict[str, Any]
-        Contains a dictionary of string keys to Any value pairs containing 
-        information needed to run the Pipeline.
-    """
-    contents: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
 class PipelineConfig:
     """
     Holds information required to run the whole pipeline. 
@@ -154,14 +139,14 @@ class PipelineConfig:
     @classmethod
     def from_any(
         cls,
-        value: Union["PipelineConfig", RAPConfig, Mapping[str, Any], str, Path, None],
+        value: Union["PipelineConfig", Mapping[str, Any], str, Path, None],
     ) -> "PipelineConfig":
         """
         Converts one of several datatypes into a PipelineConfig class instance. 
 
         Parameters
         ----------
-        ``value`` : PipelineConfig", RAPConfig, Mapping[str, Any], str, Path, None
+        ``value`` : PipelineConfig, Mapping[str, Any], str, Path, or None
             The object holding metadata on how the Pipeline should run to be converted 
             into a PipelineConfig class instance. 
         
@@ -176,9 +161,6 @@ class PipelineConfig:
 
         if isinstance(value, cls):
             return value
-
-        if isinstance(value, RAPConfig):
-            return cls.from_mapping(value.contents)
 
         if isinstance(value, Mapping):
             return cls.from_mapping(dict(value))

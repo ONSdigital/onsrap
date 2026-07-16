@@ -14,9 +14,8 @@ from .warnings import StageConfigurationWarning
 from .execution import PythonStageExecutor, StageExecutor
 from .graph import StageGraph
 from .logger import Logger
-from .models import PipelineConfig, StageConfig, PipelineRun, RAPConfig, RunManifest, RuntimeID, now
+from .models import PipelineConfig, StageConfig, PipelineRun, RunManifest, RuntimeID, now
 from .stage import Stage, _normalize_dependencies
-
 
 
 class Pipeline:
@@ -35,7 +34,7 @@ class Pipeline:
         What the pipeline is called.
     ``backend`` : str, default = "python"
         The system used to run the pipeline. 
-    ``config`` : PipelineConfig | RAPConfig | Mapping[str, Any] | str | Path | None 
+    ``config`` : PipelineConfig | Mapping[str, Any] | str | Path | None 
         The instance containing the required information on running the Pipeline. 
     ``stages`` : sequence of Stage, Mapping[str, Any], str, Path, Callable, or None. 
         The required steps within the Pipeline. 
@@ -48,7 +47,7 @@ class Pipeline:
         self,
         name: str | None = None,
         backend: str = "python",
-        config: PipelineConfig | RAPConfig | Mapping[str, Any] | str | Path | None = None,
+        config: PipelineConfig | Mapping[str, Any] | str | Path | None = None,
         stages: Sequence[Stage | Mapping[str, Any] | str | Path | Callable[..., Any]] | None = None,
         dependencies: tuple[str]| dict[str, Sequence[str]] | None = None,
         logger: Logger | None = None,
@@ -355,7 +354,7 @@ class Pipeline:
 
     def _resolve_config(
         self,
-        config: PipelineConfig | RAPConfig | Mapping[str, Any] | str | Path | None,
+        config: PipelineConfig | Mapping[str, Any] | str | Path | None,
     ) -> tuple[PipelineConfig, dict[str, StageConfig], list[Stage]]:
         """
         Resolve supported configuration inputs into pipeline config, stage config, and stages.
@@ -450,14 +449,11 @@ class Pipeline:
 
     @staticmethod
     def _load_config_mapping(
-        config: RAPConfig | Mapping[str, Any] | str | Path,
+        config: Mapping[str, Any] | str | Path,
     ) -> dict[str, Any]:
         """
-        Load raw configuration data from a RAP config object, mapping, or YAML file.
+        Load raw configuration data from a mapping or YAML file.
         """
-        if isinstance(config, RAPConfig):
-            return dict(config.contents)
-
         if isinstance(config, Mapping):
             return dict(config)
 
@@ -656,7 +652,7 @@ class Pipeline:
         *,
         name: str | None = None,
         backend: str = "python",
-        config: PipelineConfig | RAPConfig | Mapping[str, Any] | str | Path | None = None,
+        config: PipelineConfig | Mapping[str, Any] | str | Path | None = None,
         dependencies: Mapping[str, Sequence[str]] | None = None,
         logger: Logger | None = None,
         executor: StageExecutor | None = None,
@@ -674,7 +670,7 @@ class Pipeline:
             The name of the pipeline.
         ``backend`` : str, default = "python"
             The system that the pipeline is written in. 
-        ``config`` : PipelineConfig | RAPConfig | Mapping[str, Any] | str | Path | None
+        ``config`` : PipelineConfig | Mapping[str, Any] | str | Path | None
             The high level information required to run this specific pipeline. 
         ``dependencies`` : Mapping[str, Sequence[str]] or None
             An object containing which stages are required to be run before other stages. 
@@ -753,7 +749,7 @@ class Pipeline:
     @classmethod
     def from_config(
         cls,
-        config: PipelineConfig | RAPConfig | Mapping[str, Any] | str | Path,
+        config: PipelineConfig | Mapping[str, Any] | str | Path,
         *,
         name: str | None = None,
         backend: str = "python",
