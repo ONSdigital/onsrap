@@ -6,7 +6,7 @@ import subprocess
 import sys
 from importlib import metadata as importlib_metadata
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, Sequence, Union
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from .errors import StageConfigurationError, PipelineInitialisationError
 from .execution import PythonStageExecutor, StageExecutor
@@ -379,7 +379,7 @@ class Pipeline:
     @staticmethod
     def _dependencies_for_stage(
         stage_name: str,
-        path: Union[Path, Callable[..., Any], None] = None,
+        path: Path | Callable[..., Any] | None = None,
         dependencies: Mapping[str, Sequence[str]] | None = None,
     ) -> tuple[str, ...]:
         """
