@@ -174,7 +174,7 @@ class Pipeline:
         """
         return self.graph.topological_order()
 
-    def validate(self) -> "Pipeline":
+    def validate(self) -> Pipeline:
         """
         Confirms that the source files for the stage exist. 
         """
@@ -707,7 +707,7 @@ class Pipeline:
         )
 
     @classmethod
-    def from_dict(cls, cfg: Mapping[str, Any]) -> "Pipeline":
+    def from_dict(cls, cfg: Mapping[str, Any]) -> Pipeline:
         """
         Extracts information from a dictionary to configure a Pipeline instance as
         well as what the Pipeline runs. 
@@ -755,7 +755,7 @@ class Pipeline:
         backend: str = "python",
         logger: Logger | None = None,
         executor: StageExecutor | None = None,
-    ) -> "Pipeline":
+    ) -> Pipeline:
         """
         Construct a pipeline directly from a composite configuration payload or file.
 

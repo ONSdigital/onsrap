@@ -26,7 +26,7 @@ class PipelineRunner:
     def __init__(self, logger: Logger | None = None):
         self.logger = logger or Logger()
 
-    def run(self, pipeline: "Pipeline") -> PipelineRun:
+    def run(self, pipeline: Pipeline) -> PipelineRun:
         """
         Method that runs a ``Pipeline`` instance. 
 

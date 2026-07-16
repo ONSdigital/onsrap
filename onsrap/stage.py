@@ -115,7 +115,7 @@ class Stage:
         metadata: Mapping[str, Any] | None = None,
         entrypoint: str | None = None,
         backend: str = "python",
-    ) -> "Stage":
+    ) -> Stage:
         """
         Class method that checks and cleans the file path for the ``Stage``.
 
@@ -169,7 +169,7 @@ class Stage:
         dependencies: Iterable[str] | str | None = None,
         metadata: Mapping[str, Any] | None = None,
         backend: str = "python",
-    ) -> "Stage":
+    ) -> Stage:
         """
         Class method that retrieves the name of the Stage from a Callable item.
 
@@ -204,7 +204,7 @@ class Stage:
         )
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "Stage":
+    def from_dict(cls, data: Mapping[str, Any]) -> Stage:
         """
         Class method that converts a dictionary stage into a ``Stage`` class instance.
 
@@ -266,7 +266,7 @@ class Stage:
 
         raise StageConfigurationError("Stage dictionary must define a source, path, or callable.")
 
-    def with_dependencies(self, *dependencies: str) -> "Stage":
+    def with_dependencies(self, *dependencies: str) -> Stage:
         """
         Method that normalises and adds ``dependencies`` to the ``Stage`` class attributes.
 
@@ -347,7 +347,7 @@ class Stage:
 
         return None
 
-    def run(self, context: "ExecutionContext", executor: "StageExecutor") -> "StageResult":
+    def run(self, context: ExecutionContext, executor: StageExecutor) -> StageResult:
         """
         Checks that the ``source`` is valid and then runs the ``source`` 
 

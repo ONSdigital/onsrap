@@ -225,7 +225,7 @@ class StageExecutor(Protocol):
     Child class of ``Protocol`` 
     Implementation required
     """
-    def execute(self, stage: "Stage", context: ExecutionContext) -> StageResult:
+    def execute(self, stage: Stage, context: ExecutionContext) -> StageResult:
         """
         Method to run ``Stage`` however implementation required
         """
@@ -242,7 +242,7 @@ class PythonStageExecutor:
     def __init__(self, preferred_entrypoints: tuple[str, ...] = PREFERRED_ENTRYPOINTS):
         self.preferred_entrypoints = preferred_entrypoints
 
-    def execute(self, stage: "Stage", context: ExecutionContext) -> StageResult:
+    def execute(self, stage: Stage, context: ExecutionContext) -> StageResult:
         """
         Main function to select how ``Stage`` is run.
 
@@ -280,7 +280,7 @@ class PythonStageExecutor:
 
     def _execute_callable(
         self,
-        stage: "Stage",
+        stage: Stage,
         context: ExecutionContext,
         callable_object: Any,
         source_label: str | None,
@@ -361,7 +361,7 @@ class PythonStageExecutor:
         )
         return result
 
-    def _execute_file(self, stage: "Stage", context: ExecutionContext) -> StageResult:
+    def _execute_file(self, stage: Stage, context: ExecutionContext) -> StageResult:
         """
         Attempt to run a file.
         Attempt to run a callable object.
@@ -444,7 +444,7 @@ class PythonStageExecutor:
 
         return self._execute_subprocess(stage, context)
 
-    def _execute_subprocess(self, stage: "Stage", context: ExecutionContext) -> StageResult:
+    def _execute_subprocess(self, stage: Stage, context: ExecutionContext) -> StageResult:
         """
         Run the entire Python file for the ``Stage`` from the top.
         
@@ -531,7 +531,7 @@ class PythonStageExecutor:
         return result
 
 
-def _invoke_callable(callable_object: Any, stage: "Stage", context: ExecutionContext) -> Any:
+def _invoke_callable(callable_object: Any, stage: Stage, context: ExecutionContext) -> Any:
     """
     Assigns appropriate parameters for a callable and runs it. 
 
@@ -599,7 +599,7 @@ def _invoke_callable(callable_object: Any, stage: "Stage", context: ExecutionCon
 
 
 def _build_success_result(
-    stage: "Stage",
+    stage: Stage,
     started_at: datetime,
     finished_at: datetime,
     output: Any,

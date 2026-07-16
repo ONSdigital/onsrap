@@ -21,7 +21,7 @@ class StageGraph:
     stages: list[Stage] = field(default_factory=list)
 
     @classmethod
-    def from_stages(cls, stages: Iterable[Stage]) -> "StageGraph":
+    def from_stages(cls, stages: Iterable[Stage]) -> StageGraph:
         """
         This is the primary constructor for StageGraph, which performs validation and normalization of the stage list.
 

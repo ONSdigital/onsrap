@@ -6,6 +6,7 @@ import importlib.util
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 from .errors import StageConfigurationError, StageLoadError
 
@@ -65,7 +66,7 @@ def discover_python_entrypoint(path: Path) -> str | None:
     return None
 
 
-def load_python_callable(path: Path, entrypoint: str):
+def load_python_callable(path: Path, entrypoint: str) -> Any:
     """
     Import a stage module and return the named callable from it.
 

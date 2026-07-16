@@ -139,8 +139,8 @@ class PipelineConfig:
     @classmethod
     def from_any(
         cls,
-        value: Union["PipelineConfig", Mapping[str, Any], str, Path, None],
-    ) -> "PipelineConfig":
+        value: Union[PipelineConfig, Mapping[str, Any], str, Path, None],
+    ) -> PipelineConfig:
         """
         Converts one of several datatypes into a PipelineConfig class instance. 
 
@@ -171,7 +171,7 @@ class PipelineConfig:
         raise TypeError("Unsupported pipeline config type: {0!r}".format(type(value)))
 
     @classmethod
-    def from_mapping(cls, data: Mapping[str, Any]) -> "PipelineConfig":
+    def from_mapping(cls, data: Mapping[str, Any]) -> PipelineConfig:
         """
         Extracts information from a mapping datatype and returns a PipelineConfig 
         instance. 
@@ -233,7 +233,7 @@ class PipelineConfig:
         )
 
     @classmethod
-    def from_file(cls, path: Path) -> "PipelineConfig":
+    def from_file(cls, path: Path) -> PipelineConfig:
         """
         Extracts a mapping item from a file containing information about how the 
         pipeline should run. 
@@ -316,7 +316,7 @@ class StageConfig:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_mapping(cls, name: str, data: Mapping[str, Any] | None = None) -> "StageConfig":
+    def from_mapping(cls, name: str, data: Mapping[str, Any] | None = None) -> StageConfig:
         """
         Build a ``StageConfig`` from a mapping loaded from code or configuration files.
 
