@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Iterable, Mapping, Optional, Union
+
+from .errors import StageConfigurationError
 
 
 class StageStatus(str, Enum):
@@ -124,6 +127,9 @@ class PipelineConfig:
         The directory to store the logs in. 
     ``data_dir`` : Path
         The directory where the data is stored. 
+    ``output_dir`` : Path, optional
+        The directory where pipeline outputs should be written. Not used internally
+        by the runner; exposed for stage code to read via ``context.config.output_dir``.
     ``allow_subprocess_fallback`` : bool
         Indicates whether the subprocess system (running the whole file
         rather than an entrypoint function) should be allowed.
@@ -140,6 +146,7 @@ class PipelineConfig:
     output_dir: Optional[Path] = None
     log_dir: Path = field(default_factory=lambda: Path("logs"))
     data_dir: Path = field(default_factory=lambda: Path("data"))
+    output_dir: Optional[Path] = None
     allow_subprocess_fallback: bool = True
     python_executable: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -212,7 +219,19 @@ class PipelineConfig:
         project_root = Path(project_root_value) if project_root_value is not None else work_dir
         log_dir = Path(payload.pop("log_dir", "logs"))
         data_dir = Path(payload.pop("data_dir", "data"))
-        allow_subprocess_fallback = bool(payload.pop("allow_subprocess_fallback", True))
+        output_dir_value = payload.pop("output_dir", None)
+        output_dir = Path(output_dir_value) if output_dir_value is not None else None
+        raw_subprocess_fallback = payload.pop("allow_subprocess_fallback", True)
+        if isinstance(raw_subprocess_fallback, str):
+            warnings.warn(
+                "allow_subprocess_fallback should be a boolean, not a string. "
+                f"Received {raw_subprocess_fallback!r}. Use an unquoted YAML boolean.",
+                UserWarning,
+                stacklevel=2,
+            )
+            allow_subprocess_fallback = raw_subprocess_fallback.strip().lower() not in ("false", "0", "no", "off")
+        else:
+            allow_subprocess_fallback = bool(raw_subprocess_fallback)
         python_executable = payload.pop("python_executable", None)
 
         metadata.update(payload)
@@ -225,6 +244,7 @@ class PipelineConfig:
             output_dir=output_dir_value,
             log_dir=log_dir,
             data_dir=data_dir,
+            output_dir=output_dir,
             allow_subprocess_fallback=allow_subprocess_fallback,
             python_executable=python_executable,
             metadata=metadata,
@@ -284,10 +304,135 @@ class PipelineConfig:
             "output_dir": str(self.output_dir) if self.output_dir is not None else None,
             "log_dir": str(self.log_dir),
             "data_dir": str(self.data_dir),
+            "output_dir": str(self.output_dir) if self.output_dir is not None else None,
             "allow_subprocess_fallback": self.allow_subprocess_fallback,
             "python_executable": self.python_executable,
         }
         data.update(self.metadata)
+        return data
+
+
+@dataclass
+class StageConfig:
+    """
+    Holds configuration that should be exposed to an individual stage at runtime.
+
+    Parameters
+    ----------
+    ``name`` : str
+        The name of the stage that this configuration applies to.
+    ``_variables`` : dict[str, Any]
+        Arbitrary stage-scoped variables.
+    ``datasets`` : dict[str, Any]
+        Optional dataset-related metadata for the stage.
+    ``metadata`` : dict[str, Any]
+        Additional supporting metadata for the stage configuration.
+    """
+    name: str
+    _variables: dict[str, Any] = field(default_factory=dict)
+    datasets: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_mapping(cls, name: str, data: Mapping[str, Any] | None = None) -> "StageConfig":
+        """
+        Build a ``StageConfig`` from a mapping loaded from code or configuration files.
+
+        The ``datasets`` and ``metadata`` keys are extracted into their dedicated
+        attributes. All remaining keys are treated as stage variables that should be
+        exposed to the stage at runtime.
+
+        Parameters
+        ----------
+        ``name`` : str
+            Stage name that this configuration applies to.
+        ``data`` : Mapping[str, Any] or None
+            Raw configuration payload for that stage.
+
+        Returns
+        -------
+        ``StageConfig``
+            A normalized stage configuration object.
+        """
+        payload = dict(data or {})
+
+        datasets = payload.pop("datasets", {})
+        if isinstance(datasets, Mapping):
+            datasets = dict(datasets)
+        else:
+            raise StageConfigurationError("Stage datasets must be provided as a mapping.")
+
+        metadata = payload.pop("metadata", {})
+        if isinstance(metadata, Mapping):
+            metadata = dict(metadata)
+        else:
+            metadata = {"metadata": metadata}
+
+        return cls(
+            name=str(name).strip(),
+            _variables=payload,
+            datasets=datasets,
+            metadata=metadata,
+        )
+
+    @property
+    def variables(self) -> dict[str, Any]:
+        """
+        Return a copy of the stage variables without datasets or metadata.
+        """
+        return dict(self._variables)
+
+    def get(self, variable: str, default: Any = None) -> Any:
+        """
+        Return a configured variable if present, otherwise return ``default``.
+        """
+        return self._variables.get(variable, default)
+
+    def require(self, variable: str) -> Any:
+        """
+        Return a configured variable and raise if the stage does not define it.
+        """
+        if variable not in self._variables:
+            raise StageConfigurationError(
+                f"Stage configuration '{self.name}' does not define '{variable}'."
+            )
+        return self._variables[variable]
+
+    def get_variables(self, variable: Iterable[str] | str | None = None) -> Any:
+        """
+        Return all configured variables, one configured variable, or a selected subset.
+        """
+        if variable is None:
+            return dict(self._variables)
+
+        if isinstance(variable, str):
+            return self.require(variable)
+
+        requested_variables: dict[str, Any] = {}
+        missing_variables: list[str] = []
+        for requested_name in variable:
+            if requested_name in self._variables:
+                requested_variables[requested_name] = self._variables[requested_name]
+            else:
+                missing_variables.append(requested_name)
+
+        if missing_variables:
+            missing = ", ".join(sorted(missing_variables))
+            raise StageConfigurationError(
+                f"Stage configuration '{self.name}' does not define: {missing}."
+            )
+
+        return requested_variables
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Serialize the stage configuration back to a mapping suitable for manifests.
+        """
+        data = dict(self._variables)
+        if self.datasets:
+            data["datasets"] = dict(self.datasets)
+        if self.metadata:
+            data["metadata"] = dict(self.metadata)
         return data
 
 

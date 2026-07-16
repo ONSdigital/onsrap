@@ -355,6 +355,8 @@ class Stage:
         ----------
         context : set value "ExecutionContext"
             Uses ``ExecutionContext`` class information to provide required metadata on running ``source``.
+            Any stage-specific configuration resolved by the ``Pipeline`` is available through
+            ``context.stage_config`` while this stage is running.
         executor : set value "StageExecutor"
             Uses ``StageExecutor`` class to extract the ``.execute`` method to actually run the ``source``.
 
@@ -364,55 +366,4 @@ class Stage:
         """
         self.validate()
         return executor.execute(self, context)
-    
-@dataclass    
-class StageConfig:
-    """
-    Class that holds information regarding the Stage including key information required to run the stage. 
-    
-    Parameters
-    ----------
-    ``name`` : str
-        The name of the stage. This should be the same as the ``Stage`` class instance.
-    ``_variables`` : Mapping[str, Any] | None, default = None
-        A mapping of variables and their basic definition. This would define standard variables
-        such as a sex variable alongside how it is named specifically within the data. This attribute
-        should not be directly interacted with. Instead, it should be defined through a yaml file or 
-        through the set_config() method. 
-    ``datasets`` : Mapping[str, Any] | None = None
-        The name of the dataset that is used within the stage alongside any useful information
-        regarding the data, for example the file location. 
-    
-    """
-    name: str
-    _variables: Mapping[str, Any] | None = None
-    datasets: Mapping[str, dict] | None = None
-
-    def get_variables(self, variable: Iterable[str] | str | None = None) -> dict:
-        """
-        Class method that outputs the _variables attribute. 
-
-        This method allows for the entire attribute to be extracted as well as single items
-        or multiple items in a list. These will be output as a dictionary of the values for
-        the keys requested. 
-
-        Parameters
-        ----------
-        ``variable`` : Iterable[str] | str | None = None
-        """
-        if variable is not None:
-            if isinstance(variable,Iterable): 
-                requested_vars = {}
-                for requested in variable:
-                    item = self._variables.get(requested)
-                    requested_vars[requested] = item
-                if requested_vars is not None: 
-                    return requested_vars
-                raise StageConfigurationError("The variable/s you have requested does/do not exist")
-            if isinstance(variable, str):
-                item = self._variables.get(requested)
-                if item is not None:
-                    return item
-                raise StageConfigurationError("The variable/s you have requested does/do not exist")
-        return self._variables
     
