@@ -11,7 +11,7 @@ from typing import Any, Protocol, TYPE_CHECKING
 from .errors import StageExecutionError, StageLoadError, PipelineConfigurationError
 from .loader import PREFERRED_ENTRYPOINTS, discover_python_entrypoint, load_python_callable
 from .logger import Logger
-from .models import PipelineConfig, StageResult, StageStatus, now
+from .models import PipelineConfig, StageConfig, StageResult, StageStatus, now
 
 if TYPE_CHECKING:
     from .stage import Stage
@@ -40,8 +40,12 @@ class ExecutionContext:
         The directory that the work is taking place in.
     ``stage_results`` : dict[str, StageResult], default = dict
         Stores the logs for the stage run.
+    ``stage_configs`` : dict[str, StageConfig], default = dict
+        Stage-name keyed configuration mapping resolved by the ``Pipeline``.
     ``variables`` : dict[str, Any], default = dict
         Stores relevant variables regarding the stage run and their results.
+    ``active_stage_name`` : str or None, default = None
+        Name of the stage currently being executed. Used to expose ``stage_config``.
     """
     pipeline_name: str
     run_id: str
@@ -51,7 +55,9 @@ class ExecutionContext:
     started_at: datetime = field(default_factory=now)
     working_directory: Path = field(default_factory=Path.cwd)
     stage_results: dict[str, StageResult] = field(default_factory=dict)
+    stage_configs: dict[str, StageConfig] = field(default_factory=dict)
     variables: dict[str, Any] = field(default_factory=dict)
+    active_stage_name: str | None = None
 
     def record(self, result: StageResult) -> StageResult:
         """
@@ -89,6 +95,29 @@ class ExecutionContext:
             Attribute for the specific `Stage` named.
         """
         return self.stage_results.get(stage_name)
+
+    def set_active_stage(self, stage_name: str | None) -> None:
+        """
+        Mark the stage currently being executed so ``stage_config`` resolves correctly.
+        """
+        self.active_stage_name = stage_name
+
+    def stage_config_for(self, stage_name: str) -> StageConfig | None:
+        """
+        Return the configuration bound to a specific stage name, if one exists.
+        """
+        return self.stage_configs.get(stage_name)
+
+    @property
+    def stage_config(self) -> StageConfig | None:
+        """
+        Return the configuration for the stage currently being executed.
+
+        This property is ``None`` outside an active stage run.
+        """
+        if self.active_stage_name is None:
+            return None
+        return self.stage_config_for(self.active_stage_name)
 
     @property
     def stage_outputs(self) -> dict[str, Any]:
