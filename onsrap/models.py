@@ -201,8 +201,6 @@ class PipelineConfig:
         project_root = Path(project_root_value) if project_root_value is not None else work_dir
         log_dir = Path(payload.pop("log_dir", "logs"))
         data_dir = Path(payload.pop("data_dir", "data"))
-        output_dir_value = payload.pop("output_dir", None)
-        output_dir = Path(output_dir_value) if output_dir_value is not None else None
         raw_subprocess_fallback = payload.pop("allow_subprocess_fallback", True)
         if isinstance(raw_subprocess_fallback, str):
             warnings.warn(
@@ -226,7 +224,6 @@ class PipelineConfig:
             output_dir=output_dir_value,
             log_dir=log_dir,
             data_dir=data_dir,
-            output_dir=output_dir,
             allow_subprocess_fallback=allow_subprocess_fallback,
             python_executable=python_executable,
             metadata=metadata,
