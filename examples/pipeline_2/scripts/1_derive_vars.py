@@ -41,23 +41,31 @@ def postage_cost(df):
     return df
 
 def production_cost(df):
-    df["Production_cost"] = np.select(
+    df["Total_production_cost"] = np.select(
         [
-            df["notebook"],
-            df["pen"]
+            df["Product"] == "notebook",
+            df["Product"] == "pen",
+            df["Product"] == "folder"
         ],
         [
-            1.00,
-            0.3,
+            (1.00*df["Quantity"]),
+            (0.3*df["Quantity"]),
+            (0.75*df["Quantity"])
+
         ],
-        default = 2.50
+        default = 0
     )
+    return df
+
+def profit_per_order(df):
+    df["Order_profit"] = df["Total_cost"]-df["Total_production_cost"]-df["Postage"]
     return df
 
 
 
+
 def main():
-    df = pd.read_csv("examples/pipeline_2/data/orders_cleaned.csv")
+    df = pd.read_csv("examples/pipeline_2/processed_data/orders_cleaned.csv")
     delivery_times = {"north":14,
                       "south":4,
                       "east":7,
@@ -69,7 +77,9 @@ def main():
     df = order_date_values(df)
     df = size_order_alert(df)
     df = postage_cost(df)
-    df.to_csv("examples/pipeline_2/data/orders_prepped.csv", index = False)
+    df = production_cost(df)
+    df = profit_per_order(df)
+    df.to_csv("examples/pipeline_2/processed_data/orders_prepped.csv", index = False)
 
 
 
