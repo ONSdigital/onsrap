@@ -131,7 +131,7 @@ class ExecutionContext:
             The file path for the outputs of the run to be saved to. 
         """
         if self.run_dir is not None:
-            return Path(self.run_dir) / "data"
+            return Path(self.run_dir)
         
         raise PipelineConfigurationError("Please parse a run directory to " \
         "the ExecutionContext.")
