@@ -18,6 +18,8 @@ from .models import PipelineConfig, StageConfig, PipelineRun, RunManifest, Runti
 from .stage import Stage, _normalize_dependencies
 
 
+ACCEPTED_CONFIG_TYPES = (".yaml", ".yml")
+
 class Pipeline:
     """
     Represents an end-to-end code run. This class brings together class instances 
@@ -47,29 +49,35 @@ class Pipeline:
         self,
         name: str | None = None,
         backend: str = "python",
-        config: PipelineConfig | Mapping[str, Any] | str | Path | None = None,
+        config: PipelineConfig | Mapping[str, Any] | None = None,
         stages: Sequence[Stage | Mapping[str, Any] | str | Path | Callable[..., Any]] | None = None,
         dependencies: tuple[str]| dict[str, Sequence[str]] | None = None,
         logger: Logger | None = None,
         executor: StageExecutor | None = None,
     ):
+        # if config is not None:
         resolved_config, resolved_stage_configs, configured_stages = self._resolve_config(config)
 
         self.name = name or resolved_config.name or "pipeline"
         self.backend = backend or resolved_config.backend or "python"
         if backend == "python" and resolved_config.backend != "python":
+            # TODO: Error or Warning here? What is preferred? 
             self.backend = resolved_config.backend
 
         self.config = resolved_config
         if self.config.name is None:
             self.config.name = self.name
         
-        self.config.backend = self.backend
         self.logger = logger or Logger(log_dir=self.config.log_dir)
-        self.executor = executor or PythonStageExecutor()
+        self.executor = executor or PythonStageExecutor() # TODO: don't just default - check with config for Executor definition
         
         if stages is None:
             self.stages = configured_stages
+        # TODO: Add check to see if parsed and from-config stages are different
+        #elif: len(configured_stages) != 0:
+        # Warn or Error saying that they have parsed stages AND configured stages
+        # We COULD check to see if these are identical Stage objects and in order,
+        # but simplicity might be easier.
         else:
             self.stages = [self._coerce_stage(stage) for stage in stages]
 
@@ -79,11 +87,15 @@ class Pipeline:
             "for those stages. Try the from_files() method, or create your Stage objects and " \
             "parse them to the Pipeline Constructor.")
         if dependencies is not None:
-            self._assign_dependencies(dependencies,self.stages)
+            self._assign_dependencies(dependencies, self.stages)
 
         self.stage_configs = dict(resolved_stage_configs)
         self._sync_stage_configs()
+        # TODO: link with comment on issue #28 - We need to integrate StageGraph and validation
+        # with stages_to_run which will be in PipelineConfig. This allows users to turn on and off Stages
+        # but we haven't accounted for what that looks like in StageGraph/Pipeline orchestration.
         self.graph = StageGraph.from_stages(self.stages)
+        self.graph.validate()
         self.id: RuntimeID | None = None
         self.manifest: RunManifest | None = None
         self.last_run: PipelineRun | None = None
@@ -94,11 +106,12 @@ class Pipeline:
             backend=self.backend,
             stages=[stage.name for stage in self.stages],
         )
+
     def _assign_dependencies(self, 
                              dependencies:tuple[str]| dict[str, Sequence[str]] | None = None,
                              stages: Stage | Sequence[Stage] | None = None,) -> Stage | Sequence[Stage]:
         for stage in stages:
-            new_dependencies = self._dependencies_for_stage(stage.name,stage.source,dependencies)
+            new_dependencies = self._dependencies_for_stage(stage.name, stage.source, dependencies)
             stage.dependencies = _normalize_dependencies(new_dependencies)
 
         return stages
@@ -359,7 +372,7 @@ class Pipeline:
 
     def _resolve_config(
         self,
-        config: PipelineConfig | Mapping[str, Any] | str | Path | None,
+        config: PipelineConfig | Mapping[str, Any] | None,
     ) -> tuple[PipelineConfig, dict[str, StageConfig], list[Stage]]:
         """
         Resolve supported configuration inputs into pipeline config, stage config, and stages.
@@ -372,9 +385,10 @@ class Pipeline:
             return PipelineConfig.from_any(config), {}, []
 
         if isinstance(config, PipelineConfig):
-            stage_configuration = config.metadata.get("stage_configuration")
+            #
+            stage_configuration = config.metadata.get("stage_configuration", None)
             if stage_configuration is None:
-                stage_configuration = config.metadata.get("stage_config")
+                stage_configuration = config.metadata.get("stage_config", None)
 
             if stage_configuration is not None:
                 warnings.warn(
@@ -386,6 +400,14 @@ class Pipeline:
         raw_config = self._load_config_mapping(config)
         pipeline_payload, stage_config_payload = self._split_config_sections(raw_config)
         normalized_pipeline_payload = self._normalize_pipeline_payload(pipeline_payload)
+
+        # PipelineConfig needs to know what stages to run
+        # Extract run order from stages
+
+        #run_order = self._extract_run_order(pipeline_payload)
+        # - Look for stages in pipeline_payload
+        # - Create a dict, where keys are stage names, and values are where run = true or false
+        # - Ensure through StageGraph at some point that dependencies are met.
         stage_definitions = normalized_pipeline_payload.pop("stages", ())
 
         pipeline_config = PipelineConfig.from_mapping(normalized_pipeline_payload)
@@ -463,7 +485,7 @@ class Pipeline:
             return dict(config)
 
         config_path = Path(config).expanduser()
-        if config_path.suffix.lower() not in (".yaml", ".yml"):
+        if config_path.suffix.lower() not in ACCEPTED_CONFIG_TYPES:
             raise StageConfigurationError(
                 f"Unsupported config file format parsed as Stage Configuration: {config!r}."
             )
@@ -474,8 +496,10 @@ class Pipeline:
 
         raw_config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
         if raw_config is None:
+            # TODO: Warn if it fails?
             return {}
         if not isinstance(raw_config, Mapping):
+            # TODO: maybe this should be richer error messaging
             raise TypeError("Pipeline config file must contain a mapping at the top level.")
         return dict(raw_config)
 
@@ -488,7 +512,9 @@ class Pipeline:
         ``stage_configuration`` keys. Flat payloads are treated as pipeline config unless
         a stage-configuration key is present.
         """
-        #TODO: Enforce this behaviour using Errors
+        # TODO: Enforce this behaviour using Errors
+        # TODO: Ensure that if stage_config or other keys grabbed are None, warn or error.
+        # TODO: The if statement is messy and non-intuitive
         if "pipeline_variables" in raw_config or "stage_configuration" in raw_config or "stage_config" in raw_config:
             pipeline_payload = raw_config.get("pipeline_variables", {})
             if not isinstance(pipeline_payload, Mapping):
@@ -497,6 +523,8 @@ class Pipeline:
             return dict(pipeline_payload), stage_payload
 
         pipeline_payload = dict(raw_config)
+        # The line below may never happen as it asks for "stage_config" but the if statement above also does this,
+        # and this code only actions if that if statement does not complete. 
         stage_payload = pipeline_payload.pop("stage_configuration", pipeline_payload.pop("stage_config", None))
         return pipeline_payload, stage_payload
 
@@ -713,42 +741,38 @@ class Pipeline:
         )
 
     @classmethod
-    def from_dict(cls, cfg: Mapping[str, Any]) -> Pipeline:
+    def from_dict(
+        cls,
+        config: PipelineConfig | Mapping[str, Any] | str | Path,
+        name: str | None = None,
+        backend: str = "python",
+        logger: Logger | None = None,
+        executor: StageExecutor | None = None,
+    ) -> Pipeline:
         """
         Extracts information from a dictionary to configure a Pipeline instance as
         well as what the Pipeline runs. 
 
         Parameters 
         ----------
-        ``cfg`` : Mapping[str, Any]
-            The Mapping item that contains the information needed to run the Pipeline. 
+        ``config`` : PipelineConfig | Mapping[str, Any] | str | Path
+            The object containing the information needed to run the Pipeline.
         
         Returns
         -------
         A ``Pipeline`` class instance. 
         """
-        if "pipeline_variables" in cfg or "stage_configuration" in cfg or "stage_config" in cfg:
-            return cls(config=cfg)
-
-        payload = dict(cfg)
+        pipe_payload, stage_payload = cls._split_config_sections(config)
 
         # pipeline_variables contains pipeline information
-        name = payload.pop("name", None)
-        backend = payload.pop("backend", "python")
-        config = payload.pop("config", None)
-        stages = payload.pop("stages", [])
-
-        if config is None and payload:
-            config = payload
-        elif isinstance(config, Mapping) and payload:
-            combined_config = dict(config)
-            combined_config.update(payload)
-            config = combined_config
+        name = pipe_payload.pop("name", None)
+        backend = pipe_payload.pop("backend", "python")
+        stages = pipe_payload.pop("stages", [])
 
         return cls(
             name=name,
             backend=backend,
-            config=config,
+            config=pipe_payload,
             stages=stages,
         )
 
@@ -756,7 +780,6 @@ class Pipeline:
     def from_config(
         cls,
         config: PipelineConfig | Mapping[str, Any] | str | Path,
-        *,
         name: str | None = None,
         backend: str = "python",
         logger: Logger | None = None,
@@ -768,13 +791,19 @@ class Pipeline:
         This is the preferred entrypoint when configuration defines both pipeline-level
         settings and the stage-level configuration that should be injected at runtime.
         """
-        return cls(
-            name=name,
-            backend=backend,
+        #TODO: Add str/Path behaviour handling
+        # UPDATE: Not needed as is handled in _resolve_config()
+
+        # Add behaviour handling for str or Path instances for config arg parsed.
+        # if str, resolve Path, then parse to yaml.safe_load() to extract the mapping.
+        # Then just parse the mapping to from_dict() to extract the Pipeline instance.
+        return cls.from_dict(
             config=config,
-            logger=logger,
-            executor=executor,
-        )
+            name=name, 
+            backend=backend, 
+            logger=logger, 
+            executor=executor
+            )
 
     @staticmethod
     def _dependencies_for_stage(

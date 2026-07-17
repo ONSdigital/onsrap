@@ -102,6 +102,8 @@ class PipelineConfig:
     ----------
     ``name`` : str, optional
         The name of the pipeline.
+
+        
     ``backend`` : str, default = "python"
         The system that the pipeline is run on. 
     ``work_dir`` : Path 
@@ -125,16 +127,24 @@ class PipelineConfig:
         Any additional information on the pipeline. 
     """
     name: Optional[str] = None
+    stages_to_run: Optional[dict[str, bool]] = None
     backend: str = "python"
     work_dir: Path = field(default_factory=Path.cwd)
     project_root: Optional[Path] = None
     output_dir: Optional[Path] = None
     log_dir: Path = field(default_factory=lambda: Path("logs"))
     data_dir: Path = field(default_factory=lambda: Path("data"))
-    output_dir: Optional[Path] = None
     allow_subprocess_fallback: bool = True
     python_executable: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """
+        Post-initialization method to ensure that the ``work_dir`` and ``project_root``
+        attributes are set correctly. 
+        """
+        if self.stages_to_run is None:
+            self.stages_to_run = {}
 
     @classmethod
     def from_any(
