@@ -97,7 +97,7 @@ def write_report(report):
     )
 
 def main():
-    orders = pd.read_csv("examples/pipeline_2/processed_data/orders_prepped.csv")
+    orders = pd.read_csv("examples/pipeline_2/data/orders_prepped.csv")
 
     report = []
     values = {}
