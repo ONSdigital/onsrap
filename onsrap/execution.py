@@ -113,6 +113,10 @@ class ExecutionContext:
         """
         Return the configuration for the stage currently being executed.
 
+        The preferred access method for this is ``get_stage_config()`` which allows
+        for optional arguments to return the full ``StageConfig`` instance or just 
+        the variables dictionary.
+
         This property is ``None`` outside an active stage run.
         """
         if self.active_stage_name is None:
@@ -164,6 +168,30 @@ class ExecutionContext:
         
         raise PipelineConfigurationError("Please parse a run directory to " \
         "the ExecutionContext.")
+
+    def get_stage_config(self, vars_only: bool = True) -> dict | StageConfig:
+        """
+        Returns the configuration for the stage currently being executed, with optional arguments.
+
+        Optional argument ``vars_only`` can be set to ``False`` to return the full ``StageConfig`` instance,
+        rather than just the variables dictionary.
+
+        If you want to access ``metadata`` or ``dataframes`` from the ``StageConfig``, you must set ``vars_only`` to False.
+
+        Parameters
+        ----------
+        ``vars_only`` : bool, default = True
+            If True, returns only the variables dictionary from the ``StageConfig``. If False, returns the full ``StageConfig`` instance.
+        
+        Returns
+        -------
+        dict or StageConfig
+            The parameters contained within the configuration for the currently active stage. 
+            If ``vars_only`` is set to False, returns the StageConfig object itself, containing all attributes including variables, metadata, and dataframes.
+        """
+        if vars_only:
+            return self.stage_config_for(self.active_stage_name).variables()
+        return self.stage_config_for(self.active_stage_name) or {}
     
     def resolve_given_path(self, stage_name: str | None, 
                            path_name: str | None, 
