@@ -2,24 +2,24 @@ pipeline_variables:
   name: "Pipeline 2"
   backend: python
   stages:
-    - 0_data_validation:
-        # TODO: Put name/alias of stage as attribute here, not as key for stage.
-        location: ""
+    - 0_clean_data:
+        name: "0_clean_data"
+        location: "examples/pipeline_2/scripts/0_clean_data.py"
         run: true
         dependencies: []
-    - 1_preprocessing:
-        location: ""
+    - 1_derive_vars:
+        location: "examples/pipeline_2/scripts/1_derive_vars.py"
         run: true
         dependencies:
-          - 0_data_validation
+          - 0_clean_data
     - 2_reporting:
-        location: ""
+        location: "examples/pipeline_2/scripts/2_reporting.py"
         run: true
         dependencies:
-          - 1_preprocessing
+          - 1_derive_vars
   working_dir: "examples/pipeline_2"
   data_dir: "examples/pipeline_2/data"
-  output_dir: "examples/pipeline_2/output"
+  output_dir: "examples/pipeline_2/outputs"
   log_dir: "examples/pipeline_2/logs"
   metadata:
    example: retail-orders-using-configuration
@@ -27,7 +27,64 @@ pipeline_variables:
 
 
 stage_configuration:
-  0_data_validation:
-    years_to_run: 2017
-    time_col: "time"
-    target_variable: "classification"
+  0_clean_data:
+    expected_variables: 
+      - "order_id"
+      - "customer_name"
+      - "region"
+      - "product"
+      - "quantity"
+      - "unit_price"
+      - "order_date"
+      - "order_method
+    identifiable_cols:
+      - "customer_name"
+      - "age"
+      - "dob"
+      - "address
+    output_location: "examples/pipeline_2/data/orders_cleaned.csv"
+    input_location: "examples/pipeline_2/data/orders.csv"
+  1_derive_vars:
+    input_location: "examples/pipeline_2/data/orders_cleaned.csv"
+    output_location: "examples/pipeline_2/data/orders_prepped.csv"
+    delivery_times:
+      north: 14
+      south: 4
+      east: 7
+      west: 7
+    order_date: "Order_date"
+    estimated_delivery_date: "Estimated_delivery_date"
+    delivery_day: "Delivery_day"
+    region: "Region"
+    total_cost: "Total_cost"
+    quantity: "Quantity"
+    unit_price: "Unit_price"
+    order_day: "Order_day"
+    order_month: "Order_month"
+    large_order: "Large_order"
+    small_order: "Small_order"
+    postage: "Postage"
+    postage_values:
+      large_order: 5.00
+      small_order: 1.00
+      default: 2.50
+    product: "Product"
+    product_costs:
+      notebook: 1.00
+      pen: 0.3
+      folder: 0.75
+    total_production_cost: "Total_production_cost"
+    order_profit: "Order_profit"
+  2_reporting:
+    input_location: "examples/pipeline_2/processed_data/orders_prepped.csv"
+    report_location: "examples/pipeline_2/outputs/order_analysis.md"
+    region: "Region"
+    order_profit: "Order_profit"
+    quantity: "Quantity"
+    order_day: "Order_day"
+    large_order: "Large_order"
+    small_order: "Small_order"
+    order_id: "Order_id"
+    order_profit: "Order_profit"
+    product: "Product"
+    num_format: "{:.2f}"

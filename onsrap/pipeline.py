@@ -103,6 +103,8 @@ class Pipeline:
 
         return stages
 
+    # TODO: Add a method to add dependencies to the pipeline after initialization
+    # TODO: Re-order methods to be more logical/readable in order (public, private, classmethods, staticmethods)
     def _coerce_stage(
         self,
         stage: Stage | Mapping[str, Any] | str | Path | Callable[..., Any],
