@@ -63,14 +63,16 @@ class Pipeline:
         self.config = resolved_config
         if self.config.name is None:
             self.config.name = self.name
+        
         self.config.backend = self.backend
-
         self.logger = logger or Logger(log_dir=self.config.log_dir)
         self.executor = executor or PythonStageExecutor()
+        
         if stages is None:
             self.stages = configured_stages
         else:
             self.stages = [self._coerce_stage(stage) for stage in stages]
+
         self.dependencies = dependencies
         if dependencies is not None and stages is None:
             raise PipelineInitialisationError("Stages need to be defined before you can parse your dependencies "
@@ -78,6 +80,7 @@ class Pipeline:
             "parse them to the Pipeline Constructor.")
         if dependencies is not None:
             self._assign_dependencies(dependencies,self.stages)
+
         self.stage_configs = dict(resolved_stage_configs)
         self._sync_stage_configs()
         self.graph = StageGraph.from_stages(self.stages)
@@ -483,6 +486,7 @@ class Pipeline:
         ``stage_configuration`` keys. Flat payloads are treated as pipeline config unless
         a stage-configuration key is present.
         """
+        #TODO: Enforce this behaviour using Errors
         if "pipeline_variables" in raw_config or "stage_configuration" in raw_config or "stage_config" in raw_config:
             pipeline_payload = raw_config.get("pipeline_variables", {})
             if not isinstance(pipeline_payload, Mapping):
