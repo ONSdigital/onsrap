@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .errors import StageExecutionError
+from .warnings import StageConfigurationWarning
 from .execution import ExecutionContext
 from .logger import Logger
 from .models import PipelineRun, PipelineStatus, now
@@ -60,7 +61,8 @@ class PipelineRunner:
             run_output = Path(pipeline.config.output_dir)
         else:
             warnings.warn(
-                "Output directory is not specified. Using project root or work directory as the run output."
+                "Output directory is not specified. Using project root or work directory as the run output.",
+                StageConfigurationWarning
             )  # TODO: fill with warnings from Pipeline branch
             run_output = Path(pipeline.config.project_root or pipeline.config.work_dir)
         run_dir = run_output / "runs" / runtime_id.get_id()
