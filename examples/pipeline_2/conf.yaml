@@ -5,7 +5,7 @@ pipeline_variables:
     - 0_clean_data:
         name: "0_clean_data"
         location: "examples/pipeline_2/scripts/0_clean_data.py"
-        run: true
+        run: true # TODO: 1/0 or y/n
         dependencies: []
     - 1_derive_vars:
         location: "examples/pipeline_2/scripts/1_derive_vars.py"
