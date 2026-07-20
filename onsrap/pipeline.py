@@ -61,23 +61,25 @@ class Pipeline:
         self.name = name or resolved_config.name or "pipeline"
         self.backend = backend or resolved_config.backend or "python"
         if backend == "python" and resolved_config.backend != "python":
-            # TODO: Error or Warning here? What is preferred? 
-            self.backend = resolved_config.backend
+            raise PipelineInitialisationError(f"Pipeline backend {backend} does not align with PipelineConfig backend {resolved_config.backend}.")
 
         self.config = resolved_config
         if self.config.name is None:
             self.config.name = self.name
         
         self.logger = logger or Logger(log_dir=self.config.log_dir)
-        self.executor = executor or PythonStageExecutor() # TODO: don't just default - check with config for Executor definition
+        if executor is None:
+            if self.backend == "python":
+                self.executor = PythonStageExecutor()
+            else:
+                raise PipelineInitialisationError("Requested backend does not have a compatible executor. Available executors are: Python.")
+        else: 
+            self.executor = executor
         
         if stages is None:
             self.stages = configured_stages
-        # TODO: Add check to see if parsed and from-config stages are different
-        #elif: len(configured_stages) != 0:
-        # Warn or Error saying that they have parsed stages AND configured stages
-        # We COULD check to see if these are identical Stage objects and in order,
-        # but simplicity might be easier.
+        elif len(configured_stages) != 0:
+            raise PipelineInitialisationError("Stages parsed through both Pipeline initialisation AND config file. Please choose one method.")
         else:
             self.stages = [self._coerce_stage(stage) for stage in stages]
 
