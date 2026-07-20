@@ -283,7 +283,6 @@ class Pipeline:
 
         return stages
 
-    # TODO: Add a method to add dependencies to the pipeline after initialization
     def _coerce_stage(
         self,
         stage: Stage | Mapping[str, Any] | str | Path | Callable[..., Any],
@@ -441,7 +440,6 @@ class Pipeline:
             return PipelineConfig.from_any(config), {}, []
 
         if isinstance(config, PipelineConfig):
-            #
             stage_configuration = config.metadata.get("stage_configuration", None)
             if stage_configuration is None:
                 stage_configuration = config.metadata.get("stage_config", None)
