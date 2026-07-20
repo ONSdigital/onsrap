@@ -93,10 +93,32 @@ class Pipeline:
 
         self.stage_configs = dict(resolved_stage_configs)
         self._sync_stage_configs()
-        # TODO: link with comment on issue #28 - We need to integrate StageGraph and validation
-        # with stages_to_run which will be in PipelineConfig. This allows users to turn on and off Stages
-        # but we haven't accounted for what that looks like in StageGraph/Pipeline orchestration.
-        self.graph = StageGraph.from_stages(self.stages)
+
+        #SOPHIE'S ATTEMPT AT IMPLEMENTING STAGES_TO_RUN
+        
+        #dictionary of stage name: stage class instance
+        stage_lookup = {stage.name: stage 
+                        for stage in self.stages}
+        
+        #list of all stage names selected to run in config
+        stage_names_to_run = [stage_name 
+                              for stage_name, value in self.config.stages_to_run.items() 
+                              if value]
+        
+        #run standard StageGraph if all stages are present in stage_names_to_run
+        if set(stage_lookup.keys()) == set(stage_names_to_run):
+            self.graph = StageGraph.from_stages(self.stages)
+        else:
+            #Checks that all stages in stage_names_to_run exist in the Pipeline.
+            for stage_name in stage_names_to_run:
+                if stage_name not in list(stage_lookup.keys()):
+                    raise PipelineInitialisationError("You're trying to run a stage that does not exist. Please add the stage to the Pipeline.")
+            #list of Stage instances for stages that should be run following configuration
+            stages_to_run = [stage_lookup[name]
+                            for name in stage_names_to_run
+                            if name in stage_lookup]
+            self.graph = StageGraph.from_stages(stages_to_run)
+
         self.graph.validate()
         self.id: RuntimeID | None = None
         self.manifest: RunManifest | None = None
@@ -455,13 +477,6 @@ class Pipeline:
         pipeline_payload, stage_config_payload = self._split_config_sections(raw_config)
         normalized_pipeline_payload = self._normalize_pipeline_payload(pipeline_payload)
 
-        # TODO: PipelineConfig needs to know what stages to run
-        # Extract run order from stages
-
-        #run_order = self._extract_run_order(pipeline_payload)
-        # - Look for stages in pipeline_payload
-        # - Create a dict, where keys are stage names, and values are where run = true or false
-        # - Ensure through StageGraph at some point that dependencies are met.
         stage_definitions = normalized_pipeline_payload.pop("stages", ())
 
         pipeline_config = PipelineConfig.from_mapping(normalized_pipeline_payload)
@@ -472,6 +487,8 @@ class Pipeline:
             work_dir=pipeline_config.work_dir,
         )
         return pipeline_config, stage_configs, configured_stages
+
+
 
     def _sync_stage_configs(self) -> None:
         """
@@ -804,6 +821,7 @@ class Pipeline:
         ``UserWarning`` is emitted and ``working_dir`` is left in the payload where
         it will be silently absorbed into ``PipelineConfig.metadata``.
         """
+        #TODO: Add normalization for stages_to_run
         normalized_payload = dict(pipeline_payload)
         if "working_dir" in normalized_payload:
             if "work_dir" not in normalized_payload:
