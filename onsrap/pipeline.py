@@ -108,91 +108,33 @@ class Pipeline:
             backend=self.backend,
             stages=[stage.name for stage in self.stages],
         )
-
-    def _assign_dependencies(self, 
-                             dependencies:tuple[str]| dict[str, Sequence[str]] | None = None,
-                             stages: Stage | Sequence[Stage] | None = None,) -> Stage | Sequence[Stage]:
-        for stage in stages:
-            new_dependencies = self._dependencies_for_stage(stage.name, stage.source, dependencies)
-            stage.dependencies = _normalize_dependencies(new_dependencies)
-
-        return stages
-
-    # TODO: Add a method to add dependencies to the pipeline after initialization
-    # TODO: Re-order methods to be more logical/readable in order (public, private, classmethods, staticmethods)
-    def _coerce_stage(
-        self,
-        stage: Stage | Mapping[str, Any] | str | Path | Callable[..., Any],
-    ) -> Stage:
-        """
-        Extracts the ``Stage`` information from the provided stages in the Pipeline. 
-
-        Enables mappings, strings, paths, or callables to be parsed and converted into 
-        a useable ``Stage`` class instance. If a ``Stage`` class instance is parsed, return 
-        itself. 
-
-        Parameters
-        ----------
-        ``stage`` : Stage | Mapping[str, Any] | str | Path | Callable[..., Any]
-            The information attempting to be converted into a ``Stage`` class instance.
-
-        Raises
-        ------
-        ``StageConfigurationError``
-            If the information parsed is not in a suitable format to be converted into 
-            a ``Stage`` class instance. 
-
-        Returns
-        -------
-        ``Stage`` class instance for the stage being run. 
-        """
-        if isinstance(stage, Stage):
-            return stage
-
-        if isinstance(stage, Mapping):
-            return Stage.from_dict(stage)
-
-        if callable(stage):
-            return Stage.from_callable(stage)
-
-        if isinstance(stage, (str, Path)):
-            return Stage.from_file(stage)
-
-        raise StageConfigurationError(f"Unsupported stage specification: {type(stage)!r}.")
-
-    def _rebuild_graph(self) -> None:
-        """
-        Updates the ``graph`` attribute with the latest stage information. 
-        """
-        self.graph = StageGraph.from_stages(self.stages)
-
     def add_stage(self, *stages: Stage | Mapping[str, Any] | str | Path | Callable[..., Any]) -> None:
-        """
-        Adds a step to the Pipeline.
+            """
+            Adds a step to the Pipeline.
 
-        Creates a list called ``added_stages`` that runs the _coerce_stage() method
-        to extract the information from the given ``stages`` parameter. It then appends
-        this list to the ``stages`` attribute of the ``Pipeline`` class and updates the 
-        StageGraph using the _rebuild_graph() method. A log instance is created to 
-        reflect the changes. 
+            Creates a list called ``added_stages`` that runs the _coerce_stage() method
+            to extract the information from the given ``stages`` parameter. It then appends
+            this list to the ``stages`` attribute of the ``Pipeline`` class and updates the 
+            StageGraph using the _rebuild_graph() method. A log instance is created to 
+            reflect the changes. 
 
-        Parameters
-        ----------
-        ``stages`` : Stage | Mapping[str, Any] | str | Path | Callable[..., Any]
-            The new steps being added to the Pipeline. 
-        """
-        added_stages = [self._coerce_stage(stage) for stage in stages]
-        self.stages.extend(added_stages)
-        self._sync_stage_configs()
-        self._rebuild_graph()
-        self.logger.event("Stage added", stages=[stage.name for stage in added_stages])
-
+            Parameters
+            ----------
+            ``stages`` : Stage | Mapping[str, Any] | str | Path | Callable[..., Any]
+                The new steps being added to the Pipeline. 
+            """
+            added_stages = [self._coerce_stage(stage) for stage in stages]
+            self.stages.extend(added_stages)
+            self._sync_stage_configs()
+            self._rebuild_graph()
+            self.logger.event("Stage added", stages=[stage.name for stage in added_stages])
+    
     def ordered_stages(self) -> list[Stage]:
-        """
-        Runs the topological_order() method on the ``graph`` attribute to extract the 
-        correct order for the ``stages`` to be run in. 
-        """
-        return self.graph.topological_order()
+            """
+            Runs the topological_order() method on the ``graph`` attribute to extract the 
+            correct order for the ``stages`` to be run in. 
+            """
+            return self.graph.topological_order()
 
     def validate(self) -> Pipeline:
         """
@@ -276,6 +218,64 @@ class Pipeline:
         from .runner import PipelineRunner
         
         return PipelineRunner(logger=self.logger).run(self)
+
+
+    def _assign_dependencies(self, 
+                             dependencies:tuple[str]| dict[str, Sequence[str]] | None = None,
+                             stages: Stage | Sequence[Stage] | None = None,) -> Stage | Sequence[Stage]:
+        for stage in stages:
+            new_dependencies = self._dependencies_for_stage(stage.name, stage.source, dependencies)
+            stage.dependencies = _normalize_dependencies(new_dependencies)
+
+        return stages
+
+    # TODO: Add a method to add dependencies to the pipeline after initialization
+    def _coerce_stage(
+        self,
+        stage: Stage | Mapping[str, Any] | str | Path | Callable[..., Any],
+    ) -> Stage:
+        """
+        Extracts the ``Stage`` information from the provided stages in the Pipeline. 
+
+        Enables mappings, strings, paths, or callables to be parsed and converted into 
+        a useable ``Stage`` class instance. If a ``Stage`` class instance is parsed, return 
+        itself. 
+
+        Parameters
+        ----------
+        ``stage`` : Stage | Mapping[str, Any] | str | Path | Callable[..., Any]
+            The information attempting to be converted into a ``Stage`` class instance.
+
+        Raises
+        ------
+        ``StageConfigurationError``
+            If the information parsed is not in a suitable format to be converted into 
+            a ``Stage`` class instance. 
+
+        Returns
+        -------
+        ``Stage`` class instance for the stage being run. 
+        """
+        if isinstance(stage, Stage):
+            return stage
+
+        if isinstance(stage, Mapping):
+            return Stage.from_dict(stage)
+
+        if callable(stage):
+            return Stage.from_callable(stage)
+
+        if isinstance(stage, (str, Path)):
+            return Stage.from_file(stage)
+
+        raise StageConfigurationError(f"Unsupported stage specification: {type(stage)!r}.")
+
+    def _rebuild_graph(self) -> None:
+        """
+        Updates the ``graph`` attribute with the latest stage information. 
+        """
+        self.graph = StageGraph.from_stages(self.stages)
+
 
     def _construct_manifest(self, *, runtime_id: RuntimeID) -> RunManifest:
         """
@@ -403,7 +403,7 @@ class Pipeline:
         pipeline_payload, stage_config_payload = self._split_config_sections(raw_config)
         normalized_pipeline_payload = self._normalize_pipeline_payload(pipeline_payload)
 
-        # PipelineConfig needs to know what stages to run
+        # TODO: PipelineConfig needs to know what stages to run
         # Extract run order from stages
 
         #run_order = self._extract_run_order(pipeline_payload)
@@ -452,6 +452,215 @@ class Pipeline:
                 for name, stage_config in self.stage_configs.items()
             }
         return parameters
+    
+    def _build_stages_from_config(
+            self,
+            stage_definitions: Sequence[Any] | None,
+            *,
+            backend: str,
+            work_dir: Path,
+        ) -> list[Stage]:
+            """
+            Convert configured stage definitions into ``Stage`` instances.
+
+            Each entry is resolved independently, so the method can process any number of
+            stage definitions supplied in the pipeline configuration.
+            """
+            if not stage_definitions:
+                return []
+            if not isinstance(stage_definitions, Sequence) or isinstance(stage_definitions, (str, bytes)):
+                raise StageConfigurationError("Configured stages must be provided as a sequence.")
+
+            configured_stages: list[Stage] = []
+            for stage_definition in stage_definitions:
+                stage = self._stage_from_config_definition(stage_definition, backend=backend, work_dir=work_dir)
+                if stage is not None:
+                    configured_stages.append(stage)
+            return configured_stages
+
+    def _stage_from_config_definition(
+        self,
+        stage_definition: Any,
+        *,
+        backend: str,
+        work_dir: Path,
+    ) -> Stage | None:
+        """
+        Resolve one configured stage entry into a ``Stage`` instance.
+
+        Supported forms include ready-made ``Stage`` objects, paths, callables, full stage
+        dictionaries, and compact ``{stage_name: {...}}`` definitions from YAML config files.
+        Entries with ``run: false`` are skipped.
+        """
+        if isinstance(stage_definition, Stage):
+            return stage_definition
+
+        if isinstance(stage_definition, (str, Path)) or callable(stage_definition):
+            return self._coerce_stage(stage_definition)
+
+        if not isinstance(stage_definition, Mapping):
+            raise StageConfigurationError("Configured stage entries must be mappings, paths, or callables.")
+
+        payload = dict(stage_definition)
+        if any(key in payload for key in ("name", "source", "path", "callable")):
+            return Stage.from_dict(payload)
+
+        if len(payload) != 1:
+            raise StageConfigurationError(
+                "Configured stage mappings must define exactly one stage name."
+            )
+
+        stage_name, stage_payload = next(iter(payload.items()))
+        if not isinstance(stage_payload, Mapping):
+            raise StageConfigurationError("Configured stage details must be provided as a mapping.")
+
+        stage_options = dict(stage_payload)
+        if not bool(stage_options.pop("run", True)):
+            return None
+
+        location = stage_options.pop("location", stage_options.pop("source", stage_options.pop("path", None)))
+        dependencies = stage_options.pop("dependencies", ())
+        entrypoint = stage_options.pop("entrypoint", None)
+        metadata = stage_options.pop("metadata", {})
+        if isinstance(metadata, Mapping):
+            metadata = dict(metadata)
+        else:
+            metadata = {"metadata": metadata}
+        metadata.update(stage_options)
+
+        source = self._resolve_stage_source(stage_name=str(stage_name), location=location, work_dir=work_dir)
+        return Stage.from_file(
+            source,
+            name=str(stage_name),
+            dependencies=dependencies,
+            metadata=metadata,
+            entrypoint=entrypoint,
+            backend=backend,
+        )
+    
+
+    @classmethod
+    def from_files(
+        cls,
+        file_paths: Iterable[str | Path],
+        *,
+        name: str | None = None,
+        backend: str = "python",
+        config: PipelineConfig | Mapping[str, Any] | str | Path | None = None,
+        dependencies: Mapping[str, Sequence[str]] | None = None,
+        logger: Logger | None = None,
+        executor: StageExecutor | None = None,
+    ) -> Pipeline:
+        """
+        Extracts the information from files regarding exactly what is being run in the pipeline and
+        allows for configuration of how the Pipeline is run. 
+
+        Parameters
+        ----------
+        ``file_paths`` : Iterable[str or Path]
+            The files that contain the code for each stage in the pipeline. These are what
+            the Pipeline will run. 
+        ``name`` : str
+            The name of the pipeline.
+        ``backend`` : str, default = "python"
+            The system that the pipeline is written in. 
+        ``config`` : PipelineConfig | Mapping[str, Any] | str | Path | None
+            The high level information required to run this specific pipeline. 
+        ``dependencies`` : Mapping[str, Sequence[str]] or None
+            An object containing which stages are required to be run before other stages. 
+        ``logger`` : Logger class or None
+            The logging sysem used for this Pipeline run. 
+        ``executor`` : StageExecutor class or None
+            The information on exactly how to run the Pipeline. 
+
+        Returns 
+        -------
+        A ``Pipeline`` class instance. 
+        """
+        stages: list[Stage] = []
+        for file_path in file_paths:
+            path = Path(file_path)
+            stage_name = path.stem
+            stage_dependencies = cls._dependencies_for_stage(stage_name, path, dependencies)
+            stages.append(
+                Stage.from_file(
+                    path,
+                    name=stage_name,
+                    dependencies=stage_dependencies,
+                    backend=backend,
+                )
+            )
+
+        return cls(
+            name=name or (stages[0].name if stages else "pipeline"),
+            backend=backend,
+            config=config,
+            stages=stages,
+            logger=logger,
+            executor=executor,
+        )
+
+    @classmethod
+    def from_dict(
+        cls,
+        config: PipelineConfig | Mapping[str, Any] | str | Path,
+        name: str | None = None,
+        backend: str = "python",
+        logger: Logger | None = None,
+        executor: StageExecutor | None = None,
+    ) -> Pipeline:
+        """
+        Extracts information from a dictionary to configure a Pipeline instance as
+        well as what the Pipeline runs. 
+
+        Parameters 
+        ----------
+        ``config`` : PipelineConfig | Mapping[str, Any] | str | Path
+            The object containing the information needed to run the Pipeline.
+        
+        Returns
+        -------
+        A ``Pipeline`` class instance. 
+        """
+        # TODO: Finish this class method to include missing variables and clarify where sourced from config.
+        pipe_payload, stage_payload = cls._split_config_sections(config)
+
+        # pipeline_variables contains pipeline information
+        name = pipe_payload.pop("name", None)
+        backend = pipe_payload.pop("backend", "python")
+        stages = pipe_payload.pop("stages", [])
+
+        return cls(
+            name=name,
+            backend=backend,
+            config=pipe_payload,
+            stages=stages,
+        )
+
+    @classmethod
+    def from_config(
+        cls,
+        config: PipelineConfig | Mapping[str, Any] | str | Path,
+        name: str | None = None,
+        backend: str = "python",
+        logger: Logger | None = None,
+        executor: StageExecutor | None = None,
+    ) -> Pipeline:
+        """
+        Construct a pipeline directly from a composite configuration payload or file.
+
+        This is the preferred entrypoint when configuration defines both pipeline-level
+        settings and the stage-level configuration that should be injected at runtime.
+        """
+        return cls.from_dict(
+            config=config,
+            name=name, 
+            backend=backend, 
+            logger=logger, 
+            executor=executor
+            )
+
+
 
     @staticmethod
     def _select_stage_config(
@@ -574,91 +783,7 @@ class Pipeline:
             for stage_name, stage_payload in stage_configuration.items()
         }
 
-    def _build_stages_from_config(
-        self,
-        stage_definitions: Sequence[Any] | None,
-        *,
-        backend: str,
-        work_dir: Path,
-    ) -> list[Stage]:
-        """
-        Convert configured stage definitions into ``Stage`` instances.
-
-        Each entry is resolved independently, so the method can process any number of
-        stage definitions supplied in the pipeline configuration.
-        """
-        if not stage_definitions:
-            return []
-        if not isinstance(stage_definitions, Sequence) or isinstance(stage_definitions, (str, bytes)):
-            raise StageConfigurationError("Configured stages must be provided as a sequence.")
-
-        configured_stages: list[Stage] = []
-        for stage_definition in stage_definitions:
-            stage = self._stage_from_config_definition(stage_definition, backend=backend, work_dir=work_dir)
-            if stage is not None:
-                configured_stages.append(stage)
-        return configured_stages
-
-    def _stage_from_config_definition(
-        self,
-        stage_definition: Any,
-        *,
-        backend: str,
-        work_dir: Path,
-    ) -> Stage | None:
-        """
-        Resolve one configured stage entry into a ``Stage`` instance.
-
-        Supported forms include ready-made ``Stage`` objects, paths, callables, full stage
-        dictionaries, and compact ``{stage_name: {...}}`` definitions from YAML config files.
-        Entries with ``run: false`` are skipped.
-        """
-        if isinstance(stage_definition, Stage):
-            return stage_definition
-
-        if isinstance(stage_definition, (str, Path)) or callable(stage_definition):
-            return self._coerce_stage(stage_definition)
-
-        if not isinstance(stage_definition, Mapping):
-            raise StageConfigurationError("Configured stage entries must be mappings, paths, or callables.")
-
-        payload = dict(stage_definition)
-        if any(key in payload for key in ("name", "source", "path", "callable")):
-            return Stage.from_dict(payload)
-
-        if len(payload) != 1:
-            raise StageConfigurationError(
-                "Configured stage mappings must define exactly one stage name."
-            )
-
-        stage_name, stage_payload = next(iter(payload.items()))
-        if not isinstance(stage_payload, Mapping):
-            raise StageConfigurationError("Configured stage details must be provided as a mapping.")
-
-        stage_options = dict(stage_payload)
-        if not bool(stage_options.pop("run", True)):
-            return None
-
-        location = stage_options.pop("location", stage_options.pop("source", stage_options.pop("path", None)))
-        dependencies = stage_options.pop("dependencies", ())
-        entrypoint = stage_options.pop("entrypoint", None)
-        metadata = stage_options.pop("metadata", {})
-        if isinstance(metadata, Mapping):
-            metadata = dict(metadata)
-        else:
-            metadata = {"metadata": metadata}
-        metadata.update(stage_options)
-
-        source = self._resolve_stage_source(stage_name=str(stage_name), location=location, work_dir=work_dir)
-        return Stage.from_file(
-            source,
-            name=str(stage_name),
-            dependencies=dependencies,
-            metadata=metadata,
-            entrypoint=entrypoint,
-            backend=backend,
-        )
-
+    
     @staticmethod
     def _resolve_stage_source(stage_name: str, location: Any, work_dir: Path) -> Path:
         """
@@ -679,133 +804,6 @@ class Pipeline:
             return work_dir_candidate
 
         return candidate
-
-
-    @classmethod
-    def from_files(
-        cls,
-        file_paths: Iterable[str | Path],
-        *,
-        name: str | None = None,
-        backend: str = "python",
-        config: PipelineConfig | Mapping[str, Any] | str | Path | None = None,
-        dependencies: Mapping[str, Sequence[str]] | None = None,
-        logger: Logger | None = None,
-        executor: StageExecutor | None = None,
-    ) -> Pipeline:
-        """
-        Extracts the information from files regarding exactly what is being run in the pipeline and
-        allows for configuration of how the Pipeline is run. 
-
-        Parameters
-        ----------
-        ``file_paths`` : Iterable[str or Path]
-            The files that contain the code for each stage in the pipeline. These are what
-            the Pipeline will run. 
-        ``name`` : str
-            The name of the pipeline.
-        ``backend`` : str, default = "python"
-            The system that the pipeline is written in. 
-        ``config`` : PipelineConfig | Mapping[str, Any] | str | Path | None
-            The high level information required to run this specific pipeline. 
-        ``dependencies`` : Mapping[str, Sequence[str]] or None
-            An object containing which stages are required to be run before other stages. 
-        ``logger`` : Logger class or None
-            The logging sysem used for this Pipeline run. 
-        ``executor`` : StageExecutor class or None
-            The information on exactly how to run the Pipeline. 
-
-        Returns 
-        -------
-        A ``Pipeline`` class instance. 
-        """
-        stages: list[Stage] = []
-        for file_path in file_paths:
-            path = Path(file_path)
-            stage_name = path.stem
-            stage_dependencies = cls._dependencies_for_stage(stage_name, path, dependencies)
-            stages.append(
-                Stage.from_file(
-                    path,
-                    name=stage_name,
-                    dependencies=stage_dependencies,
-                    backend=backend,
-                )
-            )
-
-        return cls(
-            name=name or (stages[0].name if stages else "pipeline"),
-            backend=backend,
-            config=config,
-            stages=stages,
-            logger=logger,
-            executor=executor,
-        )
-
-    @classmethod
-    def from_dict(
-        cls,
-        config: PipelineConfig | Mapping[str, Any] | str | Path,
-        name: str | None = None,
-        backend: str = "python",
-        logger: Logger | None = None,
-        executor: StageExecutor | None = None,
-    ) -> Pipeline:
-        """
-        Extracts information from a dictionary to configure a Pipeline instance as
-        well as what the Pipeline runs. 
-
-        Parameters 
-        ----------
-        ``config`` : PipelineConfig | Mapping[str, Any] | str | Path
-            The object containing the information needed to run the Pipeline.
-        
-        Returns
-        -------
-        A ``Pipeline`` class instance. 
-        """
-        pipe_payload, stage_payload = cls._split_config_sections(config)
-
-        # pipeline_variables contains pipeline information
-        name = pipe_payload.pop("name", None)
-        backend = pipe_payload.pop("backend", "python")
-        stages = pipe_payload.pop("stages", [])
-
-        return cls(
-            name=name,
-            backend=backend,
-            config=pipe_payload,
-            stages=stages,
-        )
-
-    @classmethod
-    def from_config(
-        cls,
-        config: PipelineConfig | Mapping[str, Any] | str | Path,
-        name: str | None = None,
-        backend: str = "python",
-        logger: Logger | None = None,
-        executor: StageExecutor | None = None,
-    ) -> Pipeline:
-        """
-        Construct a pipeline directly from a composite configuration payload or file.
-
-        This is the preferred entrypoint when configuration defines both pipeline-level
-        settings and the stage-level configuration that should be injected at runtime.
-        """
-        #TODO: Add str/Path behaviour handling
-        # UPDATE: Not needed as is handled in _resolve_config()
-
-        # Add behaviour handling for str or Path instances for config arg parsed.
-        # if str, resolve Path, then parse to yaml.safe_load() to extract the mapping.
-        # Then just parse the mapping to from_dict() to extract the Pipeline instance.
-        return cls.from_dict(
-            config=config,
-            name=name, 
-            backend=backend, 
-            logger=logger, 
-            executor=executor
-            )
 
     @staticmethod
     def _dependencies_for_stage(
