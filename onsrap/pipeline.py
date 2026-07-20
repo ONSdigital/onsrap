@@ -219,6 +219,59 @@ class Pipeline:
         
         return PipelineRunner(logger=self.logger).run(self)
 
+    def add_dependencies(self,
+                         *dependencies: tuple[str]| dict[str, Sequence[str]]) -> None:
+        """
+        Adds a set of ``dependencies`` for the Pipeline after the Pipeline initialisation. 
+
+        This method takes any number of positional arguments and imputes them as
+        ``dependencies``. It looks at each argument parsed, checks the data type against
+        the existing ``Pipeline`` ``dependencies`` and if they are the same data type, it
+        will take every stage within the ``Pipeline`` instance. It will then run the 
+        ``_dependencies_for_stage()`` class method and normalize any ``dependencies`` before
+        adding them to the individual ``Stage`` instances. It will then append these 
+        ``dependencies`` directly to the ``dependencies`` in the ``Pipeline`` instance before
+        rerunning the ``StageGraph`` creation to ensure the new ``dependencies`` are considered. 
+        A logging entry will be created to track that these ``dependencies`` are added. 
+
+        Parameters
+        ----------
+        ``*dependencies`` : tuple[str]| dict[str, Sequence[str]]
+            Any number of dependencies that you would like to add to the Pipeline. 
+
+        Raises
+        ------
+        ``PipelineInitializationError``
+            If the dependency you are attempting to add to the Pipeline doesn't match 
+            the datatype for dependencies currently in the Pipeline.
+        """
+        
+        for dependency in dependencies:
+            if self.dependencies is not None and not isinstance(dependency, type(self.dependencies)):
+                raise PipelineInitialisationError("Existing dependencies are not the same type as new dependencies")
+            
+            for stage in self.stages:
+                new_dependencies = self._dependencies_for_stage(stage.name, stage.source, dependency)
+                existing = stage.dependencies or ()
+                new = existing + tuple(_normalize_dependencies(new_dependencies))
+
+                stage.dependencies = tuple(dict.fromkeys(new))
+            
+            if isinstance(dependency, tuple):
+                existing = self.dependencies or ()
+                self.dependencies = tuple(existing | dependency)
+            elif isinstance(dependency, dict): 
+                for stage_name, deps in dependency.items():
+                    existing = self.dependencies.get(stage_name,[])
+                    combined = existing + tuple(deps)
+                    self.dependencies[stage_name] = tuple(dict.fromkeys(combined))
+
+        self.graph = StageGraph.from_stages(self.stages)
+        self.graph.validate()
+
+        self.logger.event("New dependencies added to Pipeline instance and respective Stage instances",dependencies = dependencies)    
+
+
 
     def _assign_dependencies(self, 
                              dependencies:tuple[str]| dict[str, Sequence[str]] | None = None,
@@ -226,6 +279,7 @@ class Pipeline:
         for stage in stages:
             new_dependencies = self._dependencies_for_stage(stage.name, stage.source, dependencies)
             stage.dependencies = _normalize_dependencies(new_dependencies)
+            #TODO: Should this aldo return pipeline.dependencies as the normalised values?
 
         return stages
 
@@ -834,7 +888,6 @@ class Pipeline:
             candidates = (stage_name, path.name, path.stem, str(path), path.as_posix())
         else:
             candidates = (stage_name, str(path.__name__)) 
-        print(candidates)
         for candidate in candidates:
             if candidate in dependencies:
                 return tuple(str(dependency) for dependency in dependencies[candidate])

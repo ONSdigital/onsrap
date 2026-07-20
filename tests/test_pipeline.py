@@ -58,6 +58,39 @@ def test_assign_dependencies(tmp_path):
     assert pipeline_2.stages[1].dependencies == ("Stage_1.py",)
     
     
-
+def test_add_dependencies_single_dict(tmp_path): 
+    """
+    Tests that a dictionary correctly assigns dependencies to 
+    individual stages and the Pipeline instance. 
+    """
     
+    path_1 = tmp_path/"Stage_1.py"
+    path_2 = tmp_path/"Stage_2.py"
+    path_0 = tmp_path/"Stage_0.py"
+
+    dependencies_multiple = {"Stage_0":(),
+                             "Stage_1":(),
+                             "Stage_2":("Stage_1",)}
+    dep_dict = {"Stage_1":("Stage_0",),
+                "Stage_2":("Stage_0","Stage_1")}
+    dep_tuple = ("Stage_0.25",)
+    stage_1 = Stage("Stage_1", source = path_1, dependencies = {})
+    stage_2 = Stage("Stage_2", source = path_2, dependencies = {})
+    stage_0 = Stage("Stage_0", source = path_0, dependencies = {})
+    
+    pipeline_dict = Pipeline(stages = [stage_0, stage_1, stage_2],
+                                    dependencies = dependencies_multiple)
+    
+    with pytest.raises(PipelineInitialisationError):
+        pipeline_dict.add_dependencies(dep_tuple)
+
+    pipeline_dict.add_dependencies(dep_dict)
+    assert stage_1.dependencies == ("Stage_0",)
+    assert stage_2.dependencies == ("Stage_1","Stage_0",)
+    assert stage_0.dependencies == ()
+    assert pipeline_dict.dependencies == {"Stage_0":(),
+                             "Stage_1":("Stage_0",),
+                             "Stage_2":("Stage_1","Stage_0",)}
+
+
     
