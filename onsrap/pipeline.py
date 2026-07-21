@@ -897,12 +897,13 @@ class Pipeline:
         Recognized aliases:
 
         - ``working_dir`` → ``work_dir`` (only when ``work_dir`` is absent).
+        - ``stage_to_run`` → ``stages_to_run`` (only when ``stages_to_run`` is absent).
 
         If both ``working_dir`` and ``work_dir`` are present at the same time, a
         ``UserWarning`` is emitted and ``working_dir`` is left in the payload where
         it will be silently absorbed into ``PipelineConfig.metadata``.
         """
-        #TODO: Add normalization for stages_to_run
+        
         normalized_payload = dict(pipeline_payload)
         if "working_dir" in normalized_payload:
             if "work_dir" not in normalized_payload:
@@ -914,6 +915,17 @@ class Pipeline:
                     UserWarning,
                     stacklevel=2,
                 )
+        if "stage_to_run" in normalized_payload:
+            if "stages_to_run" not in normalized_payload:
+                normalized_payload["stages_to_run"] = normalized_payload.pop("stage_to_run")
+            else:
+                warnings.warn(
+                    "Both 'stage_to_run' and 'stages_to_run' were found in the pipeline configuration. "
+                    "'stages_to_run' will be used and 'stage_to_run' will be ignored.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+        
         return normalized_payload
 
     @staticmethod
