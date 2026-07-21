@@ -25,6 +25,7 @@ def config() -> PipelineConfig:
     return PipelineConfig(
         "test_pipeline",
         "python",
+        None,
         work_dir, 
         project_root,
         None,
