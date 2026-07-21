@@ -100,10 +100,15 @@ class Pipeline:
         stage_lookup = {stage.name: stage 
                         for stage in self.stages}
         
+        #sets stage_names_to_run as all stages possible if none are specified
+        if self.config.stages_to_run is None:
+            warnings.warn("No stages specified to run. All stages running by default.", PipelineConfigurationWarning)
+            stage_names_to_run = list(stage_lookup.keys())
+        else:
         #list of all stage names selected to run in config
-        stage_names_to_run = [stage_name 
-                              for stage_name, value in self.config.stages_to_run.items() 
-                              if value]
+            stage_names_to_run = [stage_name 
+                                for stage_name, value in self.config.stages_to_run.items() 
+                                if value]
         
         #run standard StageGraph if all stages are present in stage_names_to_run
         if set(stage_lookup.keys()) == set(stage_names_to_run):
@@ -115,8 +120,7 @@ class Pipeline:
                     raise PipelineInitialisationError("You're trying to run a stage that does not exist. Please add the stage to the Pipeline.")
             #list of Stage instances for stages that should be run following configuration
             stages_to_run = [stage_lookup[name]
-                            for name in stage_names_to_run
-                            if name in stage_lookup]
+                            for name in stage_names_to_run]
             self.graph = StageGraph.from_stages(stages_to_run)
 
         self.graph.validate()
@@ -903,7 +907,7 @@ class Pipeline:
         ``UserWarning`` is emitted and ``working_dir`` is left in the payload where
         it will be silently absorbed into ``PipelineConfig.metadata``.
         """
-        
+
         normalized_payload = dict(pipeline_payload)
         if "working_dir" in normalized_payload:
             if "work_dir" not in normalized_payload:

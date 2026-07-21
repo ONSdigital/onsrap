@@ -244,7 +244,7 @@ class PipelineConfig:
     
     def _extract_stages_run(self,
                             payload: Mapping[str, Any]
-                            ) -> dict[str, bool]:
+                            ) -> dict[str, bool] | None:
         """
         Method to extract stages_to_run configuration and convert all values to boolean values. 
 
@@ -257,11 +257,14 @@ class PipelineConfig:
         -------
         ``boolean_dict``
             A dictionary of stage_name:bool to indicate whether a stage is being run. 
+        
+        None 
+            If stages_to_run does not exist within the configuration.
         """
         stages_to_run = payload.pop("stages_to_run", None)
         if stages_to_run is None: 
-            pass
-            #TODO: Add default to add all stages here
+            return None
+        
         boolean_dict = {stage_name: self._to_bool(value) for stage_name,value in stages_to_run}
         return boolean_dict
 
