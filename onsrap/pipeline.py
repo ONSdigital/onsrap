@@ -301,7 +301,6 @@ class Pipeline:
         for stage in stages:
             new_dependencies = self._dependencies_for_stage(stage.name, stage.source, dependencies)
             stage.dependencies = _normalize_dependencies(new_dependencies)
-            #TODO: Should this aldo return pipeline.dependencies as the normalised values?
 
         return stages
 
@@ -776,11 +775,14 @@ class Pipeline:
 
         raw_config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
         if raw_config is None:
-            # TODO: Warn if it fails?
+            warnings.warn("No configuration has loaded from the configuration file. Please check " \
+            "your configurations.")
             return {}
         if not isinstance(raw_config, Mapping):
-            # TODO: maybe this should be richer error messaging
-            raise TypeError("Pipeline config file must contain a mapping at the top level.")
+            raise TypeError("Configuration file must contain a mapping at the top level. Please ensure" \
+            "that your configuration file is structured into key:value pairs in the notation that suits" \
+            "the configuration file that you are using. The top level key value pairs should reflect " \
+            "the Pipeline and Stage configurations.")
         return dict(raw_config)
 
     @staticmethod
