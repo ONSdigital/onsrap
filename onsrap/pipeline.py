@@ -9,8 +9,8 @@ from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
-from .errors import StageConfigurationError, PipelineInitialisationError
-from .warnings import StageConfigurationWarning
+from .errors import StageConfigurationError, PipelineInitialisationError, PipelineConfigurationError
+from .warnings import StageConfigurationWarning, PipelineConfigurationWarning
 from .execution import PythonStageExecutor, StageExecutor
 from .graph import StageGraph
 from .logger import Logger
@@ -786,29 +786,108 @@ class Pipeline:
         return dict(raw_config)
 
     @staticmethod
-    def _split_config_sections(raw_config: Mapping[str, Any]) -> tuple[dict[str, Any], Mapping[str, Any] | None]:
+    def _split_config_sections(raw_config: Mapping[str, Any]) -> tuple[Mapping[str, Any] | None, Mapping[str, Any] | None]:
         """
         Split a raw config payload into pipeline-level and stage-level sections.
 
-        Composite config payloads may use top-level ``pipeline_variables`` and
-        ``stage_configuration`` keys. Flat payloads are treated as pipeline config unless
-        a stage-configuration key is present.
-        """
-        # TODO: Enforce this behaviour using Errors
-        # TODO: Ensure that if stage_config or other keys grabbed are None, warn or error.
-        # TODO: The if statement is messy and non-intuitive
-        if "pipeline_variables" in raw_config or "stage_configuration" in raw_config or "stage_config" in raw_config:
-            pipeline_payload = raw_config.get("pipeline_variables", {})
-            if not isinstance(pipeline_payload, Mapping):
-                raise StageConfigurationError("The 'pipeline_variables' section must be a mapping.")
-            stage_payload = raw_config.get("stage_configuration", raw_config.get("stage_config"))
-            return dict(pipeline_payload), stage_payload
+        Allows for configurations that have "stage_configuration", "stage_config", "pipeline_variables"
+        and "pipeline_config" as the key. The key is identified and used to pull the values for the 
+        configuration from the ``raw_config``. It is then Nonetype checked and Type checked to ensure 
+        that appropriate information is extracted and errors are produced if any of these checks fail. 
 
-        pipeline_payload = dict(raw_config)
-        # The line below may never happen as it asks for "stage_config" but the if statement above also does this,
-        # and this code only actions if that if statement does not complete. 
-        stage_payload = pipeline_payload.pop("stage_configuration", pipeline_payload.pop("stage_config", None))
+        Parameters
+        ----------
+        ``raw_config``: Mapping[str, Any]
+            Contents of the configuration file previously extracted. 
+
+        Returns 
+        -------
+        ``pipeline_payload``: Mapping[str, Any] | None
+            Contents of the pipeline configuration settings defined in the configuration file. 
+        ``stage_payload``: Mapping[str, Any] | None
+            Contents of the stage configuration settings defined in the configuration file. 
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning`` 
+            If blank values for pipeline_payload or stage_payload are detected. 
+            If there are remaining keys in the ``raw_config`` that have not been extracted. 
+
+        ``PipelineConfigurationError`` 
+            If the pipeline_payload or stage_payload are not mapping types. 
+        """
+        possible_stage_keys = ("stage_configuration", "stage_config")
+        possible_pipeline_keys = ("pipeline_variables","pipeline_config")
+        
+        stage_configuration = Pipeline._extract_keys(possible_stage_keys, raw_config)
+        pipeline_configuration = Pipeline._extract_keys(possible_pipeline_keys, raw_config)
+
+        pipeline_payload = raw_config.get(pipeline_configuration,{})
+        
+        if pipeline_payload is None: 
+            warnings.warn("Blank pipeline configuration detected. Please check that this is correct.", PipelineConfigurationWarning) 
+        stage_payload = raw_config.get(stage_configuration,{})
+        if stage_payload is None: 
+            warnings.warn("Blank stage configuration detected. Please check that this is correct.", StageConfigurationWarning) 
+
+        remaining_keys = set(raw_config) - [pipeline_configuration, stage_configuration]
+        if remaining_keys:
+            warnings.warn("There are remaining sections in your configuration file that have not been extracted." \
+            " Please check that all your configurations are in the pipeline or stage configuration keys.", 
+            PipelineConfigurationWarning)
+
+        if not isinstance(pipeline_payload, Mapping):
+            raise PipelineConfigurationError(f"The {pipeline_configuration} section must be a mapping.")
+        if not isinstance(stage_payload, Mapping):
+            raise PipelineConfigurationError(f"The {stage_configuration} section must be a mapping.")
+
         return pipeline_payload, stage_payload
+
+    @staticmethod
+    def _extract_keys(possible_keys: tuple[str, ...],
+                          dictionary: Mapping[str, Any]) -> str:
+        """
+        Checks whether a provided dictionary has a key that has been previously defined. 
+
+        Creates a list for all specified keys that are present in the dictionary and checks
+        the number of keys that match. This should only be 1 so if there are any fewer or 
+        additional then appropriate errors are raised. 
+
+        Parameters 
+        ----------
+        ``possible_keys``: tuple[str, ...]
+            Set of string keys that are possibly in the dictionary provided. 
+        ``dictionary``: Mapping[str, Any]
+            Dictionary that is being checked for valid keys. 
+
+        Returns 
+        -------
+        ``key``: str
+            String value for the key that is present in the ``dictionary`` out of the 
+            ``possible_keys`` values. 
+
+        Raises 
+        ------ 
+        ``PipelineConfigurationError``
+            If no keys in the ``dictionary`` are also in the ``possible_keys`` tuple. 
+
+        ``PipelineConfigurationWarning``
+            If more than one key in the possible_keys is found, alerts user that it will 
+            default to the first selected option and records the key that is selected.
+        """
+        
+        matches = [key for key in possible_keys if key in dictionary]
+
+        if len(matches) == 1:
+            key = matches[0]
+        elif len(matches) == 0:
+            raise PipelineConfigurationError(f"No valid keys were found in the configuration. Please ensure that your top level key is one of: {possible_keys}.")
+        else:
+            warnings.warn(f"Multiple configuration keys were found, defaulting to the first option: {matches[0]}", PipelineConfigurationWarning)
+            key = matches[0]
+
+        return key
+
 
     @staticmethod
     def _normalize_pipeline_payload(pipeline_payload: Mapping[str, Any]) -> dict[str, Any]:
