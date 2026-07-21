@@ -82,8 +82,8 @@ class Stage:
     ``StageConfigurationError``
         If the stage ``name`` is empty or if the source is not a supported type.
     """
+    #TODO: Do we need a run indicator within the stage?
     name: str
-    run: bool
     source: Path | Callable[..., Any] | None = None
     dependencies: tuple[str, ...] = field(default_factory=tuple)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -101,7 +101,7 @@ class Stage:
             self.source = self.source.expanduser()
         elif self.source is not None and not callable(self.source):
             raise StageConfigurationError("Stage source must be a path, callable, or None.")
-
+        
         self.dependencies = _normalize_dependencies(self.dependencies)
         self.metadata = dict(self.metadata or {})
         self.backend = str(self.backend or "python").strip() or "python"

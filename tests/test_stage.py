@@ -68,7 +68,7 @@ def test_stage_backend(example_function) -> None:
                     {"info":"example"}, backend = "java")
     stage = Stage("callable_stage",example_function,["stage_1"],
                 {"info":"example"}, backend = "")
-    stage_white_space = Stage("callable_stage",example_function,["stage_1"],
+    stage_white_space = Stage("callable_stage", example_function,["stage_1"],
                             {"info":"example"}, backend = "python   ")
     assert stage_diff.backend == "java"
     assert stage.backend == "python"

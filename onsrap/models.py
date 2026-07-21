@@ -206,7 +206,7 @@ class PipelineConfig:
         name = payload.pop("name", None)
         
         backend = payload.pop("backend", "python")
-        stages_to_run = cls._extract_stages_run(payload)
+        stages_to_run = PipelineConfig._extract_stages_run(payload)
         work_dir = Path(payload.pop("work_dir", Path.cwd()))
         project_root_value = payload.pop("project_root", None)
         output_dir_value = payload.pop("output_dir", None)
@@ -242,75 +242,6 @@ class PipelineConfig:
             metadata=metadata,
         )
     
-    def _extract_stages_run(self,
-                            payload: Mapping[str, Any]
-                            ) -> dict[str, bool] | None:
-        """
-        Method to extract stages_to_run configuration and convert all values to boolean values. 
-
-        Parameters
-        ----------
-        ``payload`` : Mapping[str, Any]
-            The dictionary where the stages_to_run configuration is being extracted from.
-
-        Returns 
-        -------
-        ``boolean_dict``
-            A dictionary of stage_name:bool to indicate whether a stage is being run. 
-        
-        None 
-            If stages_to_run does not exist within the configuration.
-        """
-        stages_to_run = payload.pop("stages_to_run", None)
-        if stages_to_run is None: 
-            return None
-        
-        boolean_dict = {stage_name: self._to_bool(value) for stage_name,value in stages_to_run}
-        return boolean_dict
-
-
-    def _to_bool(self, value):
-        """
-        Method to convert values to boolean True/False values. 
-
-        Integers convert to boolean where 0 = False and 1 = True. A certain subset of strings are
-        accepted for conversion. Any other strings will. raise an error.  
-
-        Parameters
-        ----------
-        ``value`` : bool | int | str
-
-        Returns 
-        -------
-        ``value``
-            The value input but converted to a boolean value. 
-
-        Raises 
-        ------
-        ``ValueError`` 
-            When the value has not been able to be converted to a boolean. 
-        """
-     
-        if isinstance(value, bool):
-            return value
-
-        if isinstance(value, int):
-            return bool(value)
-
-        if isinstance(value, str):
-            value = value.strip().lower()
-
-            if value in {"true", "yes", "y", "1"}:
-                return True
-
-            if value in {"false", "no", "n", "0"}:
-                return False
-            
-            raise ValueError(f"Cannot convert {value!r} to bool")
-
-        raise ValueError(f"Cannot convert {value!r} to bool")
-
-
     @classmethod
     def from_file(cls, path: Path) -> PipelineConfig:
         """
@@ -371,6 +302,76 @@ class PipelineConfig:
         }
         data.update(self.metadata)
         return data
+    
+    @staticmethod
+    def _extract_stages_run(payload: Mapping[str, Any]
+                            ) -> dict[str, bool] | None:
+        """
+        Method to extract stages_to_run configuration and convert all values to boolean values. 
+
+        Parameters
+        ----------
+        ``payload`` : Mapping[str, Any]
+            The dictionary where the stages_to_run configuration is being extracted from.
+
+        Returns 
+        -------
+        ``boolean_dict``
+            A dictionary of stage_name:bool to indicate whether a stage is being run. 
+        
+        None 
+            If stages_to_run does not exist within the configuration.
+        """
+        stages_to_run = payload.pop("stages_to_run", None)
+        if stages_to_run is None: 
+            return None
+        
+        boolean_dict = {stage_name: PipelineConfig._to_bool(value) for stage_name,value in stages_to_run}
+        return boolean_dict
+
+    @staticmethod
+    def _to_bool(value):
+        """
+        Method to convert values to boolean True/False values. 
+
+        Integers convert to boolean where 0 = False and 1 = True. A certain subset of strings are
+        accepted for conversion. Any other strings will. raise an error.  
+
+        Parameters
+        ----------
+        ``value`` : bool | int | str
+
+        Returns 
+        -------
+        ``value``
+            The value input but converted to a boolean value. 
+
+        Raises 
+        ------
+        ``ValueError`` 
+            When the value has not been able to be converted to a boolean. 
+        """
+     
+        if isinstance(value, bool):
+            return value
+
+        if isinstance(value, int):
+            return bool(value)
+
+        if isinstance(value, str):
+            value = value.strip().lower()
+
+            if value in {"true", "yes", "y", "1"}:
+                return True
+
+            if value in {"false", "no", "n", "0"}:
+                return False
+            
+            raise ValueError(f"Cannot convert {value!r} to bool")
+
+        raise ValueError(f"Cannot convert {value!r} to bool")
+
+
 
 
 @dataclass
