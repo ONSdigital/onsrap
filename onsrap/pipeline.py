@@ -101,9 +101,10 @@ class Pipeline:
                         for stage in self.stages}
         
         #sets stage_names_to_run as all stages possible if none are specified
-        if self.config.stages_to_run is None:
+        if self.config.stages_to_run == {}:
             warnings.warn("No stages specified to run. All stages running by default.", PipelineConfigurationWarning)
             stage_names_to_run = list(stage_lookup.keys())
+
         else:
         #list of all stage names selected to run in config
             stage_names_to_run = [stage_name 
@@ -834,7 +835,7 @@ class Pipeline:
         if stage_payload is None: 
             warnings.warn("Blank stage configuration detected. Please check that this is correct.", StageConfigurationWarning) 
 
-        remaining_keys = set(raw_config) - [pipeline_configuration, stage_configuration]
+        remaining_keys = set(raw_config) - {pipeline_configuration, stage_configuration}
         if remaining_keys:
             warnings.warn("There are remaining sections in your configuration file that have not been extracted." \
             " Please check that all your configurations are in the pipeline or stage configuration keys.", 

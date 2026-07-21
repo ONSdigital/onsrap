@@ -25,7 +25,7 @@ def example_function():
     """
     Test function to pass as a callable stage for stage testing.
     """
-    print("This is a test function")
+    pass
 
 @pytest.fixture
 def stage_test() -> Stage:

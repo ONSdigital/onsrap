@@ -30,9 +30,13 @@ def test_assign_dependencies(tmp_path):
     """
     def example_function():
         pass
+
+    path_1 = tmp_path/"Stage_1.py"
+    path_0 = tmp_path/"Stage_0.py"
+
     dependencies_single = {"Stage_2":("Stage_1",)}
-    dependencies_multiple = {"Stage_1":["Stage_0", "Stage_0.5"],
-                             "Stage_2":("Stage_1",)}
+    dependencies_multiple = {"Stage_1":["Stage_0"],
+                             "Stage_2":("Stage_1", "Stage_0")}
     dependencies_non_stage_name = {"Stage_1.py":("Stage_0",),
                                    "example_function":("Stage_1.py",)}
     
@@ -40,18 +44,19 @@ def test_assign_dependencies(tmp_path):
         Pipeline(stages = None,
                  dependencies = dependencies_single)
     
-    path = tmp_path/"Stage_1.py"
     pipeline_1 = Pipeline(name = "pipeline_1",
-                          stages = [Stage("Stage_1", path, None,{}), 
-                                    Stage("Stage_2", example_function, None,{})],
+                          stages = [Stage("Stage_1", path_1, None,{}), 
+                                    Stage("Stage_2", example_function, None,{}),
+                                    Stage("Stage_0", path_0, None,{}),],
                           dependencies = dependencies_multiple)
     
-    assert pipeline_1.stages[0].dependencies == ("Stage_0","Stage_0.5",)
-    assert pipeline_1.stages[1].dependencies == ("Stage_1",)
+    assert pipeline_1.stages[0].dependencies == ("Stage_0",)
+    assert pipeline_1.stages[1].dependencies == ("Stage_1","Stage_0")
 
     pipeline_2 = Pipeline(name = "pipeline_2",
-                          stages = [Stage("Stage_1", path, None,{}), 
-                                    Stage("Stage_2", example_function, None,{})],
+                          stages = [Stage("Stage_1.py", path_1, None,{}), 
+                                    Stage("Stage_2", example_function, None,{}),
+                                    Stage("Stage_0", path_0, None,{}),],
                           dependencies = dependencies_non_stage_name)
     
     assert pipeline_2.stages[0].dependencies == ("Stage_0",)
