@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, Iterable, Mapping, Optional, TYPE_CHECKING
 from datetime import datetime
 
 from .errors import StageConfigurationError, StageDependencyError
@@ -83,7 +83,7 @@ class Stage:
         If the stage ``name`` is empty or if the source is not a supported type.
     """
     name: str
-    source: Union[Path, Callable[..., Any], None] = None
+    source: Path | Callable[..., Any] | None = None
     dependencies: tuple[str, ...] = field(default_factory=tuple)
     metadata: dict[str, Any] = field(default_factory=dict)
     entrypoint: Optional[str] = None
@@ -100,7 +100,7 @@ class Stage:
             self.source = self.source.expanduser()
         elif self.source is not None and not callable(self.source):
             raise StageConfigurationError("Stage source must be a path, callable, or None.")
-
+        
         self.dependencies = _normalize_dependencies(self.dependencies)
         self.metadata = dict(self.metadata or {})
         self.backend = str(self.backend or "python").strip() or "python"
@@ -115,7 +115,7 @@ class Stage:
         metadata: Mapping[str, Any] | None = None,
         entrypoint: str | None = None,
         backend: str = "python",
-    ) -> "Stage":
+    ) -> Stage:
         """
         Class method that checks and cleans the file path for the ``Stage``.
 
@@ -169,7 +169,7 @@ class Stage:
         dependencies: Iterable[str] | str | None = None,
         metadata: Mapping[str, Any] | None = None,
         backend: str = "python",
-    ) -> "Stage":
+    ) -> Stage:
         """
         Class method that retrieves the name of the Stage from a Callable item.
 
@@ -204,7 +204,7 @@ class Stage:
         )
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "Stage":
+    def from_dict(cls, data: Mapping[str, Any]) -> Stage:
         """
         Class method that converts a dictionary stage into a ``Stage`` class instance.
 
@@ -266,7 +266,7 @@ class Stage:
 
         raise StageConfigurationError("Stage dictionary must define a source, path, or callable.")
 
-    def with_dependencies(self, *dependencies: str) -> "Stage":
+    def with_dependencies(self, *dependencies: str) -> Stage:
         """
         Method that normalises and adds ``dependencies`` to the ``Stage`` class attributes.
 
@@ -347,7 +347,7 @@ class Stage:
 
         return None
 
-    def run(self, context: "ExecutionContext", executor: "StageExecutor") -> "StageResult":
+    def run(self, context: ExecutionContext, executor: StageExecutor) -> StageResult:
         """
         Checks that the ``source`` is valid and then runs the ``source`` 
 
@@ -355,6 +355,8 @@ class Stage:
         ----------
         context : set value "ExecutionContext"
             Uses ``ExecutionContext`` class information to provide required metadata on running ``source``.
+            Any stage-specific configuration resolved by the ``Pipeline`` is available through
+            ``context.stage_config`` while this stage is running.
         executor : set value "StageExecutor"
             Uses ``StageExecutor`` class to extract the ``.execute`` method to actually run the ``source``.
 
@@ -364,55 +366,4 @@ class Stage:
         """
         self.validate()
         return executor.execute(self, context)
-    
-@dataclass    
-class StageConfig:
-    """
-    Class that holds information regarding the Stage including key information required to run the stage. 
-    
-    Parameters
-    ----------
-    ``name`` : str
-        The name of the stage. This should be the same as the ``Stage`` class instance.
-    ``_variables`` : Mapping[str, Any] | None, default = None
-        A mapping of variables and their basic definition. This would define standard variables
-        such as a sex variable alongside how it is named specifically within the data. This attribute
-        should not be directly interacted with. Instead, it should be defined through a yaml file or 
-        through the set_config() method. 
-    ``datasets`` : Mapping[str, Any] | None = None
-        The name of the dataset that is used within the stage alongside any useful information
-        regarding the data, for example the file location. 
-    
-    """
-    name: str
-    _variables: Mapping[str, Any] | None = None
-    datasets: Mapping[str, dict] | None = None
-
-    def get_variables(self, variable: Iterable[str] | str | None = None) -> dict:
-        """
-        Class method that outputs the _variables attribute. 
-
-        This method allows for the entire attribute to be extracted as well as single items
-        or multiple items in a list. These will be output as a dictionary of the values for
-        the keys requested. 
-
-        Parameters
-        ----------
-        ``variable`` : Iterable[str] | str | None = None
-        """
-        if variable is not None:
-            if isinstance(variable,Iterable): 
-                requested_vars = {}
-                for requested in variable:
-                    item = self._variables.get(requested)
-                    requested_vars[requested] = item
-                if requested_vars is not None: 
-                    return requested_vars
-                raise StageConfigurationError("The variable/s you have requested does/do not exist")
-            if isinstance(variable, str):
-                item = self._variables.get(requested)
-                if item is not None:
-                    return item
-                raise StageConfigurationError("The variable/s you have requested does/do not exist")
-        return self._variables
     

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .errors import StageExecutionError
+from .warnings import StageConfigurationWarning
 from .execution import ExecutionContext
 from .logger import Logger
 from .models import PipelineRun, PipelineStatus, now
@@ -26,14 +27,16 @@ class PipelineRunner:
     def __init__(self, logger: Logger | None = None):
         self.logger = logger or Logger()
 
-    def run(self, pipeline: "Pipeline") -> PipelineRun:
+    def run(self, pipeline: Pipeline) -> PipelineRun:
         """
         Method that runs a ``Pipeline`` instance. 
 
         This method validates the source information, establishes the directories and 
         the context to run the pipeline within, sets out the manifest for the run, attempts
         to run the stages in the order outlined by the ``StageGraph`` instance and logs all
-        progress alongside relevant statuses.
+        progress alongside relevant statuses. Before each stage executes, the runner binds
+        the current stage name onto the ``ExecutionContext`` so ``context.stage_config``
+        resolves to the correct stage-specific configuration.
 
         It returns a PipelineRun instance containing metadata and logging information for the 
         specific run of the whole Pipeline. 
@@ -48,6 +51,7 @@ class PipelineRunner:
         ``StageExecutionError``
             If the stage is unable to be run. Logs will be created to show a failed stage. 
         """
+        # Initial Pipeline steps - validate, create run ID and any relevant directories.
         pipeline.validate()
 
         runtime_id = pipeline._create_runtime_id()
@@ -57,12 +61,15 @@ class PipelineRunner:
             run_output = Path(pipeline.config.output_dir)
         else:
             warnings.warn(
-                "Output directory is not specified. Using project root or work directory as the run output."
+                "Output directory is not specified. Using project root or work directory as the run output.",
+                StageConfigurationWarning
             )  # TODO: fill with warnings from Pipeline branch
             run_output = Path(pipeline.config.project_root or pipeline.config.work_dir)
         run_dir = run_output / "runs" / runtime_id.get_id()
         run_dir.mkdir(parents=True, exist_ok=True)
 
+        # Initialise the ExecutionContext which will be passed to each stage as it runs. This
+        # context will hold the configuration for the pipeline and for each stage.
         started_at = now()
         context = ExecutionContext(
             pipeline_name=pipeline.name,
@@ -72,7 +79,10 @@ class PipelineRunner:
             run_dir=run_dir,
             started_at=started_at,
             working_directory=pipeline.config.work_dir,
+            stage_configs=dict(pipeline.stage_configs),
         )
+
+        # Ensure the stages are in order and create a manifest that explains the run.
 
         ordered_stages = pipeline.ordered_stages()
         manifest = pipeline._construct_manifest(runtime_id=runtime_id)
@@ -87,22 +97,30 @@ class PipelineRunner:
             stages=[stage.name for stage in ordered_stages],
         )
 
+        # Execution of the stages in the dependency-driven order.
         stage_results = []
         try:
             for stage in ordered_stages:
                 self.logger.event("Executing stage", name=stage.name, source=stage.source_label)
-                result = stage.run(context, pipeline.executor)
+                context.set_active_stage(stage.name)
+                try:
+                    result = stage.run(context, pipeline.executor)
+                finally:
+                    context.set_active_stage(None)
                 context.record(result)
                 stage_results.append(result)
                 manifest.stages_run.append(result.name)
                 manifest.outputs[result.name] = result.outputs
+
         except StageExecutionError as exc:
+            # Handle recording of execution errors.
             if exc.result is not None and context.result_for(exc.result.name) is None:
                 context.record(exc.result)
                 stage_results.append(exc.result)
                 manifest.stages_run.append(exc.result.name)
                 manifest.outputs[exc.result.name] = exc.result.outputs
 
+            # Log the failure and raise the exception to indicate the pipeline has failed.
             completed_at = now()
             run = PipelineRun(
                 manifest=manifest,
@@ -122,6 +140,7 @@ class PipelineRunner:
             )
             raise
 
+        # If the pipeline has completed successfully, record the completion and return the run information.
         completed_at = now()
         run = PipelineRun(
             manifest=manifest,
@@ -140,6 +159,7 @@ class PipelineRunner:
             run_id=runtime_id.get_id(),
             stages=len(stage_results),
         )
+
         return run
 
 

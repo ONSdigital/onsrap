@@ -1,4 +1,4 @@
-from onsrap.models import StageStatus, PipelineStatus, RuntimeID, RAPConfig, RunManifest, PipelineRun, PipelineConfig
+from onsrap.models import StageStatus, PipelineStatus, RuntimeID, RunManifest, PipelineRun, PipelineConfig
 import pytest
 import datetime
 from pathlib import Path
@@ -53,22 +53,6 @@ def test_getter_functions_runtimeID(runtimeID) -> None:
     assert runtimeID.get_short_hash() == "4h5kg"
 
 @pytest.fixture
-def rapconfig() -> RAPConfig:
-    """
-    Example RAPConfig class instance for testing of class methods. 
-    """
-    return RAPConfig(contents = {"name":"test_rap",
-                                 "backend":"python",
-                                 "work_dir":Path("tmp/work"),
-                                 "project_root":Path("project"),
-                                 "log_dir":Path("tmp/logs"),
-                                 "data_dir":Path("tmp/data"),
-                                 "allow_subprocess_fallback":True,
-                                 "python_executable":None,
-                                 "metadata":{"variables":["name","age"],
-                                             "num_stages":6}})
-
-@pytest.fixture
 def blankpipelineconfig() -> PipelineConfig:
     """
     Blank PipelineConfig instance for class method testing. 
@@ -108,7 +92,7 @@ def mapping() -> dict:
                         "num_stages":6}}
 
 
-def test_from_any(mapping, pipelineconfig, blankpipelineconfig, rapconfig) -> None: 
+def test_from_any(mapping, pipelineconfig, blankpipelineconfig) -> None: 
     """
     Test derivation for a PipelineConfig instance using the from_any() method. This test 
     checks all methods EXCEPT from_file as this will be covered in another test due to 
@@ -125,16 +109,6 @@ def test_from_any(mapping, pipelineconfig, blankpipelineconfig, rapconfig) -> No
                                                                           python_executable = None,
                                                                           metadata = {"variables":["name","age"],
                                                                                       "num_stages":6})
-    assert blankpipelineconfig.from_any(rapconfig) == PipelineConfig(name = "test_rap",
-                                                                    backend = "python",
-                                                                    work_dir = Path("tmp/work"),
-                                                                    project_root = Path("project"),
-                                                                    log_dir = Path("tmp/logs"),
-                                                                    data_dir = Path("tmp/data"),
-                                                                    allow_subprocess_fallback = True,
-                                                                    python_executable = None,
-                                                                    metadata = {"variables":["name","age"],
-                                                                                "num_stages":6})
     assert blankpipelineconfig.from_any(mapping) == PipelineConfig(name = "test_rap",
                                                                     backend = "python",
                                                                     work_dir = Path("tmp/work"),

@@ -10,11 +10,21 @@ SCRIPTS_DIR = PIPELINE_ROOT / "scripts"
 DATA_DIR = PIPELINE_ROOT / "data"
 LOG_DIR = PIPELINE_ROOT / "logs"
 
+"""
+In this version of the main pipeline script, the order of the stage files has been altered. 
+The preprocessing stage is now listed before the data validation stage in the `stage_files` list. 
+However, the dependencies remain unchanged, meaning that the pipeline will still enforce that data 
+validation must be completed before preprocessing can run. 
+
+This means that changing the order of the stage files in pipeline does not affect the execution order
+of the stages, which is defined by the dependencies.
+"""
+
 
 def build_pipeline() -> Pipeline:
-    stage_files = [
-        SCRIPTS_DIR / "0_data_validation.py",
+    stage_files = [ # Altered Script Order
         SCRIPTS_DIR / "1_preprocessing.py",
+        SCRIPTS_DIR / "0_data_validation.py",
         SCRIPTS_DIR / "2_reporting.py",
     ]
 
@@ -28,7 +38,6 @@ def build_pipeline() -> Pipeline:
         backend="python",
         work_dir=PIPELINE_ROOT,
         project_root=PIPELINE_ROOT,
-        output_dir=PIPELINE_ROOT,
         data_dir=DATA_DIR,
         log_dir=LOG_DIR,
         metadata={
@@ -49,7 +58,7 @@ def build_pipeline() -> Pipeline:
 def main() -> None:
     run = build_pipeline().run()
     report = run.manifest.outputs["2_reporting"]
-    
+
     print(f"Pipeline '{run.manifest.rap_name}' completed with {len(run.stage_results)} stages.")
     print(f"Summary report written to: {report['report_path']}")
     print(f"Cleaned data written to: {report['clean_path']}")

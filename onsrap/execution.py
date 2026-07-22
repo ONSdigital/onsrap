@@ -11,7 +11,7 @@ from typing import Any, Protocol, TYPE_CHECKING
 from .errors import StageExecutionError, StageLoadError, PipelineConfigurationError
 from .loader import PREFERRED_ENTRYPOINTS, discover_python_entrypoint, load_python_callable
 from .logger import Logger
-from .models import PipelineConfig, StageResult, StageStatus, now
+from .models import PipelineConfig, StageConfig, StageResult, StageStatus, now
 
 if TYPE_CHECKING:
     from .stage import Stage
@@ -40,8 +40,12 @@ class ExecutionContext:
         The directory that the work is taking place in.
     ``stage_results`` : dict[str, StageResult], default = dict
         Stores the logs for the stage run.
+    ``stage_configs`` : dict[str, StageConfig], default = dict
+        Stage-name keyed configuration mapping resolved by the ``Pipeline``.
     ``variables`` : dict[str, Any], default = dict
         Stores relevant variables regarding the stage run and their results.
+    ``active_stage_name`` : str or None, default = None
+        Name of the stage currently being executed. Used to expose ``stage_config``.
     """
     pipeline_name: str
     run_id: str
@@ -51,7 +55,9 @@ class ExecutionContext:
     started_at: datetime = field(default_factory=now)
     working_directory: Path = field(default_factory=Path.cwd)
     stage_results: dict[str, StageResult] = field(default_factory=dict)
+    stage_configs: dict[str, StageConfig] = field(default_factory=dict)
     variables: dict[str, Any] = field(default_factory=dict)
+    active_stage_name: str | None = None
 
     def record(self, result: StageResult) -> StageResult:
         """
@@ -89,6 +95,33 @@ class ExecutionContext:
             Attribute for the specific `Stage` named.
         """
         return self.stage_results.get(stage_name)
+
+    def set_active_stage(self, stage_name: str | None) -> None:
+        """
+        Mark the stage currently being executed so ``stage_config`` resolves correctly.
+        """
+        self.active_stage_name = stage_name
+
+    def stage_config_for(self, stage_name: str) -> StageConfig | None:
+        """
+        Return the configuration bound to a specific stage name, if one exists.
+        """
+        return self.stage_configs.get(stage_name)
+
+    @property
+    def stage_config(self) -> StageConfig | None:
+        """
+        Return the configuration for the stage currently being executed.
+
+        The preferred access method for this is ``get_stage_config()`` which allows
+        for optional arguments to return the full ``StageConfig`` instance or just 
+        the variables dictionary.
+
+        This property is ``None`` outside an active stage run.
+        """
+        if self.active_stage_name is None:
+            return None
+        return self.stage_config_for(self.active_stage_name)
 
     @property
     def stage_outputs(self) -> dict[str, Any]:
@@ -135,6 +168,30 @@ class ExecutionContext:
         
         raise PipelineConfigurationError("Please parse a run directory to " \
         "the ExecutionContext.")
+
+    def get_stage_config(self, vars_only: bool = True) -> dict | StageConfig:
+        """
+        Returns the configuration for the stage currently being executed, with optional arguments.
+
+        Optional argument ``vars_only`` can be set to ``False`` to return the full ``StageConfig`` instance,
+        rather than just the variables dictionary.
+
+        If you want to access ``metadata`` or ``dataframes`` from the ``StageConfig``, you must set ``vars_only`` to False.
+
+        Parameters
+        ----------
+        ``vars_only`` : bool, default = True
+            If True, returns only the variables dictionary from the ``StageConfig``. If False, returns the full ``StageConfig`` instance.
+        
+        Returns
+        -------
+        dict or StageConfig
+            The parameters contained within the configuration for the currently active stage. 
+            If ``vars_only`` is set to False, returns the StageConfig object itself, containing all attributes including variables, metadata, and dataframes.
+        """
+        if vars_only:
+            return self.stage_config_for(self.active_stage_name).variables()
+        return self.stage_config_for(self.active_stage_name) or {}
     
     def resolve_given_path(self, stage_name: str | None, 
                            path_name: str | None, 
@@ -196,7 +253,7 @@ class StageExecutor(Protocol):
     Child class of ``Protocol`` 
     Implementation required
     """
-    def execute(self, stage: "Stage", context: ExecutionContext) -> StageResult:
+    def execute(self, stage: Stage, context: ExecutionContext) -> StageResult:
         """
         Method to run ``Stage`` however implementation required
         """
@@ -213,7 +270,7 @@ class PythonStageExecutor:
     def __init__(self, preferred_entrypoints: tuple[str, ...] = PREFERRED_ENTRYPOINTS):
         self.preferred_entrypoints = preferred_entrypoints
 
-    def execute(self, stage: "Stage", context: ExecutionContext) -> StageResult:
+    def execute(self, stage: Stage, context: ExecutionContext) -> StageResult:
         """
         Main function to select how ``Stage`` is run.
 
@@ -251,7 +308,7 @@ class PythonStageExecutor:
 
     def _execute_callable(
         self,
-        stage: "Stage",
+        stage: Stage,
         context: ExecutionContext,
         callable_object: Any,
         source_label: str | None,
@@ -332,7 +389,7 @@ class PythonStageExecutor:
         )
         return result
 
-    def _execute_file(self, stage: "Stage", context: ExecutionContext) -> StageResult:
+    def _execute_file(self, stage: Stage, context: ExecutionContext) -> StageResult:
         """
         Attempt to run a file.
         Attempt to run a callable object.
@@ -415,7 +472,7 @@ class PythonStageExecutor:
 
         return self._execute_subprocess(stage, context)
 
-    def _execute_subprocess(self, stage: "Stage", context: ExecutionContext) -> StageResult:
+    def _execute_subprocess(self, stage: Stage, context: ExecutionContext) -> StageResult:
         """
         Run the entire Python file for the ``Stage`` from the top.
         
@@ -502,7 +559,7 @@ class PythonStageExecutor:
         return result
 
 
-def _invoke_callable(callable_object: Any, stage: "Stage", context: ExecutionContext) -> Any:
+def _invoke_callable(callable_object: Any, stage: Stage, context: ExecutionContext) -> Any:
     """
     Assigns appropriate parameters for a callable and runs it. 
 
@@ -570,7 +627,7 @@ def _invoke_callable(callable_object: Any, stage: "Stage", context: ExecutionCon
 
 
 def _build_success_result(
-    stage: "Stage",
+    stage: Stage,
     started_at: datetime,
     finished_at: datetime,
     output: Any,
