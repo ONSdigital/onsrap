@@ -83,6 +83,7 @@ class PipelineRunner:
         )
 
         # Ensure the stages are in order and create a manifest that explains the run.
+
         ordered_stages = pipeline.ordered_stages()
         manifest = pipeline._construct_manifest(runtime_id=runtime_id)
         manifest.stages_run = []
@@ -158,6 +159,7 @@ class PipelineRunner:
             run_id=runtime_id.get_id(),
             stages=len(stage_results),
         )
+
         return run
 
 

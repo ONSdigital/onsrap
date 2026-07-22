@@ -541,6 +541,9 @@ class Pipeline:
             """
             if not stage_definitions:
                 return []
+
+            stage_definitions = list(stage_definitions)
+
             if not isinstance(stage_definitions, Sequence) or isinstance(stage_definitions, (str, bytes)):
                 raise StageConfigurationError("Configured stages must be provided as a sequence.")
 
@@ -695,19 +698,22 @@ class Pipeline:
         -------
         A ``Pipeline`` class instance. 
         """
-        # TODO: Finish this class method to include missing variables and clarify where sourced from config.
-        pipe_payload, stage_payload = cls._split_config_sections(config)
+        # REMOVED AS THIS WAS RUNNING TWICE. SHOULD DISCUSS WHAT TO DO ABOUT THIS 
+        #METHOD AND WHETHER IT IS NEEDED
+        
+        #pipe_payload, stage_payload = cls._split_config_sections(config)
 
         # pipeline_variables contains pipeline information
-        name = pipe_payload.pop("name", None)
-        backend = pipe_payload.pop("backend", "python")
-        stages = pipe_payload.pop("stages", [])
+        #name = pipe_payload.get("name", None)
+        #backend = pipe_payload.get("backend", "python")
+        #stages = pipe_payload.get("stages", [])
+        #print(stages)
 
         return cls(
             name=name,
             backend=backend,
-            config=pipe_payload,
-            stages=stages,
+            config=config,
+            stages=None,
         )
 
     @classmethod
@@ -725,8 +731,10 @@ class Pipeline:
         This is the preferred entrypoint when configuration defines both pipeline-level
         settings and the stage-level configuration that should be injected at runtime.
         """
+        extracted_config = Pipeline._load_config_mapping(config)
+
         return cls.from_dict(
-            config=config,
+            config=extracted_config,
             name=name, 
             backend=backend, 
             logger=logger, 
@@ -823,14 +831,17 @@ class Pipeline:
         """
         possible_stage_keys = ("stage_configuration", "stage_config")
         possible_pipeline_keys = ("pipeline_variables","pipeline_config")
-        
+        print("Assigned Possible Keys")
         stage_configuration = Pipeline._extract_keys(possible_stage_keys, raw_config)
+        print("Extracted Stage Configuration name")
         pipeline_configuration = Pipeline._extract_keys(possible_pipeline_keys, raw_config)
+        print("Extracted Pipeline Configuration name")
 
         pipeline_payload = raw_config.get(pipeline_configuration,{})
-        
+        print("Get Pipeline Configuration")
         if pipeline_payload is None: 
             warnings.warn("Blank pipeline configuration detected. Please check that this is correct.", PipelineConfigurationWarning) 
+
         stage_payload = raw_config.get(stage_configuration,{})
         if stage_payload is None: 
             warnings.warn("Blank stage configuration detected. Please check that this is correct.", StageConfigurationWarning) 
@@ -845,7 +856,7 @@ class Pipeline:
             raise PipelineConfigurationError(f"The {pipeline_configuration} section must be a mapping.")
         if not isinstance(stage_payload, Mapping):
             raise PipelineConfigurationError(f"The {stage_configuration} section must be a mapping.")
-
+        print("Completed split")
         return pipeline_payload, stage_payload
 
     @staticmethod
@@ -882,7 +893,6 @@ class Pipeline:
         """
         
         matches = [key for key in possible_keys if key in dictionary]
-
         if len(matches) == 1:
             key = matches[0]
         elif len(matches) == 0:
