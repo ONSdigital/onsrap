@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Optional, Union
+from typing import Any, Iterable, Mapping, Optional
 
 from .errors import StageConfigurationError, PipelineConfigurationError
 
@@ -149,7 +149,7 @@ class PipelineConfig:
     @classmethod
     def from_any(
         cls,
-        value: Union[PipelineConfig, Mapping[str, Any], str, Path, None],
+        value: PipelineConfig | Mapping[str, Any] | str | Path | None,
     ) -> PipelineConfig:
         """
         Converts one of several datatypes into a PipelineConfig class instance. 
@@ -538,7 +538,7 @@ class RunManifest:
     inputs: dict[str, Any] = field(default_factory=dict)
     outputs: dict[str, Any] = field(default_factory=dict)
     backend: str = "python"
-    package_versions: Union[list[str], str] = field(default_factory=list)
+    package_versions: list[str] | str = field(default_factory=list)
     timestamp: str = ""
     reason: Optional[str] = None
     user: Optional[str] = None
