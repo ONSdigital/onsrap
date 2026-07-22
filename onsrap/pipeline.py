@@ -831,14 +831,10 @@ class Pipeline:
         """
         possible_stage_keys = ("stage_configuration", "stage_config")
         possible_pipeline_keys = ("pipeline_variables","pipeline_config")
-        print("Assigned Possible Keys")
         stage_configuration = Pipeline._extract_keys(possible_stage_keys, raw_config)
-        print("Extracted Stage Configuration name")
         pipeline_configuration = Pipeline._extract_keys(possible_pipeline_keys, raw_config)
-        print("Extracted Pipeline Configuration name")
 
         pipeline_payload = raw_config.get(pipeline_configuration,{})
-        print("Get Pipeline Configuration")
         if pipeline_payload is None: 
             warnings.warn("Blank pipeline configuration detected. Please check that this is correct.", PipelineConfigurationWarning) 
 
@@ -856,7 +852,6 @@ class Pipeline:
             raise PipelineConfigurationError(f"The {pipeline_configuration} section must be a mapping.")
         if not isinstance(stage_payload, Mapping):
             raise PipelineConfigurationError(f"The {stage_configuration} section must be a mapping.")
-        print("Completed split")
         return pipeline_payload, stage_payload
 
     @staticmethod

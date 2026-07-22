@@ -326,7 +326,7 @@ class PipelineConfig:
         if stages_to_run is None: 
             return None
         
-        boolean_dict = {stage_name: PipelineConfig._to_bool(value) for stage_name,value in stages_to_run}
+        boolean_dict = {stage_name: PipelineConfig._to_bool(value) for stage_name,value in stages_to_run.items()}
         return boolean_dict
 
     @staticmethod
