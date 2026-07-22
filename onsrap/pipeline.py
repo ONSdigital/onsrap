@@ -19,6 +19,7 @@ from .stage import Stage, _normalize_dependencies
 
 
 ACCEPTED_CONFIG_TYPES = (".yaml", ".yml")
+AVAILABLE_EXECUTORS = ("python",)
 
 class Pipeline:
     """
@@ -74,7 +75,7 @@ class Pipeline:
             if self.backend == "python":
                 self.executor = PythonStageExecutor()
             else:
-                raise PipelineInitialisationError("Requested backend does not have a compatible executor. Available executors are: Python.")
+                raise PipelineInitialisationError(f"Requested backend does not have a compatible executor. Available executors are: {', '.join(AVAILABLE_EXECUTORS)}.")
             
         if stages is not None and configured_stages:
             raise PipelineInitialisationError(
@@ -647,7 +648,7 @@ class Pipeline:
             # Check that all stages in stage_names_to_run exist in the Pipeline.
             for stage_name in stage_names_to_run:
                 if stage_name not in list(stage_lookup.keys()):
-                    raise PipelineInitialisationError("You're trying to run a stage that does not exist. Please add the stage to the Pipeline.")
+                    raise PipelineInitialisationError(f"You're trying to run a stage that does not exist: '{stage_name}'. Please add the stage to the Pipeline.")
 
             return [stage_lookup[name] for name in stage_names_to_run]
 
