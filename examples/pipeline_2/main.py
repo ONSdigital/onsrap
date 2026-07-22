@@ -12,6 +12,8 @@ def main() -> None:
     pipeline = Pipeline.from_config(config_path)
 
     run = pipeline.run()
+    report = run.manifest.outputs
+    print(report)
 
     print(f"Pipeline '{run.manifest.rap_name}' completed with {len(run.stage_results)} stages.")
     print(f"Summary report written to: {pipeline.config.output_dir}")
