@@ -96,7 +96,7 @@ class Pipeline:
 
         self.stage_configs = dict(resolved_stage_configs)
         self._sync_stage_configs()
-        
+
         self.graph = StageGraph.from_stages(self._resolve_stages_to_run())
 
         self.graph.validate()
@@ -110,6 +110,7 @@ class Pipeline:
             backend=self.backend,
             stages=[stage.name for stage in self.stages],
         )
+
     def add_stage(self, *stages: Stage | Mapping[str, Any] | str | Path | Callable[..., Any]) -> None:
             """
             Adds a step to the Pipeline.
@@ -128,9 +129,41 @@ class Pipeline:
             added_stages = [self._coerce_stage(stage) for stage in stages]
             self.stages.extend(added_stages)
             self._sync_stage_configs()
-            self._rebuild_graph()
+            self._rebuild_graph()   # TODO: This will define the StageGraph from self.stages
+                                    # We don't want this behaviour following changes to PipelineConfig.stages_to_run logic.
+                                    # See _resolve_stages_to_run() for the sort of approach we want
+
+            # TODO: Adding Stages needs to interface with Pipeline Config's stages to run
+            # TODO: CARE: adding stages_to_run when stages_to_run is an empty dict changes behaviour:
+                # Empty dict behaviour defaults to running the entire pipeline
+                # Adding a stage in stages_to_run will make that one Stage run!
+            # TODO: If adding a stage, need to verify/check dependencies!
             self.logger.event("Stage added", stages=[stage.name for stage in added_stages])
     
+    def enable_stage(self, *stage_name: str) -> None:
+        # TODO: accept lists of strings
+        if not set(stage_name).issubset({stage.name for stage in self.stages}):
+            raise PipelineInitialisationError("You're trying to enable a stage that does not exist. Please add the stage to the Pipeline.")
+        
+        for name in stage_name:
+            self.config.stages_to_run[name] = True
+        # TODO: Do something with the StageGraph!
+        self.graph = StageGraph.from_stages(self._resolve_stages_to_run())
+        # TODO: Look at StageGraph.validate()
+        # TODO: Do something with dependencies!
+
+    def disable_stage(self, *stage_name: str) -> None:
+        # TODO: accept lists of strings
+        if not set(stage_name).issubset({stage.name for stage in self.stages}):
+            raise PipelineInitialisationError("You're trying to disable a stage that does not exist. Please add the stage to the Pipeline.")
+
+        for name in stage_name:
+            self.config.stages_to_run[name] = False
+        # TODO: Do something with the StageGraph!
+        self.graph = StageGraph.from_stages(self._resolve_stages_to_run())
+        # TODO: Look at StageGraph.validate()
+        # TODO: Do something with dependencies!
+
     def ordered_stages(self) -> list[Stage]:
             """
             Runs the topological_order() method on the ``graph`` attribute to extract the 
@@ -177,6 +210,7 @@ class Pipeline:
         ``StageConfigurationError``
             If the input cannot be resolved to exactly one stage configuration.
         """
+        # TODO: Comment the logical sections here for better readability
         if isinstance(s_config, Mapping):
             if "pipeline_variables" in s_config or "stage_configuration" in s_config or "stage_config" in s_config:
                 _, stage_config_payload = self._split_config_sections(s_config)
@@ -591,7 +625,7 @@ class Pipeline:
     
     def _resolve_stages_to_run(self) -> list[Stage]:
         """
-        
+        # TODO: Document
         """
         stage_lookup = {stage.name: stage 
                         for stage in self.stages}
