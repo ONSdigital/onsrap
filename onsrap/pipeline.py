@@ -68,20 +68,23 @@ class Pipeline:
             self.config.name = self.name
         
         self.logger = logger or Logger(log_dir=self.config.log_dir)
-        if executor is None:
+        if executor is not None:
+            self.executor = executor
+        else:
             if self.backend == "python":
                 self.executor = PythonStageExecutor()
             else:
                 raise PipelineInitialisationError("Requested backend does not have a compatible executor. Available executors are: Python.")
-        else: 
-            self.executor = executor
-        
-        if stages is None:
-            self.stages = configured_stages
-        elif len(configured_stages) != 0:
-            raise PipelineInitialisationError("Stages parsed through both Pipeline initialisation AND config file. Please choose one method.")
-        else:
-            self.stages = [self._coerce_stage(stage) for stage in stages]
+            
+        if stages is not None and configured_stages:
+            raise PipelineInitialisationError(
+                "Stages parsed through both Pipeline construction and configuration file. Either provide stages through the constructor or the configuration file, not both."
+            )
+        self.stages = (
+            configured_stages
+            if stages is None
+            else [self._coerce_stage(stage) for stage in stages]
+        )
 
         self.dependencies = dependencies
         if dependencies is not None and stages is None:
@@ -93,36 +96,8 @@ class Pipeline:
 
         self.stage_configs = dict(resolved_stage_configs)
         self._sync_stage_configs()
-
-        #SOPHIE'S ATTEMPT AT IMPLEMENTING STAGES_TO_RUN
         
-        #dictionary of stage name: stage class instance
-        stage_lookup = {stage.name: stage 
-                        for stage in self.stages}
-        
-        #sets stage_names_to_run as all stages possible if none are specified
-        if self.config.stages_to_run == {}:
-            warnings.warn("No stages specified to run. All stages running by default.", PipelineConfigurationWarning)
-            stage_names_to_run = list(stage_lookup.keys())
-
-        else:
-        #list of all stage names selected to run in config
-            stage_names_to_run = [stage_name 
-                                for stage_name, value in self.config.stages_to_run.items() 
-                                if value]
-        
-        #run standard StageGraph if all stages are present in stage_names_to_run
-        if set(stage_lookup.keys()) == set(stage_names_to_run):
-            self.graph = StageGraph.from_stages(self.stages)
-        else:
-            #Checks that all stages in stage_names_to_run exist in the Pipeline.
-            for stage_name in stage_names_to_run:
-                if stage_name not in list(stage_lookup.keys()):
-                    raise PipelineInitialisationError("You're trying to run a stage that does not exist. Please add the stage to the Pipeline.")
-            #list of Stage instances for stages that should be run following configuration
-            stages_to_run = [stage_lookup[name]
-                            for name in stage_names_to_run]
-            self.graph = StageGraph.from_stages(stages_to_run)
+        self.graph = StageGraph.from_stages(self._resolve_stages_to_run())
 
         self.graph.validate()
         self.id: RuntimeID | None = None
@@ -614,6 +589,33 @@ class Pipeline:
             backend=backend,
         )
     
+    def _resolve_stages_to_run(self) -> list[Stage]:
+        """
+        
+        """
+        stage_lookup = {stage.name: stage 
+                        for stage in self.stages}
+        
+        if self.config.stages_to_run == {}:
+            warnings.warn("No stages specified to run. All stages running by default.", PipelineConfigurationWarning)
+            stage_names_to_run = list(stage_lookup.keys())
+
+        else:
+            stage_names_to_run = [
+                stage_name 
+                for stage_name, value in self.config.stages_to_run.items() 
+                if value
+                ]
+        
+        if set(stage_lookup.keys()) == set(stage_names_to_run):
+            return self.stages
+        else:
+            # Check that all stages in stage_names_to_run exist in the Pipeline.
+            for stage_name in stage_names_to_run:
+                if stage_name not in list(stage_lookup.keys()):
+                    raise PipelineInitialisationError("You're trying to run a stage that does not exist. Please add the stage to the Pipeline.")
+
+            return [stage_lookup[name] for name in stage_names_to_run]
 
     @classmethod
     def from_files(
