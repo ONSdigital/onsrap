@@ -20,8 +20,8 @@ pipeline_variables:
   output_dir: examples/pipeline_2/outputs
   log_dir: examples/pipeline_2/logs
   metadata:
-   example: retail-orders-using-configuration
-   description: "This is an example of a pipeline that uses configuration files to run a retail orders pipeline."
+    example: retail-orders-using-configuration
+    description: "This is an example of a pipeline that uses configuration files to run a retail orders pipeline."
   stages_to_run:
     0_clean_data: True
     1_derive_vars: True
