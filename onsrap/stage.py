@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, Iterable, Mapping, Optional, TYPE_CHECKING
 from datetime import datetime
 
 from .errors import StageConfigurationError, StageDependencyError
@@ -83,7 +83,6 @@ class Stage:
         If the stage ``name`` is empty or if the source is not a supported type.
     """
     name: str
-    run: bool
     source: Path | Callable[..., Any] | None = None
     dependencies: tuple[str, ...] = field(default_factory=tuple)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -101,7 +100,7 @@ class Stage:
             self.source = self.source.expanduser()
         elif self.source is not None and not callable(self.source):
             raise StageConfigurationError("Stage source must be a path, callable, or None.")
-
+        
         self.dependencies = _normalize_dependencies(self.dependencies)
         self.metadata = dict(self.metadata or {})
         self.backend = str(self.backend or "python").strip() or "python"

@@ -49,7 +49,7 @@ def build_pipeline() -> Pipeline:
 def main() -> None:
     run = build_pipeline().run()
     report = run.manifest.outputs["2_reporting"]
-
+    
     print(f"Pipeline '{run.manifest.rap_name}' completed with {len(run.stage_results)} stages.")
     print(f"Summary report written to: {report['report_path']}")
     print(f"Cleaned data written to: {report['clean_path']}")

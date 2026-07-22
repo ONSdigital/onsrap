@@ -9,8 +9,8 @@ from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
-from .errors import StageConfigurationError, PipelineInitialisationError
-from .warnings import StageConfigurationWarning
+from .errors import StageConfigurationError, PipelineInitialisationError, PipelineConfigurationError
+from .warnings import StageConfigurationWarning, PipelineConfigurationWarning
 from .execution import PythonStageExecutor, StageExecutor
 from .graph import StageGraph
 from .logger import Logger
@@ -19,6 +19,7 @@ from .stage import Stage, _normalize_dependencies
 
 
 ACCEPTED_CONFIG_TYPES = (".yaml", ".yml")
+AVAILABLE_EXECUTORS = ("python",)
 
 class Pipeline:
     """
@@ -61,25 +62,30 @@ class Pipeline:
         self.name = name or resolved_config.name or "pipeline"
         self.backend = backend or resolved_config.backend or "python"
         if backend == "python" and resolved_config.backend != "python":
-            # TODO: Error or Warning here? What is preferred? 
-            self.backend = resolved_config.backend
+            raise PipelineInitialisationError(f"Pipeline backend {backend} does not align with PipelineConfig backend {resolved_config.backend}.")
 
         self.config = resolved_config
         if self.config.name is None:
             self.config.name = self.name
         
         self.logger = logger or Logger(log_dir=self.config.log_dir)
-        self.executor = executor or PythonStageExecutor() # TODO: don't just default - check with config for Executor definition
-        
-        if stages is None:
-            self.stages = configured_stages
-        # TODO: Add check to see if parsed and from-config stages are different
-        #elif: len(configured_stages) != 0:
-        # Warn or Error saying that they have parsed stages AND configured stages
-        # We COULD check to see if these are identical Stage objects and in order,
-        # but simplicity might be easier.
+        if executor is not None:
+            self.executor = executor
         else:
-            self.stages = [self._coerce_stage(stage) for stage in stages]
+            if self.backend == "python":
+                self.executor = PythonStageExecutor()
+            else:
+                raise PipelineInitialisationError(f"Requested backend does not have a compatible executor. Available executors are: {', '.join(AVAILABLE_EXECUTORS)}.")
+            
+        if stages is not None and configured_stages:
+            raise PipelineInitialisationError(
+                "Stages parsed through both Pipeline construction and configuration file. Either provide stages through the constructor or the configuration file, not both."
+            )
+        self.stages = (
+            configured_stages
+            if stages is None
+            else [self._coerce_stage(stage) for stage in stages]
+        )
 
         self.dependencies = dependencies
         if dependencies is not None and stages is None:
@@ -91,10 +97,9 @@ class Pipeline:
 
         self.stage_configs = dict(resolved_stage_configs)
         self._sync_stage_configs()
-        # TODO: link with comment on issue #28 - We need to integrate StageGraph and validation
-        # with stages_to_run which will be in PipelineConfig. This allows users to turn on and off Stages
-        # but we haven't accounted for what that looks like in StageGraph/Pipeline orchestration.
-        self.graph = StageGraph.from_stages(self.stages)
+
+        self.graph = StageGraph.from_stages(self._resolve_stages_to_run())
+
         self.graph.validate()
         self.id: RuntimeID | None = None
         self.manifest: RunManifest | None = None
@@ -107,6 +112,204 @@ class Pipeline:
             stages=[stage.name for stage in self.stages],
         )
 
+    def add_stage(self, *stages: Stage | Mapping[str, Any] | str | Path | Callable[..., Any]) -> None:
+            """
+            Adds a step to the Pipeline.
+
+            Creates a list called ``added_stages`` that runs the _coerce_stage() method
+            to extract the information from the given ``stages`` parameter. It then appends
+            this list to the ``stages`` attribute of the ``Pipeline`` class and updates the 
+            StageGraph using the _rebuild_graph() method. A log instance is created to 
+            reflect the changes. 
+
+            Parameters
+            ----------
+            ``stages`` : Stage | Mapping[str, Any] | str | Path | Callable[..., Any]
+                The new steps being added to the Pipeline. 
+            """
+            added_stages = [self._coerce_stage(stage) for stage in stages]
+            self.stages.extend(added_stages)
+            self._sync_stage_configs()
+            self._rebuild_graph()   # TODO: This will define the StageGraph from self.stages
+                                    # We don't want this behaviour following changes to PipelineConfig.stages_to_run logic.
+                                    # See _resolve_stages_to_run() for the sort of approach we want
+
+            # TODO: Adding Stages needs to interface with Pipeline Config's stages to run
+            # TODO: CARE: adding stages_to_run when stages_to_run is an empty dict changes behaviour:
+                # Empty dict behaviour defaults to running the entire pipeline
+                # Adding a stage in stages_to_run will make that one Stage run!
+            # TODO: If adding a stage, need to verify/check dependencies!
+            self.logger.event("Stage added", stages=[stage.name for stage in added_stages])
+    
+    def enable_stage(self, *stage_name: str) -> None:
+        # TODO: accept lists of strings
+        if not set(stage_name).issubset({stage.name for stage in self.stages}):
+            raise PipelineInitialisationError("You're trying to enable a stage that does not exist. Please add the stage to the Pipeline.")
+        
+        for name in stage_name:
+            self.config.stages_to_run[name] = True
+        # TODO: Do something with the StageGraph!
+        self.graph = StageGraph.from_stages(self._resolve_stages_to_run())
+        # TODO: Look at StageGraph.validate()
+        # TODO: Do something with dependencies!
+
+    def disable_stage(self, *stage_name: str) -> None:
+        # TODO: accept lists of strings
+        if not set(stage_name).issubset({stage.name for stage in self.stages}):
+            raise PipelineInitialisationError("You're trying to disable a stage that does not exist. Please add the stage to the Pipeline.")
+
+        for name in stage_name:
+            self.config.stages_to_run[name] = False
+        # TODO: Do something with the StageGraph!
+        self.graph = StageGraph.from_stages(self._resolve_stages_to_run())
+        # TODO: Look at StageGraph.validate()
+        # TODO: Do something with dependencies!
+
+    def ordered_stages(self) -> list[Stage]:
+            """
+            Runs the topological_order() method on the ``graph`` attribute to extract the 
+            correct order for the ``stages`` to be run in. 
+            """
+            return self.graph.topological_order()
+
+    def validate(self) -> Pipeline:
+        """
+        Confirms that the source files for the stage exist. 
+        """
+        self.logger.event("Validating pipeline", name=self.name)
+        self._validate_stage_configs()
+        for stage in self.stages:
+            stage.validate()
+        self.graph.validate()
+        return self
+    
+    def create_stage_config(
+        self,
+        s_config: Mapping[str, Any] | str | Path,
+        *,
+        name: str | None = None,
+    ) -> StageConfig:
+        """
+        Create a ``StageConfig`` from direct data, a stage-name keyed mapping, or a config file.
+
+        Parameters
+        ----------
+        ``s_config`` : Mapping[str, Any] | str | Path
+            Either a single stage payload, a mapping keyed by stage name, or a config file.
+            Config files may contain a top-level ``stage_configuration`` section or may consist
+            solely of stage-name keyed configuration entries.
+        ``name`` : str or None, keyword-only
+            Stage name to extract when the input contains more than one stage configuration.
+
+        Returns
+        -------
+        ``StageConfig``
+            The normalized stage configuration for the requested stage.
+
+        Raises
+        ------
+        ``StageConfigurationError``
+            If the input cannot be resolved to exactly one stage configuration.
+        """
+        # TODO: Comment the logical sections here for better readability
+        if isinstance(s_config, Mapping):
+            if "pipeline_variables" in s_config or "stage_configuration" in s_config or "stage_config" in s_config:
+                _, stage_config_payload = self._split_config_sections(s_config)
+                stage_configs = self._build_stage_configs(stage_config_payload)
+            elif name is not None and name in s_config and isinstance(s_config[name], Mapping):
+                stage_configs = self._build_stage_configs(s_config)
+            else:
+                if name is None:
+                    if len(s_config) != 1:
+                        raise StageConfigurationError(
+                            "A stage configuration mapping must include exactly one stage when no name is provided."
+                        )
+                    name, stage_payload = next(iter(s_config.items()))
+                else:
+                    stage_payload = s_config
+
+                if not isinstance(stage_payload, Mapping):
+                    raise StageConfigurationError("Stage configuration values must be provided as a mapping.")
+
+                return StageConfig.from_mapping(str(name), stage_payload)
+
+            return self._select_stage_config(stage_configs, name=name)
+
+        raw_payload = self._load_config_mapping(s_config)
+        if "pipeline_variables" in raw_payload or "stage_configuration" in raw_payload or "stage_config" in raw_payload:
+            _, stage_config_payload = self._split_config_sections(raw_payload)
+            stage_configs = self._build_stage_configs(stage_config_payload)
+        elif all(isinstance(value, Mapping) for value in raw_payload.values()):
+            stage_configs = self._build_stage_configs(raw_payload)
+        else:
+            raise StageConfigurationError(
+                "Config files passed to create_stage_config must define a stage-configuration section or a mapping of stage names to configuration mappings."
+            )
+
+        return self._select_stage_config(stage_configs, name=name)
+
+    def run(self) -> PipelineRun:
+        """
+        Returns an instance of ``PipelineRunner`` which actually runs the pipeline. 
+        """
+        from .runner import PipelineRunner
+        
+        return PipelineRunner(logger=self.logger).run(self)
+
+    def add_dependencies(self,
+                         *dependencies: tuple[str]| dict[str, Sequence[str]]) -> None:
+        """
+        Adds a set of ``dependencies`` for the Pipeline after the Pipeline initialisation. 
+
+        This method takes any number of positional arguments and imputes them as
+        ``dependencies``. It looks at each argument parsed, checks the data type against
+        the existing ``Pipeline`` ``dependencies`` and if they are the same data type, it
+        will take every stage within the ``Pipeline`` instance. It will then run the 
+        ``_dependencies_for_stage()`` class method and normalize any ``dependencies`` before
+        adding them to the individual ``Stage`` instances. It will then append these 
+        ``dependencies`` directly to the ``dependencies`` in the ``Pipeline`` instance before
+        rerunning the ``StageGraph`` creation to ensure the new ``dependencies`` are considered. 
+        A logging entry will be created to track that these ``dependencies`` are added. 
+
+        Parameters
+        ----------
+        ``*dependencies`` : tuple[str]| dict[str, Sequence[str]]
+            Any number of dependencies that you would like to add to the Pipeline. 
+
+        Raises
+        ------
+        ``PipelineInitializationError``
+            If the dependency you are attempting to add to the Pipeline doesn't match 
+            the datatype for dependencies currently in the Pipeline.
+        """
+        
+        for dependency in dependencies:
+            if self.dependencies is not None and not isinstance(dependency, type(self.dependencies)):
+                raise PipelineInitialisationError("Existing dependencies are not the same type as new dependencies")
+            
+            for stage in self.stages:
+                new_dependencies = self._dependencies_for_stage(stage.name, stage.source, dependency)
+                existing = stage.dependencies or ()
+                new = existing + tuple(_normalize_dependencies(new_dependencies))
+
+                stage.dependencies = tuple(dict.fromkeys(new))
+            
+            if isinstance(dependency, tuple):
+                existing = self.dependencies or ()
+                self.dependencies = tuple(existing | dependency)
+            elif isinstance(dependency, dict): 
+                for stage_name, deps in dependency.items():
+                    existing = self.dependencies.get(stage_name,[])
+                    combined = existing + tuple(deps)
+                    self.dependencies[stage_name] = tuple(dict.fromkeys(combined))
+
+        self.graph = StageGraph.from_stages(self.stages)
+        self.graph.validate()
+
+        self.logger.event("New dependencies added to Pipeline instance and respective Stage instances",dependencies = dependencies)    
+
+
+
     def _assign_dependencies(self, 
                              dependencies:tuple[str]| dict[str, Sequence[str]] | None = None,
                              stages: Stage | Sequence[Stage] | None = None,) -> Stage | Sequence[Stage]:
@@ -116,8 +319,6 @@ class Pipeline:
 
         return stages
 
-    # TODO: Add a method to add dependencies to the pipeline after initialization
-    # TODO: Re-order methods to be more logical/readable in order (public, private, classmethods, staticmethods)
     def _coerce_stage(
         self,
         stage: Stage | Mapping[str, Any] | str | Path | Callable[..., Any],
@@ -164,116 +365,6 @@ class Pipeline:
         """
         self.graph = StageGraph.from_stages(self.stages)
 
-    def add_stage(self, *stages: Stage | Mapping[str, Any] | str | Path | Callable[..., Any]) -> None:
-        """
-        Adds a step to the Pipeline.
-
-        Creates a list called ``added_stages`` that runs the _coerce_stage() method
-        to extract the information from the given ``stages`` parameter. It then appends
-        this list to the ``stages`` attribute of the ``Pipeline`` class and updates the 
-        StageGraph using the _rebuild_graph() method. A log instance is created to 
-        reflect the changes. 
-
-        Parameters
-        ----------
-        ``stages`` : Stage | Mapping[str, Any] | str | Path | Callable[..., Any]
-            The new steps being added to the Pipeline. 
-        """
-        added_stages = [self._coerce_stage(stage) for stage in stages]
-        self.stages.extend(added_stages)
-        self._sync_stage_configs()
-        self._rebuild_graph()
-        self.logger.event("Stage added", stages=[stage.name for stage in added_stages])
-
-    def ordered_stages(self) -> list[Stage]:
-        """
-        Runs the topological_order() method on the ``graph`` attribute to extract the 
-        correct order for the ``stages`` to be run in. 
-        """
-        return self.graph.topological_order()
-
-    def validate(self) -> Pipeline:
-        """
-        Confirms that the source files for the stage exist. 
-        """
-        self.logger.event("Validating pipeline", name=self.name)
-        self._validate_stage_configs()
-        for stage in self.stages:
-            stage.validate()
-        self.graph.validate()
-        return self
-    
-    def create_stage_config(
-        self,
-        s_config: Mapping[str, Any] | str | Path,
-        *,
-        name: str | None = None,
-    ) -> StageConfig:
-        """
-        Create a ``StageConfig`` from direct data, a stage-name keyed mapping, or a config file.
-
-        Parameters
-        ----------
-        ``s_config`` : Mapping[str, Any] | str | Path
-            Either a single stage payload, a mapping keyed by stage name, or a config file.
-            Config files may contain a top-level ``stage_configuration`` section or may consist
-            solely of stage-name keyed configuration entries.
-        ``name`` : str or None, keyword-only
-            Stage name to extract when the input contains more than one stage configuration.
-
-        Returns
-        -------
-        ``StageConfig``
-            The normalized stage configuration for the requested stage.
-
-        Raises
-        ------
-        ``StageConfigurationError``
-            If the input cannot be resolved to exactly one stage configuration.
-        """
-        if isinstance(s_config, Mapping):
-            if "pipeline_variables" in s_config or "stage_configuration" in s_config or "stage_config" in s_config:
-                _, stage_config_payload = self._split_config_sections(s_config)
-                stage_configs = self._build_stage_configs(stage_config_payload)
-            elif name is not None and name in s_config and isinstance(s_config[name], Mapping):
-                stage_configs = self._build_stage_configs(s_config)
-            else:
-                if name is None:
-                    if len(s_config) != 1:
-                        raise StageConfigurationError(
-                            "A stage configuration mapping must include exactly one stage when no name is provided."
-                        )
-                    name, stage_payload = next(iter(s_config.items()))
-                else:
-                    stage_payload = s_config
-
-                if not isinstance(stage_payload, Mapping):
-                    raise StageConfigurationError("Stage configuration values must be provided as a mapping.")
-
-                return StageConfig.from_mapping(str(name), stage_payload)
-
-            return self._select_stage_config(stage_configs, name=name)
-
-        raw_payload = self._load_config_mapping(s_config)
-        if "pipeline_variables" in raw_payload or "stage_configuration" in raw_payload or "stage_config" in raw_payload:
-            _, stage_config_payload = self._split_config_sections(raw_payload)
-            stage_configs = self._build_stage_configs(stage_config_payload)
-        elif all(isinstance(value, Mapping) for value in raw_payload.values()):
-            stage_configs = self._build_stage_configs(raw_payload)
-        else:
-            raise StageConfigurationError(
-                "Config files passed to create_stage_config must define a stage-configuration section or a mapping of stage names to configuration mappings."
-            )
-
-        return self._select_stage_config(stage_configs, name=name)
-
-    def run(self) -> PipelineRun:
-        """
-        Returns an instance of ``PipelineRunner`` which actually runs the pipeline. 
-        """
-        from .runner import PipelineRunner
-        
-        return PipelineRunner(logger=self.logger).run(self)
 
     def _construct_manifest(self, *, runtime_id: RuntimeID) -> RunManifest:
         """
@@ -385,7 +476,6 @@ class Pipeline:
             return PipelineConfig.from_any(config), {}, []
 
         if isinstance(config, PipelineConfig):
-            #
             stage_configuration = config.metadata.get("stage_configuration", None)
             if stage_configuration is None:
                 stage_configuration = config.metadata.get("stage_config", None)
@@ -401,13 +491,6 @@ class Pipeline:
         pipeline_payload, stage_config_payload = self._split_config_sections(raw_config)
         normalized_pipeline_payload = self._normalize_pipeline_payload(pipeline_payload)
 
-        # PipelineConfig needs to know what stages to run
-        # Extract run order from stages
-
-        #run_order = self._extract_run_order(pipeline_payload)
-        # - Look for stages in pipeline_payload
-        # - Create a dict, where keys are stage names, and values are where run = true or false
-        # - Ensure through StageGraph at some point that dependencies are met.
         stage_definitions = normalized_pipeline_payload.pop("stages", ())
 
         pipeline_config = PipelineConfig.from_mapping(normalized_pipeline_payload)
@@ -418,6 +501,8 @@ class Pipeline:
             work_dir=pipeline_config.work_dir,
         )
         return pipeline_config, stage_configs, configured_stages
+
+
 
     def _sync_stage_configs(self) -> None:
         """
@@ -450,152 +535,34 @@ class Pipeline:
                 for name, stage_config in self.stage_configs.items()
             }
         return parameters
-
-    @staticmethod
-    def _select_stage_config(
-        stage_configs: Mapping[str, StageConfig],
-        *,
-        name: str | None,
-    ) -> StageConfig:
-        """
-        Select one stage configuration from a stage-name keyed mapping.
-
-        When ``name`` is omitted, exactly one stage configuration must be present.
-        """
-        if name is not None:
-            if name not in stage_configs:
-                raise StageConfigurationError(f"Stage configuration '{name}' was not found.")
-            return stage_configs[name]
-
-        if len(stage_configs) != 1:
-            raise StageConfigurationError(
-                "The provided input resolves to multiple stage configurations; specify a stage name."
-            )
-
-        return next(iter(stage_configs.values()))
-
-    @staticmethod
-    def _load_config_mapping(
-        config: Mapping[str, Any] | str | Path,
-    ) -> dict[str, Any]:
-        """
-        Load raw configuration data from a mapping or YAML file.
-        """
-        if isinstance(config, Mapping):
-            return dict(config)
-
-        config_path = Path(config).expanduser()
-        if config_path.suffix.lower() not in ACCEPTED_CONFIG_TYPES:
-            raise StageConfigurationError(
-                f"Unsupported config file format parsed as Stage Configuration: {config!r}."
-            )
-        if not config_path.exists():
-            raise FileNotFoundError(f"Config file does not exist: {config_path}")
-
-        import yaml
-
-        raw_config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-        if raw_config is None:
-            # TODO: Warn if it fails?
-            return {}
-        if not isinstance(raw_config, Mapping):
-            # TODO: maybe this should be richer error messaging
-            raise TypeError("Pipeline config file must contain a mapping at the top level.")
-        return dict(raw_config)
-
-    @staticmethod
-    def _split_config_sections(raw_config: Mapping[str, Any]) -> tuple[dict[str, Any], Mapping[str, Any] | None]:
-        """
-        Split a raw config payload into pipeline-level and stage-level sections.
-
-        Composite config payloads may use top-level ``pipeline_variables`` and
-        ``stage_configuration`` keys. Flat payloads are treated as pipeline config unless
-        a stage-configuration key is present.
-        """
-        # TODO: Enforce this behaviour using Errors
-        # TODO: Ensure that if stage_config or other keys grabbed are None, warn or error.
-        # TODO: The if statement is messy and non-intuitive
-        if "pipeline_variables" in raw_config or "stage_configuration" in raw_config or "stage_config" in raw_config:
-            pipeline_payload = raw_config.get("pipeline_variables", {})
-            if not isinstance(pipeline_payload, Mapping):
-                raise StageConfigurationError("The 'pipeline_variables' section must be a mapping.")
-            stage_payload = raw_config.get("stage_configuration", raw_config.get("stage_config"))
-            return dict(pipeline_payload), stage_payload
-
-        pipeline_payload = dict(raw_config)
-        # The line below may never happen as it asks for "stage_config" but the if statement above also does this,
-        # and this code only actions if that if statement does not complete. 
-        stage_payload = pipeline_payload.pop("stage_configuration", pipeline_payload.pop("stage_config", None))
-        return pipeline_payload, stage_payload
-
-    @staticmethod
-    def _normalize_pipeline_payload(pipeline_payload: Mapping[str, Any]) -> dict[str, Any]:
-        """
-        Normalize supported aliases in the pipeline section before model construction.
-
-        Recognized aliases:
-
-        - ``working_dir`` → ``work_dir`` (only when ``work_dir`` is absent).
-
-        If both ``working_dir`` and ``work_dir`` are present at the same time, a
-        ``UserWarning`` is emitted and ``working_dir`` is left in the payload where
-        it will be silently absorbed into ``PipelineConfig.metadata``.
-        """
-        normalized_payload = dict(pipeline_payload)
-        if "working_dir" in normalized_payload:
-            if "work_dir" not in normalized_payload:
-                normalized_payload["work_dir"] = normalized_payload.pop("working_dir")
-            else:
-                warnings.warn(
-                    "Both 'working_dir' and 'work_dir' were found in the pipeline configuration. "
-                    "'work_dir' will be used and 'working_dir' will be ignored.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-        return normalized_payload
-
-    @staticmethod
-    def _build_stage_configs(stage_configuration: Mapping[str, Any] | None) -> dict[str, StageConfig]:
-        """
-        Build a stage-name keyed configuration mapping for any number of configured stages.
-
-        The returned mapping scales linearly with the provided stage entries and is used as
-        the canonical runtime lookup structure for stage configuration.
-        """
-        if stage_configuration is None:
-            return {}
-        if not isinstance(stage_configuration, Mapping):
-            raise StageConfigurationError("Stage configuration must be a mapping keyed by stage name.")
-
-        return {
-            str(stage_name): StageConfig.from_mapping(str(stage_name), stage_payload)
-            for stage_name, stage_payload in stage_configuration.items()
-        }
-
+    
     def _build_stages_from_config(
-        self,
-        stage_definitions: Sequence[Any] | None,
-        *,
-        backend: str,
-        work_dir: Path,
-    ) -> list[Stage]:
-        """
-        Convert configured stage definitions into ``Stage`` instances.
+            self,
+            stage_definitions: Sequence[Any] | None,
+            *,
+            backend: str,
+            work_dir: Path,
+        ) -> list[Stage]:
+            """
+            Convert configured stage definitions into ``Stage`` instances.
 
-        Each entry is resolved independently, so the method can process any number of
-        stage definitions supplied in the pipeline configuration.
-        """
-        if not stage_definitions:
-            return []
-        if not isinstance(stage_definitions, Sequence) or isinstance(stage_definitions, (str, bytes)):
-            raise StageConfigurationError("Configured stages must be provided as a sequence.")
+            Each entry is resolved independently, so the method can process any number of
+            stage definitions supplied in the pipeline configuration.
+            """
+            if not stage_definitions:
+                return []
 
-        configured_stages: list[Stage] = []
-        for stage_definition in stage_definitions:
-            stage = self._stage_from_config_definition(stage_definition, backend=backend, work_dir=work_dir)
-            if stage is not None:
-                configured_stages.append(stage)
-        return configured_stages
+            stage_definitions = list(stage_definitions)
+
+            if not isinstance(stage_definitions, Sequence) or isinstance(stage_definitions, (str, bytes)):
+                raise StageConfigurationError("Configured stages must be provided as a sequence.")
+
+            configured_stages: list[Stage] = []
+            for stage_definition in stage_definitions:
+                stage = self._stage_from_config_definition(stage_definition, backend=backend, work_dir=work_dir)
+                if stage is not None:
+                    configured_stages.append(stage)
+            return configured_stages
 
     def _stage_from_config_definition(
         self,
@@ -656,28 +623,34 @@ class Pipeline:
             entrypoint=entrypoint,
             backend=backend,
         )
-
-    @staticmethod
-    def _resolve_stage_source(stage_name: str, location: Any, work_dir: Path) -> Path:
+    
+    def _resolve_stages_to_run(self) -> list[Stage]:
         """
-        Resolve the source path for a configured stage.
-
-        Empty locations default to ``work_dir / "scripts" / "<stage_name>.py"``. Relative
-        paths are first interpreted as given and then relative to ``work_dir``.
+        # TODO: Document
         """
-        if location in (None, ""):
-            return work_dir / "scripts" / f"{stage_name}.py"
+        stage_lookup = {stage.name: stage 
+                        for stage in self.stages}
+        
+        if self.config.stages_to_run == {}:
+            warnings.warn("No stages specified to run. All stages running by default.", PipelineConfigurationWarning)
+            stage_names_to_run = list(stage_lookup.keys())
 
-        candidate = Path(location).expanduser()
-        if candidate.is_absolute() or candidate.exists():
-            return candidate
+        else:
+            stage_names_to_run = [
+                stage_name 
+                for stage_name, value in self.config.stages_to_run.items() 
+                if value
+                ]
+        
+        if set(stage_lookup.keys()) == set(stage_names_to_run):
+            return self.stages
+        else:
+            # Check that all stages in stage_names_to_run exist in the Pipeline.
+            for stage_name in stage_names_to_run:
+                if stage_name not in list(stage_lookup.keys()):
+                    raise PipelineInitialisationError(f"You're trying to run a stage that does not exist: '{stage_name}'. Please add the stage to the Pipeline.")
 
-        work_dir_candidate = work_dir / candidate
-        if work_dir_candidate.exists():
-            return work_dir_candidate
-
-        return candidate
-
+            return [stage_lookup[name] for name in stage_names_to_run]
 
     @classmethod
     def from_files(
@@ -762,18 +735,22 @@ class Pipeline:
         -------
         A ``Pipeline`` class instance. 
         """
-        pipe_payload, stage_payload = cls._split_config_sections(config)
+        # REMOVED AS THIS WAS RUNNING TWICE. SHOULD DISCUSS WHAT TO DO ABOUT THIS 
+        #METHOD AND WHETHER IT IS NEEDED
+        
+        #pipe_payload, stage_payload = cls._split_config_sections(config)
 
         # pipeline_variables contains pipeline information
-        name = pipe_payload.pop("name", None)
-        backend = pipe_payload.pop("backend", "python")
-        stages = pipe_payload.pop("stages", [])
+        #name = pipe_payload.get("name", None)
+        #backend = pipe_payload.get("backend", "python")
+        #stages = pipe_payload.get("stages", [])
+        #print(stages)
 
         return cls(
             name=name,
             backend=backend,
-            config=pipe_payload,
-            stages=stages,
+            config=config,
+            stages=None,
         )
 
     @classmethod
@@ -791,19 +768,252 @@ class Pipeline:
         This is the preferred entrypoint when configuration defines both pipeline-level
         settings and the stage-level configuration that should be injected at runtime.
         """
-        #TODO: Add str/Path behaviour handling
-        # UPDATE: Not needed as is handled in _resolve_config()
+        extracted_config = Pipeline._load_config_mapping(config)
 
-        # Add behaviour handling for str or Path instances for config arg parsed.
-        # if str, resolve Path, then parse to yaml.safe_load() to extract the mapping.
-        # Then just parse the mapping to from_dict() to extract the Pipeline instance.
         return cls.from_dict(
-            config=config,
+            config=extracted_config,
             name=name, 
             backend=backend, 
             logger=logger, 
             executor=executor
             )
+
+
+
+    @staticmethod
+    def _select_stage_config(
+        stage_configs: Mapping[str, StageConfig],
+        *,
+        name: str | None,
+    ) -> StageConfig:
+        """
+        Select one stage configuration from a stage-name keyed mapping.
+
+        When ``name`` is omitted, exactly one stage configuration must be present.
+        """
+        if name is not None:
+            if name not in stage_configs:
+                raise StageConfigurationError(f"Stage configuration '{name}' was not found.")
+            return stage_configs[name]
+
+        if len(stage_configs) != 1:
+            raise StageConfigurationError(
+                "The provided input resolves to multiple stage configurations; specify a stage name."
+            )
+
+        return next(iter(stage_configs.values()))
+
+    @staticmethod
+    def _load_config_mapping(
+        config: Mapping[str, Any] | str | Path,
+    ) -> dict[str, Any]:
+        """
+        Load raw configuration data from a mapping or YAML file.
+        """
+        if isinstance(config, Mapping):
+            return dict(config)
+
+        config_path = Path(config).expanduser()
+        if config_path.suffix.lower() not in ACCEPTED_CONFIG_TYPES:
+            raise StageConfigurationError(
+                f"Unsupported config file format parsed as Stage Configuration: {config!r}."
+            )
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config file does not exist: {config_path}")
+
+        import yaml
+
+        raw_config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        if raw_config is None:
+            warnings.warn("No configuration has loaded from the configuration file. Please check " \
+            "your configurations.")
+            return {}
+        if not isinstance(raw_config, Mapping):
+            raise TypeError("Configuration file must contain a mapping at the top level. Please ensure" \
+            "that your configuration file is structured into key:value pairs in the notation that suits" \
+            "the configuration file that you are using. The top level key value pairs should reflect " \
+            "the Pipeline and Stage configurations.")
+        return dict(raw_config)
+
+    @staticmethod
+    def _split_config_sections(raw_config: Mapping[str, Any]) -> tuple[Mapping[str, Any] | None, Mapping[str, Any] | None]:
+        """
+        Split a raw config payload into pipeline-level and stage-level sections.
+
+        Allows for configurations that have "stage_configuration", "stage_config", "pipeline_variables"
+        and "pipeline_config" as the key. The key is identified and used to pull the values for the 
+        configuration from the ``raw_config``. It is then Nonetype checked and Type checked to ensure 
+        that appropriate information is extracted and errors are produced if any of these checks fail. 
+
+        Parameters
+        ----------
+        ``raw_config``: Mapping[str, Any]
+            Contents of the configuration file previously extracted. 
+
+        Returns 
+        -------
+        ``pipeline_payload``: Mapping[str, Any] | None
+            Contents of the pipeline configuration settings defined in the configuration file. 
+        ``stage_payload``: Mapping[str, Any] | None
+            Contents of the stage configuration settings defined in the configuration file. 
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning`` 
+            If blank values for pipeline_payload or stage_payload are detected. 
+            If there are remaining keys in the ``raw_config`` that have not been extracted. 
+
+        ``PipelineConfigurationError`` 
+            If the pipeline_payload or stage_payload are not mapping types. 
+        """
+        possible_stage_keys = ("stage_configuration", "stage_config")
+        possible_pipeline_keys = ("pipeline_variables","pipeline_config")
+        stage_configuration = Pipeline._extract_keys(possible_stage_keys, raw_config)
+        pipeline_configuration = Pipeline._extract_keys(possible_pipeline_keys, raw_config)
+
+        pipeline_payload = raw_config.get(pipeline_configuration,{})
+        if pipeline_payload is None: 
+            warnings.warn("Blank pipeline configuration detected. Please check that this is correct.", PipelineConfigurationWarning) 
+
+        stage_payload = raw_config.get(stage_configuration,{})
+        if stage_payload is None: 
+            warnings.warn("Blank stage configuration detected. Please check that this is correct.", StageConfigurationWarning) 
+
+        remaining_keys = set(raw_config) - {pipeline_configuration, stage_configuration}
+        if remaining_keys:
+            warnings.warn("There are remaining sections in your configuration file that have not been extracted." \
+            " Please check that all your configurations are in the pipeline or stage configuration keys.", 
+            PipelineConfigurationWarning)
+
+        if not isinstance(pipeline_payload, Mapping):
+            raise PipelineConfigurationError(f"The {pipeline_configuration} section must be a mapping.")
+        if not isinstance(stage_payload, Mapping):
+            raise PipelineConfigurationError(f"The {stage_configuration} section must be a mapping.")
+        return pipeline_payload, stage_payload
+
+    @staticmethod
+    def _extract_keys(possible_keys: tuple[str, ...],
+                          dictionary: Mapping[str, Any]) -> str:
+        """
+        Checks whether a provided dictionary has a key that has been previously defined. 
+
+        Creates a list for all specified keys that are present in the dictionary and checks
+        the number of keys that match. This should only be 1 so if there are any fewer or 
+        additional then appropriate errors are raised. 
+
+        Parameters 
+        ----------
+        ``possible_keys``: tuple[str, ...]
+            Set of string keys that are possibly in the dictionary provided. 
+        ``dictionary``: Mapping[str, Any]
+            Dictionary that is being checked for valid keys. 
+
+        Returns 
+        -------
+        ``key``: str
+            String value for the key that is present in the ``dictionary`` out of the 
+            ``possible_keys`` values. 
+
+        Raises 
+        ------ 
+        ``PipelineConfigurationError``
+            If no keys in the ``dictionary`` are also in the ``possible_keys`` tuple. 
+
+        ``PipelineConfigurationWarning``
+            If more than one key in the possible_keys is found, alerts user that it will 
+            default to the first selected option and records the key that is selected.
+        """
+        
+        matches = [key for key in possible_keys if key in dictionary]
+        if len(matches) == 1:
+            key = matches[0]
+        elif len(matches) == 0:
+            raise PipelineConfigurationError(f"No valid keys were found in the configuration. Please ensure that your top level key is one of: {possible_keys}.")
+        else:
+            warnings.warn(f"Multiple configuration keys were found, defaulting to the first option: {matches[0]}", PipelineConfigurationWarning)
+            key = matches[0]
+
+        return key
+
+
+    @staticmethod
+    def _normalize_pipeline_payload(pipeline_payload: Mapping[str, Any]) -> dict[str, Any]:
+        """
+        Normalize supported aliases in the pipeline section before model construction.
+
+        Recognized aliases:
+
+        - ``working_dir`` → ``work_dir`` (only when ``work_dir`` is absent).
+        - ``stage_to_run`` → ``stages_to_run`` (only when ``stages_to_run`` is absent).
+
+        If both ``working_dir`` and ``work_dir`` are present at the same time, a
+        ``UserWarning`` is emitted and ``working_dir`` is left in the payload where
+        it will be silently absorbed into ``PipelineConfig.metadata``.
+        """
+
+        normalized_payload = dict(pipeline_payload)
+        if "working_dir" in normalized_payload:
+            if "work_dir" not in normalized_payload:
+                normalized_payload["work_dir"] = normalized_payload.pop("working_dir")
+            else:
+                warnings.warn(
+                    "Both 'working_dir' and 'work_dir' were found in the pipeline configuration. "
+                    "'work_dir' will be used and 'working_dir' will be ignored.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+        if "stage_to_run" in normalized_payload:
+            if "stages_to_run" not in normalized_payload:
+                normalized_payload["stages_to_run"] = normalized_payload.pop("stage_to_run")
+            else:
+                warnings.warn(
+                    "Both 'stage_to_run' and 'stages_to_run' were found in the pipeline configuration. "
+                    "'stages_to_run' will be used and 'stage_to_run' will be ignored.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+        
+        return normalized_payload
+
+    @staticmethod
+    def _build_stage_configs(stage_configuration: Mapping[str, Any] | None) -> dict[str, StageConfig]:
+        """
+        Build a stage-name keyed configuration mapping for any number of configured stages.
+
+        The returned mapping scales linearly with the provided stage entries and is used as
+        the canonical runtime lookup structure for stage configuration.
+        """
+        if stage_configuration is None:
+            return {}
+        if not isinstance(stage_configuration, Mapping):
+            raise StageConfigurationError("Stage configuration must be a mapping keyed by stage name.")
+
+        return {
+            str(stage_name): StageConfig.from_mapping(str(stage_name), stage_payload)
+            for stage_name, stage_payload in stage_configuration.items()
+        }
+
+    
+    @staticmethod
+    def _resolve_stage_source(stage_name: str, location: Any, work_dir: Path) -> Path:
+        """
+        Resolve the source path for a configured stage.
+
+        Empty locations default to ``work_dir / "scripts" / "<stage_name>.py"``. Relative
+        paths are first interpreted as given and then relative to ``work_dir``.
+        """
+        if location in (None, ""):
+            return work_dir / "scripts" / f"{stage_name}.py"
+
+        candidate = Path(location).expanduser()
+        if candidate.is_absolute() or candidate.exists():
+            return candidate
+
+        work_dir_candidate = work_dir / candidate
+        if work_dir_candidate.exists():
+            return work_dir_candidate
+
+        return candidate
 
     @staticmethod
     def _dependencies_for_stage(
@@ -834,7 +1044,6 @@ class Pipeline:
             candidates = (stage_name, path.name, path.stem, str(path), path.as_posix())
         else:
             candidates = (stage_name, str(path.__name__)) 
-        print(candidates)
         for candidate in candidates:
             if candidate in dependencies:
                 return tuple(str(dependency) for dependency in dependencies[candidate])

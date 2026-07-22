@@ -1,30 +1,31 @@
 pipeline_variables:
-  name: "Pipeline 2"
+  name: "Config Example Pipeline"
   backend: python
   stages:
     - 0_clean_data:
         name: "0_clean_data"
-        location: "examples/pipeline_2/scripts/0_clean_data.py"
-        run: true # TODO: 1/0 or y/n
+        location: examples/pipeline_2/scripts/0_clean_data.py
         dependencies: []
     - 1_derive_vars:
-        location: "examples/pipeline_2/scripts/1_derive_vars.py"
-        run: true
+        location: examples/pipeline_2/scripts/1_derive_vars.py
         dependencies:
-          - 0_clean_data
+          - "0_clean_data"
     - 2_reporting:
-        location: "examples/pipeline_2/scripts/2_reporting.py"
-        run: true
+        location: examples/pipeline_2/scripts/2_reporting.py
         dependencies:
-          - 1_derive_vars
-  working_dir: "examples/pipeline_2"
-  data_dir: "examples/pipeline_2/data"
-  output_dir: "examples/pipeline_2/outputs"
-  log_dir: "examples/pipeline_2/logs"
+          - "1_derive_vars"
+  working_dir: examples/pipeline_2
+  project_root: examples/pipeline_2
+  data_dir: examples/pipeline_2/data
+  output_dir: examples/pipeline_2/outputs
+  log_dir: examples/pipeline_2/logs
   metadata:
-   example: retail-orders-using-configuration
-   description: "This is an example of a pipeline that uses configuration files to run a retail orders pipeline."
-
+    example: retail-orders-using-configuration
+    description: "This is an example of a pipeline that uses configuration files to run a retail orders pipeline."
+  stages_to_run:
+    0_clean_data: True
+    1_derive_vars: True
+    2_reporting: True
 
 stage_configuration:
   0_clean_data:
@@ -36,17 +37,17 @@ stage_configuration:
       - "quantity"
       - "unit_price"
       - "order_date"
-      - "order_method
+      - "order_method"
     identifiable_cols:
       - "customer_name"
       - "age"
       - "dob"
-      - "address
-    output_location: "examples/pipeline_2/data/orders_cleaned.csv"
-    input_location: "examples/pipeline_2/data/orders.csv"
+      - "address"
+    output_location: examples/pipeline_2/data/orders_cleaned.csv
+    input_location: examples/pipeline_2/data/orders.csv
   1_derive_vars:
-    input_location: "examples/pipeline_2/data/orders_cleaned.csv"
-    output_location: "examples/pipeline_2/data/orders_prepped.csv"
+    input_location: examples/pipeline_2/data/orders_cleaned.csv
+    output_location: examples/pipeline_2/data/orders_prepped.csv
     delivery_times:
       north: 14
       south: 4
@@ -76,8 +77,8 @@ stage_configuration:
     total_production_cost: "Total_production_cost"
     order_profit: "Order_profit"
   2_reporting:
-    input_location: "examples/pipeline_2/processed_data/orders_prepped.csv"
-    report_location: "examples/pipeline_2/outputs/order_analysis.md"
+    input_location: examples/pipeline_2/data/orders_prepped.csv
+    report_location: examples/pipeline_2/outputs/order_analysis.md
     region: "Region"
     order_profit: "Order_profit"
     quantity: "Quantity"
@@ -85,6 +86,5 @@ stage_configuration:
     large_order: "Large_order"
     small_order: "Small_order"
     order_id: "Order_id"
-    order_profit: "Order_profit"
     product: "Product"
     num_format: "{:.2f}"

@@ -40,10 +40,10 @@ def test_pipeline_from_files_executes_python_entrypoints(tmp_path: Path) -> None
     pipeline = Pipeline.from_files(
         [first_stage, second_stage],
         dependencies={"second_stage": ("first_stage",)},
-        config={
-            "work_dir": tmp_path,
-            "project_root": tmp_path,
-            "log_dir": tmp_path / "logs",
+        config={"pipeline_config":{"work_dir": tmp_path,
+                                    "project_root": tmp_path,
+                                    "log_dir": tmp_path / "logs"},
+                "stage_configuration": {}
         },
     )
 
@@ -74,11 +74,10 @@ def test_pipeline_uses_run_specific_output_directory(tmp_path: Path) -> None:
 
     pipeline = Pipeline.from_files(
         [writer_stage],
-        config={
-            "work_dir": tmp_path,
-            "project_root": tmp_path,
-            "log_dir": tmp_path / "logs",
-        },
+        config={"pipeline_config":{"work_dir": tmp_path,
+                                    "project_root": tmp_path,
+                                    "log_dir": tmp_path / "logs"},
+                "stage_configuration": {}},
     )
 
     first_run = pipeline.run()
@@ -102,11 +101,10 @@ def test_pipeline_falls_back_to_subprocess_for_plain_python_scripts(tmp_path: Pa
     pipeline = Pipeline.from_files(
         [script_stage],
         name="script-pipeline",
-        config={
-            "work_dir": tmp_path,
-            "project_root": tmp_path,
-            "log_dir": tmp_path / "logs",
-        },
+        config={"pipeline_config":{"work_dir": tmp_path,
+                                    "project_root": tmp_path,
+                                    "log_dir": tmp_path / "logs"},
+                "stage_configuration": {}},
     )
     run = pipeline.run()
 
@@ -160,7 +158,7 @@ def test_pipeline_from_config_builds_stages_and_injects_stage_config(tmp_path: P
               log_dir: "{(tmp_path / 'logs').as_posix()}"
               stages:
                 - 0_data_validation:
-                    location: ""
+                    location: "{(tmp_path / 'scripts' / '0_data_validation.py').as_posix()}"
                     run: true
                     dependencies: []
 
@@ -175,6 +173,9 @@ def test_pipeline_from_config_builds_stages_and_injects_stage_config(tmp_path: P
     )
 
     pipeline = Pipeline.from_config(config_file)
+
+    #TODO: Fix above line of code. _split_config method is running twice when runs through from_config as it is called 
+    #as part of the __init__ and part of the from_dict() that from_config() calls. Need to review how to normalise.
 
     assert [stage.name for stage in pipeline.stages] == ["0_data_validation"]
     assert pipeline.stage_configs["0_data_validation"].get("years_to_run") == 2017
@@ -203,10 +204,9 @@ def test_pipeline_rejects_unknown_stage_configuration(tmp_path: Path) -> None:
 
     pipeline = Pipeline.from_files(
         [stage_file],
-        config={
-            "work_dir": tmp_path,
-            "project_root": tmp_path,
-            "log_dir": tmp_path / "logs",
+        config={"pipeline_config":{"work_dir": tmp_path,
+                                    "project_root": tmp_path,
+                                    "log_dir": tmp_path / "logs"},
             "stage_configuration": {
                 "missing_stage": {"years_to_run": 2017},
             },
