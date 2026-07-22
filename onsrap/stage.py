@@ -82,7 +82,6 @@ class Stage:
     ``StageConfigurationError``
         If the stage ``name`` is empty or if the source is not a supported type.
     """
-    #TODO: Do we need a run indicator within the stage?
     name: str
     source: Path | Callable[..., Any] | None = None
     dependencies: tuple[str, ...] = field(default_factory=tuple)
