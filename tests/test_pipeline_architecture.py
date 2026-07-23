@@ -5,6 +5,8 @@ from textwrap import dedent
 
 import pytest
 import yaml
+import subprocess
+import sys
 
 from onsrap.errors import StageConfigurationError
 from onsrap.graph import StageGraph
@@ -415,3 +417,27 @@ def test_pipeline_from_config_scales_stage_configuration_to_many_stages(tmp_path
         assert output["known_stage_configs"] == stage_names
         expected_previous = None if index == 0 else index - 1
         assert output["previous_ordinal"] == expected_previous
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+MAIN_SCRIPTS = [
+    REPO_ROOT / "examples" / "pipeline_1" / "main.py",
+    REPO_ROOT / "examples" / "pipeline_2" / "main.py",
+]
+
+@pytest.mark.parametrize("script_path", MAIN_SCRIPTS, ids=lambda p: p.parent.name)
+def test_example_main_scripts_run_successfully(script_path: Path) -> None:
+    result = subprocess.run(
+        [sys.executable, str(script_path)],
+        cwd=REPO_ROOT,          
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, (
+        f"Script failed: {script_path}\n"
+        f"stdout:\n{result.stdout}\n"
+        f"stderr:\n{result.stderr}"
+    )
+    assert "completed with" in result.stdout.lower()
