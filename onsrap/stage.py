@@ -105,6 +105,21 @@ class Stage:
         self.metadata = dict(self.metadata or {})
         self.backend = str(self.backend or "python").strip() or "python"
 
+    def __str__(self) -> str:
+        return (
+            f"Stage Instance Attributes\n"
+            f"--------------------------\n"
+            f"Name: {self.name}\nSource: {self.source_label} \n"
+            f"Dependencies: {self.dependencies}\nMetadata: {self.metadata} \n"
+            f"Entrypoint: {self.entrypoint} \nBackend: {self.backend} \n)"
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"Stage(name={self.name},source={self.source_label}, "
+            f"dependencies={self.dependencies},metadata={self.metadata}, "
+            f"entrypoint={self.entrypoint}, backend={self.backend})"
+        )
     @classmethod
     def from_file(
         cls,
@@ -150,6 +165,7 @@ class Stage:
         path = Path(file_path).expanduser()
         if not path.exists():
             raise StageConfigurationError(f"Stage source file does not exist: {path}")
+
 
         return cls(
             name=name or path.stem,
