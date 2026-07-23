@@ -102,8 +102,9 @@ class PipelineConfig:
     ----------
     ``name`` : str, optional
         The name of the pipeline.
-
-        
+    ``stages_to_run`` : dict[str, bool], optional   
+        A dictionary of all stage names alongside a boolean value that indicates 
+        whether the stage should be run or not.
     ``backend`` : str, default = "python"
         The system that the pipeline is run on. 
     ``work_dir`` : Path 
@@ -145,6 +146,46 @@ class PipelineConfig:
         """
         if self.stages_to_run is None:
             self.stages_to_run = {}
+
+    def __str__(self) -> str:
+        """
+        String method that returns a human-readable representation of the ``PipelineConfig`` class.
+
+        Returns
+        -------
+        str
+            A string representation of the ``PipelineConfig`` class with its attributes.
+        """
+        return (
+            f"PipelineConfig Instance Attributes\n"
+            f"--------------------------\n"
+            f"Name: {self.name}\nStages To Run: {self.stages_to_run}\n"
+            f"Backend: {self.backend} \n"
+            f"Work Directory: {self.work_dir}\nProject Root: {self.project_root}\n"
+            f"Output Directory: {self.output_dir}\nLog Directory: {self.log_dir}\n"
+            f"Data Directory: {self.data_dir}\nAllow Subprocess Fallback: {self.allow_subprocess_fallback}\n"
+            f"Python Executable: {self.python_executable}\nMetadata: {self.metadata}\n"
+        )
+
+    def __repr__(self) -> str:
+        """
+        Representation method that returns a human readable representation of the ``PipelineConfig`` class. 
+        This method is structured to be more concise than the ``__str__`` method and is 
+        intended for debugging purposes.
+
+        Returns 
+        -------
+        str
+            A string representation of the ``PipelineConfig`` class with its attributes.
+        """
+        return (
+            f"PipelineConfig(name={self.name}, stages_to_run={self.stages_to_run}, "
+            f"backend={self.backend}, "
+            f"work_dir={self.work_dir},project_root={self.project_root}, "
+            f"output_dir={self.output_dir},log_dir={self.log_dir},data_dir={self.data_dir}, "
+            f"allow_subprocess_fallback={self.allow_subprocess_fallback}, "
+            f"python_executable={self.python_executable},metadata={self.metadata})"
+        )
 
     @classmethod
     def from_any(
@@ -546,6 +587,47 @@ class RunManifest:
     timestamp: str = ""
     reason: Optional[str] = None
     user: Optional[str] = None
+
+    def __str__(self) -> str:
+        """
+        String method that returns a human-readable representation of the ``RunManifest``
+        class.
+
+        Returns
+        -------
+        str
+            A string representation of the ``RunManifest`` class with its attributes.
+        """
+        return (
+            f"RunManifest Instance Attributes\n"
+            f"--------------------------\n"
+            f"RAP Name: {self.rap_name}\nRun ID: {self.run_id} \n"
+            f"Git Commit: {self.git_commit}\nStages Run: {self.stages_run} \n"
+            f"Parameters: {self.parameters} \nInputs: {self.inputs} \n"
+            f"Outputs: {self.outputs} \n Backend: {self.backend} \n"
+            f"Package Versions: {self.package_versions} \nTimestamp: {self.timestamp}\n"
+            f"Reason: {self.reason} \nUser: {self.user}\n"
+        )
+
+    def __repr__(self) -> str:
+        """
+        Representation method that returns a human readable representation of the 
+        ``RunManifest`` class. This method is structured to be more concise than 
+        the ``__str__`` method and is intended for debugging purposes.
+
+        Returns 
+        -------
+        str
+            A string representation of the ``RunManifest`` class with its attributes.
+        """
+        return (
+            f"RunManifest(rap_name={self.rap_name}, run_id={self.run_id}, "
+            f"git_commit={self.git_commit}, stages_run={self.stages_run}, "
+            f"parameters={self.parameters}, inputs={self.inputs}, "
+            f"outputs={self.outputs}, backend = {self.backend}, "
+            f"package_versions={self.package_versions}, "
+            f"timestamp={self.timestamp}, reason={self.reason}, user={self.user})"
+        )
 
 
 class RAPDataset:

@@ -82,6 +82,38 @@ class Logger:
             message = f"{message} | {context}" if message else context
         self._logger.info(message)
 
+    def __str__(self) -> str:
+        """
+        String method that returns a human-readable representation of the ``Logger``
+        class.
+
+        Returns
+        -------
+        str
+            A string representation of the ``Logger`` class with its attributes.
+        """
+        return (
+            f"Logger Instance Attributes\n"
+            f"--------------------------\n"
+            f"Log Directory: {self.log_dir.resolve()}\n"
+            f"Log Level: {self.config.log_level}\n"
+        )
+
+    def __repr__(self) -> str:
+        """
+        Representation method that returns a human readable representation of the 
+        ``Logger`` class. This method is structured to be more concise than 
+        the ``__str__`` method and is intended for debugging purposes.
+
+        Returns 
+        -------
+        str
+            A string representation of the ``Logger`` class with its attributes.
+        """
+        return (
+            f"Logger(log_dir={self.log_dir.resolve()}, log_level={self.config.log_level})"
+        )
+    
     def event(self, message: str, **kwargs: Any) -> None:
         """
         Logs a named event with optional structured context. 
