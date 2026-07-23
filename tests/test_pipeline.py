@@ -4,6 +4,8 @@ from onsrap.stage import Stage
 from pathlib import Path
 import pytest
 
+from onsrap.warnings import PipelineConfigurationWarning
+
 def test_pipeline_name():
     """
     Test to confirm that Pipeline instance uses either defined name from 
@@ -13,11 +15,15 @@ def test_pipeline_name():
     PipelineConfig (shown through pipeline_no_name)
     """
     pipeline_config = PipelineConfig(name = "test_pipeline_config")
-    pipeline_named = Pipeline(name = "test_pipeline_name")
+
+    with pytest.warns(PipelineConfigurationWarning,
+                      match = "No stages specified to run. All stages running by default."):
+        pipeline_named = Pipeline(name = "test_pipeline_name")
+        pipeline_config = Pipeline(name = None, config = pipeline_config)
+        pipeline_no_name = Pipeline()
+
     assert pipeline_named.name == "test_pipeline_name"
-    pipeline_config = Pipeline(name = None, config = pipeline_config)
     assert pipeline_config.name == "test_pipeline_config"
-    pipeline_no_name = Pipeline()
     assert pipeline_no_name.name == "pipeline"
 
 
@@ -43,22 +49,24 @@ def test_assign_dependencies(tmp_path):
     with pytest.raises(PipelineInitialisationError):
         Pipeline(stages = None,
                  dependencies = dependencies_single)
-    
-    pipeline_1 = Pipeline(name = "pipeline_1",
-                          stages = [Stage("Stage_1", path_1, None,{}), 
-                                    Stage("Stage_2", example_function, None,{}),
-                                    Stage("Stage_0", path_0, None,{}),],
-                          dependencies = dependencies_multiple)
-    
+
+    with pytest.warns(PipelineConfigurationWarning,
+                      match = "No stages specified to run. All stages running by default."):
+        pipeline_1 = Pipeline(name = "pipeline_1",
+                            stages = [Stage("Stage_1", path_1, None,{}), 
+                                        Stage("Stage_2", example_function, None,{}),
+                                        Stage("Stage_0", path_0, None,{}),],
+                            dependencies = dependencies_multiple)
+        
+        pipeline_2 = Pipeline(name = "pipeline_2",
+                                stages = [Stage("Stage_1.py", path_1, None,{}), 
+                                            Stage("Stage_2", example_function, None,{}),
+                                            Stage("Stage_0", path_0, None,{}),],
+                                dependencies = dependencies_non_stage_name)
+            
     assert pipeline_1.stages[0].dependencies == ("Stage_0",)
     assert pipeline_1.stages[1].dependencies == ("Stage_1","Stage_0")
 
-    pipeline_2 = Pipeline(name = "pipeline_2",
-                          stages = [Stage("Stage_1.py", path_1, None,{}), 
-                                    Stage("Stage_2", example_function, None,{}),
-                                    Stage("Stage_0", path_0, None,{}),],
-                          dependencies = dependencies_non_stage_name)
-    
     assert pipeline_2.stages[0].dependencies == ("Stage_0",)
     assert pipeline_2.stages[1].dependencies == ("Stage_1.py",)
     
@@ -82,9 +90,11 @@ def test_add_dependencies_single_dict(tmp_path):
     stage_1 = Stage("Stage_1", source = path_1, dependencies = {})
     stage_2 = Stage("Stage_2", source = path_2, dependencies = {})
     stage_0 = Stage("Stage_0", source = path_0, dependencies = {})
-    
-    pipeline_dict = Pipeline(stages = [stage_0, stage_1, stage_2],
-                                    dependencies = dependencies_multiple)
+
+    with pytest.warns(PipelineConfigurationWarning,
+                      match = "No stages specified to run. All stages running by default."):   
+        pipeline_dict = Pipeline(stages = [stage_0, stage_1, stage_2],
+                                        dependencies = dependencies_multiple)
     
     with pytest.raises(PipelineInitialisationError):
         pipeline_dict.add_dependencies(dep_tuple)
