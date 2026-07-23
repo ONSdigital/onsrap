@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from textwrap import indent
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -157,14 +158,12 @@ class PipelineConfig:
             A string representation of the ``PipelineConfig`` class with its attributes.
         """
         return (
-            f"PipelineConfig Instance Attributes\n"
-            f"--------------------------\n"
-            f"Name: {self.name}\nStages To Run: {self.stages_to_run}\n"
-            f"Backend: {self.backend} \n"
-            f"Work Directory: {self.work_dir}\nProject Root: {self.project_root}\n"
-            f"Output Directory: {self.output_dir}\nLog Directory: {self.log_dir}\n"
-            f"Data Directory: {self.data_dir}\nAllow Subprocess Fallback: {self.allow_subprocess_fallback}\n"
-            f"Python Executable: {self.python_executable}\nMetadata: {self.metadata}\n"
+            f"    Name: {self.name}\n    Stages To Run: {_format_dict(self.stages_to_run, indent=4)}\n"
+            f"    Backend: {self.backend} \n"
+            f"    Work Directory: {self.work_dir}\n    Project Root: {self.project_root}\n"
+            f"    Output Directory: {self.output_dir}\n    Log Directory: {self.log_dir}\n"
+            f"    Data Directory: {self.data_dir}\n    Allow Subprocess Fallback: {self.allow_subprocess_fallback}\n"
+            f"    Python Executable: {self.python_executable}\n    Metadata: \n{_format_dict(self.metadata, indent=8)}"
         )
 
     def __repr__(self) -> str:
@@ -598,13 +597,13 @@ class RunManifest:
         str
             A string representation of the ``RunManifest`` class with its attributes.
         """
+
         return (
-            f"RunManifest Instance Attributes\n"
-            f"--------------------------\n"
-            f"RAP Name: {self.rap_name}\nRun ID: {self.run_id} \n"
+            f"\nRAP Name: {self.rap_name}\nRun ID: {self.run_id} \n"
             f"Git Commit: {self.git_commit}\nStages Run: {self.stages_run} \n"
-            f"Parameters: {self.parameters} \nInputs: {self.inputs} \n"
-            f"Outputs: {self.outputs} \n Backend: {self.backend} \n"
+            f"Parameters: \n{_format_dict(self.parameters, indent=4)} \n"
+            f"Inputs: \n{_format_dict(self.inputs, indent=4)} \n"
+            f"Outputs: \n{_format_dict(self.outputs, indent = 4)} \nBackend: {self.backend} \n"
             f"Package Versions: {self.package_versions} \nTimestamp: {self.timestamp}\n"
             f"Reason: {self.reason} \nUser: {self.user}\n"
         )
@@ -752,3 +751,13 @@ class PipelineRun:
         Updates the ``status`` attribute to record that the Pipeline ran successfully. 
         """
         return self.status == PipelineStatus.SUCCEEDED
+
+def _format_dict(d, indent=0):
+            lines = []
+            for key, value in d.items():
+                if isinstance(value, dict):
+                    lines.append(f"{' ' * indent}{key}:")
+                    lines.append(_format_dict(value, indent + 4))
+                else:
+                    lines.append(f"{' ' * indent}{key}: {value}")
+            return "\n".join(lines)

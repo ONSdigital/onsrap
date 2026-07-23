@@ -93,10 +93,8 @@ class Logger:
             A string representation of the ``Logger`` class with its attributes.
         """
         return (
-            f"Logger Instance Attributes\n"
-            f"--------------------------\n"
             f"Log Directory: {self.log_dir.resolve()}\n"
-            f"Log Level: {self.config.log_level}\n"
+            f"     Log Level: {self.config.log_level}"
         )
 
     def __repr__(self) -> str:

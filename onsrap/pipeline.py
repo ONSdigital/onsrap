@@ -121,14 +121,16 @@ class Pipeline:
         str
             A string representation of the ``Pipeline`` class with its attributes.
         """
+        stages = "\n".join(f"{str(stage)}\n" for stage in self.stages)
+        graph = [stage.name for stage in self.graph.stages]
         return (
-            f"Pipeline Instance Attributes\n"
+            f"\nPipeline Instance Attributes\n"
             f"--------------------------\n"
-            f"Name: {self.name}\nBackend: {self.backend} \n"
-            f"Configuration: {self.config}\nStages: {self.stages} \n"
-            f"Dependencies: {self.dependencies} \nLogger: {self.logger} \n)"
-            f"Executor: {self.executor} \nGraph: {self.graph} \n"
-            f"ID: {self.id} \nManifest: {self.manifest} \nLast Run: {self.last_run}\n"
+            f"Name:\n    {self.name}\n\nBackend:\n     {self.backend} \n\n"
+            f"Configuration:\n{self.config}\n\nStages:\n{stages} \n"
+            f"Dependencies:\n     {self.dependencies} \n\nLogger:\n     {self.logger} \n\n"
+            f"Executor:\n     {self.executor} \n\nGraph:\n     {graph} \n\n"
+            f"ID:\n     {self.id} \n\nManifest:\n     {self.manifest} \n\nLast Run:\n     {self.last_run}\n"
         )
 
     def __repr__(self) -> str:

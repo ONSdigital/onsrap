@@ -115,11 +115,9 @@ class Stage:
             A string representation of the ``Stage`` class with its attributes.
         """
         return (
-            f"Stage Instance Attributes\n"
-            f"--------------------------\n"
-            f"Name: {self.name}\nSource: {self.source_label} \n"
-            f"Dependencies: {self.dependencies}\nMetadata: {self.metadata} \n"
-            f"Entrypoint: {self.entrypoint} \nBackend: {self.backend} \n)"
+            f"    Name: {self.name}\n    Source: {self.source_label} \n"
+            f"    Dependencies: {self.dependencies}\n    Metadata: {self.metadata} \n"
+            f"    Entrypoint: {self.entrypoint} \n    Backend: {self.backend}"
         )
 
     def __repr__(self) -> str:
