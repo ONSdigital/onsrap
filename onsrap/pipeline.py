@@ -134,8 +134,8 @@ class Pipeline:
     def __repr__(self) -> str:
         """
         Representation method that returns a human readable representation of the ``Pipeline`` class. 
-        This method is structured to be more concise than the ``__str__`` method and is intended for 
-        debugging purposes.
+        This method is structured to be more concise than the ``__str__`` method and is 
+        intended for debugging purposes.
 
         Returns 
         -------
