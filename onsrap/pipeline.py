@@ -112,6 +112,44 @@ class Pipeline:
             stages=[stage.name for stage in self.stages],
         )
 
+    def __str__(self) -> str:
+        """
+        String method that returns a human-readable representation of the ``Pipeline`` class.
+
+        Returns
+        -------
+        str
+            A string representation of the ``Pipeline`` class with its attributes.
+        """
+        return (
+            f"Pipeline Instance Attributes\n"
+            f"--------------------------\n"
+            f"Name: {self.name}\nBackend: {self.backend} \n"
+            f"Configuration: {self.config}\nStages: {self.stages} \n"
+            f"Dependencies: {self.dependencies} \nLogger: {self.logger} \n)"
+            f"Executor: {self.executor} \nGraph: {self.graph} \n"
+            f"ID: {self.id} \nManifest: {self.manifest} \nLast Run: {self.last_run}\n"
+        )
+
+    def __repr__(self) -> str:
+        """
+        Representation method that returns a human readable representation of the ``Pipeline`` class. 
+        This method is structured to be more concise than the ``__str__`` method and is intended for 
+        debugging purposes.
+
+        Returns 
+        -------
+        str
+            A string representation of the ``Pipeline`` class with its attributes.
+        """
+        return (
+            f"Pipeline(name={self.name},backend={self.backend}, "
+            f"stages={self.stages},dependencies={self.dependencies}, "
+            f"logger={self.logger},executor={self.executor},graph={self.graph}, "
+            f"id={self.id},manifest={self.manifest},last_run={self.last_run})"
+        )
+
+
     def add_stage(self, *stages: Stage | Mapping[str, Any] | str | Path | Callable[..., Any]) -> None:
             """
             Adds a step to the Pipeline.
