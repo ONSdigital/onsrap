@@ -154,9 +154,13 @@ class Pipeline:
         self,
         *stages: Stage | Mapping[str, Any] | str | Path | Callable[..., Any],
         stage_configs: StageConfig | Mapping[str, Any] | str | Path | Iterable[StageConfig | Mapping[str, Any] | str | Path] | None = None,
+        enable_stages: bool = False,
     ) -> None:
         """
         Adds one or more steps to the Pipeline.
+
+        ``enable_stages`` : bool, default False
+            Whether to enable the added stages immediately. Default is False and is recommended.
 
         Creates a list called ``added_stages`` that runs the _coerce_stage() method
         to extract the information from the given ``stages`` parameter. It then appends
@@ -216,7 +220,7 @@ class Pipeline:
         for conf in parsed_stage_configs:
             self.add_stage_config(conf)
 
-        self._register_added_stages_in_stage_selection(added_stages)
+        self._register_added_stages_in_stage_selection(added_stages, enable_stages=enable_stages)
         self._check_stage_configs(added_stages, self.stage_configs)
 
         self._sync_stage_configs()
@@ -570,7 +574,7 @@ class Pipeline:
         self.graph = StageGraph.from_stages(stages_to_run)
         self.graph.validate()
 
-    def _register_added_stages_in_stage_selection(self, stages: Sequence[Stage]) -> None:
+    def _register_added_stages_in_stage_selection(self, stages: Sequence[Stage], enable_stages: bool = False) -> None:
         """
         Default newly added stages to disabled once explicit stage selection is in use.
 
@@ -583,7 +587,7 @@ class Pipeline:
             return
 
         for stage in stages:
-            self.config.stages_to_run.setdefault(stage.name, False)
+            self.config.stages_to_run.setdefault(stage.name, enable_stages)
 
 
     def _construct_manifest(self, *, runtime_id: RuntimeID) -> RunManifest:

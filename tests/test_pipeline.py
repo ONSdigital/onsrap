@@ -226,6 +226,22 @@ def test_add_stage_keeps_new_stage_out_of_explicit_selection() -> None:
     assert pipeline.config.stages_to_run["Stage_1"] is False
     assert [stage.name for stage in pipeline.graph.stages] == ["Stage_0"]
 
+def test_add_stage_adds_new_stage_to_explicit_selection_when_enable_stages_is_true() -> None:
+    stage_0 = Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())
+    pipeline = Pipeline(
+        stages=[stage_0],
+        config=PipelineConfig(stages_to_run={"Stage_0": True}),
+    )
+
+    pipeline.add_stage(
+        Stage("Stage_1", source=Path("Stage_1.py"), dependencies=()),
+        stage_configs=[StageConfig(name="Stage_1")],
+        enable_stages=True,
+    )
+
+    assert pipeline.config.stages_to_run["Stage_1"] is True
+    assert {stage.name for stage in pipeline.graph.stages} == {"Stage_0", "Stage_1"}
+
 
 def test_validate_skips_source_check_for_disabled_stages(tmp_path: Path) -> None:
     """Disabled stages' source files need not exist — validate() only checks the effective run set."""
