@@ -434,6 +434,7 @@ class StageConfig:
     ``metadata`` : dict[str, Any]
         Additional supporting metadata for the stage configuration.
     """
+    # TODO: output location for stages potentially problematic for output overwrites!
     name: str
     _variables: dict[str, Any] = field(default_factory=dict)
     datasets: dict[str, Any] = field(default_factory=dict)
