@@ -556,21 +556,17 @@ class Pipeline:
 
     def _rebuild_graph(self) -> None:
         """
-        Update the execution graph while validating the full pipeline definition.
+        Update and validate the execution graph.
+        The execution graph is a subset of the full Stage registry 
+        (Pipeline.stages), reflecting the stages that are actually enabled 
+        for execution.
 
         The pipeline keeps ``self.stages`` as the complete stage registry, but
         ``self.graph`` represents the effective run set after applying
         ``PipelineConfig.stages_to_run`` and expanding any selected stage's
         dependencies.
         """
-        full_graph = StageGraph.from_stages(self.stages)
-        full_graph.validate()
-
         stages_to_run = self._resolve_stages_to_run()
-        if [stage.name for stage in stages_to_run] == [stage.name for stage in self.stages]:
-            self.graph = full_graph
-            return
-
         self.graph = StageGraph.from_stages(stages_to_run)
         self.graph.validate()
 
