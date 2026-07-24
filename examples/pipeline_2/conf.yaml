@@ -26,6 +26,9 @@ pipeline_variables:
     0_clean_data: True
     1_derive_vars: True
     2_reporting: True
+    
+global_variables:
+  year_of_run: 2020
 
 stage_configuration:
   0_clean_data:
