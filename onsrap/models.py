@@ -180,10 +180,10 @@ class PipelineConfig:
         return (
             f"PipelineConfig(name={self.name}, stages_to_run={self.stages_to_run}, "
             f"backend={self.backend}, "
-            f"work_dir={self.work_dir},project_root={self.project_root}, "
-            f"output_dir={self.output_dir},log_dir={self.log_dir},data_dir={self.data_dir}, "
+            f"work_dir={self.work_dir}, project_root={self.project_root}, "
+            f"output_dir={self.output_dir}, log_dir={self.log_dir}, data_dir={self.data_dir}, "
             f"allow_subprocess_fallback={self.allow_subprocess_fallback}, "
-            f"python_executable={self.python_executable},metadata={self.metadata})"
+            f"python_executable={self.python_executable}, metadata={self.metadata})"
         )
 
     @classmethod

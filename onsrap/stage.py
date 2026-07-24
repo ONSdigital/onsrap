@@ -132,8 +132,8 @@ class Stage:
             A string representation of the ``Stage`` class with its attributes.
         """
         return (
-            f"Stage(name={self.name},source={self.source_label}, "
-            f"dependencies={self.dependencies},metadata={self.metadata}, "
+            f"Stage(name={self.name}, source={self.source_label}, "
+            f"dependencies={self.dependencies}, metadata={self.metadata}, "
             f"entrypoint={self.entrypoint}, backend={self.backend})"
         )
     

@@ -144,10 +144,10 @@ class Pipeline:
             A string representation of the ``Pipeline`` class with its attributes.
         """
         return (
-            f"Pipeline(name={self.name},backend={self.backend}, "
-            f"stages={self.stages},dependencies={self.dependencies}, "
-            f"logger={self.logger},executor={self.executor},graph={self.graph}, "
-            f"id={self.id},manifest={self.manifest},last_run={self.last_run})"
+            f"Pipeline(name={self.name}, backend={self.backend}, "
+            f"stages={self.stages}, dependencies={self.dependencies}, "
+            f"logger={self.logger}, executor={self.executor}, graph={self.graph}, "
+            f"id={self.id}, manifest={self.manifest}, last_run={self.last_run})"
         )
 
     def add_stage(
