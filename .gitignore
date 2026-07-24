@@ -913,3 +913,4 @@ examples/**/runs/**/
 
 # Ignore coding playground
 tests/playground/
+tests/sandbox/
