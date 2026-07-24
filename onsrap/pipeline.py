@@ -98,9 +98,7 @@ class Pipeline:
         self.stage_configs = dict(resolved_stage_configs)
         self._sync_stage_configs()
 
-        self.graph = StageGraph.from_stages(self._resolve_stages_to_run())
-
-        self.graph.validate()
+        self._rebuild_graph()
         self.id: RuntimeID | None = None
         self.manifest: RunManifest | None = None
         self.last_run: PipelineRun | None = None
@@ -110,6 +108,7 @@ class Pipeline:
             name=self.name,
             backend=self.backend,
             stages=[stage.name for stage in self.stages],
+            enabled_stages=[stage.name for stage in self.graph.stages],
         )
 
     def __str__(self) -> str:
@@ -151,74 +150,197 @@ class Pipeline:
             f"id={self.id},manifest={self.manifest},last_run={self.last_run})"
         )
 
+    def add_stage(
+        self,
+        *stages: Stage | Mapping[str, Any] | str | Path | Callable[..., Any],
+        stage_configs: StageConfig | Mapping[str, Any] | str | Path | Iterable[StageConfig | Mapping[str, Any] | str | Path] | None = None,
+    ) -> None:
+        """
+        Adds one or more steps to the Pipeline.
 
-    def add_stage(self, *stages: Stage | Mapping[str, Any] | str | Path | Callable[..., Any]) -> None:
-            """
-            Adds a step to the Pipeline.
+        Creates a list called ``added_stages`` that runs the _coerce_stage() method
+        to extract the information from the given ``stages`` parameter. It then appends
+        this list to the ``stages`` attribute of the ``Pipeline`` class, adds any stage
+        configuration that was provided alongside those stages, and updates the StageGraph
+        using the _rebuild_graph() method.
 
-            Creates a list called ``added_stages`` that runs the _coerce_stage() method
-            to extract the information from the given ``stages`` parameter. It then appends
-            this list to the ``stages`` attribute of the ``Pipeline`` class and updates the 
-            StageGraph using the _rebuild_graph() method. A log instance is created to 
-            reflect the changes. 
+        Parameters
+        ----------
+        ``stages`` : Stage | Mapping[str, Any] | str | Path | Callable[..., Any]
+            The new steps being added to the Pipeline.
+        ``stage_configs`` : StageConfig | Mapping[str, Any] | str | Path | Iterable[StageConfig | Mapping[str, Any] | str | Path] | None
+            Optional stage configuration payloads to add alongside the stages.
+        """
+        if not stages:
+            warnings.warn(
+                "No stages provided to add_stage(). No changes made to the Pipeline.",
+                PipelineConfigurationWarning,
+            )
+            return
 
-            Parameters
-            ----------
-            ``stages`` : Stage | Mapping[str, Any] | str | Path | Callable[..., Any]
-                The new steps being added to the Pipeline. 
-            """
-            added_stages = [self._coerce_stage(stage) for stage in stages]
-            self.stages.extend(added_stages)
-            self._sync_stage_configs()
-            self._rebuild_graph()   # TODO: This will define the StageGraph from self.stages
-                                    # We don't want this behaviour following changes to PipelineConfig.stages_to_run logic.
-                                    # See _resolve_stages_to_run() for the sort of approach we want
+        added_stages = [self._coerce_stage(stage) for stage in stages]
+        parsed_stage_configs: list[StageConfig] = []
 
-            # TODO: Adding Stages needs to interface with Pipeline Config's stages to run
-            # TODO: CARE: adding stages_to_run when stages_to_run is an empty dict changes behaviour:
-                # Empty dict behaviour defaults to running the entire pipeline
-                # Adding a stage in stages_to_run will make that one Stage run!
-            # TODO: If adding a stage, need to verify/check dependencies!
-            self.logger.event("Stage added", stages=[stage.name for stage in added_stages])
+        if stage_configs is not None:
+            if isinstance(stage_configs, Mapping) and all(isinstance(value, Mapping) for value in stage_configs.values()):
+                raw_stage_configs = [
+                    {str(stage_name): stage_payload}
+                    for stage_name, stage_payload in stage_configs.items()
+                ]
+            elif isinstance(stage_configs, (StageConfig, Mapping, str, Path)):
+                raw_stage_configs = [stage_configs]
+            else:
+                raw_stage_configs = list(stage_configs)
+
+            if len(raw_stage_configs) != len(added_stages):
+                warnings.warn(
+                    "The number of stage configurations passed to add_stage() does not match the number of stages. "
+                    f"Received {len(raw_stage_configs)} stage configuration(s) for {len(added_stages)} stage(s).",
+                    StageConfigurationWarning,
+                )
+
+            known_stage_names = {stage.name for stage in self.stages}
+            known_stage_names.update(stage.name for stage in added_stages)
+
+            for index, raw_stage_config in enumerate(raw_stage_configs):
+                stage_name = added_stages[index].name if index < len(added_stages) else None
+                parsed_stage_config = self._coerce_stage_config(raw_stage_config, name=stage_name)
+                if parsed_stage_config.name not in known_stage_names:
+                    raise StageConfigurationError(
+                        f"Stage configuration was provided for unknown stage: {parsed_stage_config.name}."
+                    )
+                parsed_stage_configs.append(parsed_stage_config)
+
+        self.stages.extend(added_stages)
+
+        for conf in parsed_stage_configs:
+            self.add_stage_config(conf)
+
+        self._register_added_stages_in_stage_selection(added_stages)
+        self._check_stage_configs(added_stages, self.stage_configs)
+
+        self._sync_stage_configs()
+        self._rebuild_graph()
+
+        self.logger.event(
+            "Stage added",
+            stages=[stage.name for stage in added_stages],
+            stage_configs=[stage_config.name for stage_config in parsed_stage_configs],
+        )
+
+    def add_stage_config(
+        self,
+        stage_config: StageConfig | Mapping[str, Any] | str | Path,
+        *,
+        name: str | None = None,
+    ) -> None:
+        """
+        Add or replace a ``StageConfig`` attached to the Pipeline.
+
+        Parameters
+        ----------
+        ``stage_config`` : StageConfig | Mapping[str, Any] | str | Path
+            The stage configuration information to add to the Pipeline.
+        ``name`` : str or None, keyword-only
+            Optional stage name used when the parsed configuration payload does not
+            identify the stage on its own.
+        """
+        parsed_stage_config = self._coerce_stage_config(stage_config, name=name)
+        self.stage_configs[parsed_stage_config.name] = parsed_stage_config
+        self.logger.event("Stage configuration added", stage=parsed_stage_config.name)
     
-    def enable_stage(self, *stage_name: str) -> None:
-        # TODO: accept lists of strings
-        if not set(stage_name).issubset({stage.name for stage in self.stages}):
-            raise PipelineInitialisationError("You're trying to enable a stage that does not exist. Please add the stage to the Pipeline.")
-        
+    def enable_stage(self, *stage_name: str | list[str]) -> None:
+        """
+        Mark one or more stages as enabled in the run selection.
+
+        In implicit "run all" mode (``stages_to_run`` is empty), this is a no-op
+        because every registered stage already participates in the execution graph.
+        In explicit mode the requested stages are marked ``True`` in
+        ``stages_to_run`` and the execution graph is rebuilt to reflect the change.
+
+        Parameters
+        ----------
+        ``stage_name`` : str or list[str]
+            One or more stage names to enable.
+        """
+        stage_names = set()
         for name in stage_name:
+            if isinstance(name, list):
+                stage_names.update(name)
+            else:
+                stage_names.add(name)
+
+        if not stage_names.issubset({stage.name for stage in self.stages}):
+            raise PipelineInitialisationError("You're trying to enable a stage that does not exist in the Pipeline. Please add the stage to the Pipeline.")
+
+        if not self.config.stages_to_run:
+            return
+
+        for name in stage_names:
             self.config.stages_to_run[name] = True
-        # TODO: Do something with the StageGraph!
-        self.graph = StageGraph.from_stages(self._resolve_stages_to_run())
-        # TODO: Look at StageGraph.validate()
-        # TODO: Do something with dependencies!
+        self._rebuild_graph()
+        self.logger.event("Stages enabled", stages=sorted(stage_names))
 
-    def disable_stage(self, *stage_name: str) -> None:
-        # TODO: accept lists of strings
-        if not set(stage_name).issubset({stage.name for stage in self.stages}):
-            raise PipelineInitialisationError("You're trying to disable a stage that does not exist. Please add the stage to the Pipeline.")
+    def disable_stage(self, *stage_name: str | list[str]) -> None:
+        """
+        Mark one or more stages as disabled in the run selection.
 
+        When in implicit "run all" mode (``stages_to_run`` is empty), calling
+        ``disable_stage`` switches the pipeline into explicit stage-selection mode:
+        every currently registered stage is first marked enabled, then the requested
+        stages are set to ``False``. The execution graph is rebuilt after the change.
+
+        Parameters
+        ----------
+        ``stage_name`` : str or list[str]
+            One or more stage names to disable.
+        """
+        stage_names = set()
         for name in stage_name:
+            if isinstance(name, list):
+                stage_names.update(name)
+            else:
+                stage_names.add(name)
+
+        if not stage_names.issubset({stage.name for stage in self.stages}):
+            raise PipelineInitialisationError("You're trying to disable a stage that does not exist in the Pipeline. Please add the stage to the Pipeline.")
+
+        if not self.config.stages_to_run:
+            self.config.stages_to_run = {stage.name: True for stage in self.stages}
+
+        for name in stage_names:
             self.config.stages_to_run[name] = False
-        # TODO: Do something with the StageGraph!
-        self.graph = StageGraph.from_stages(self._resolve_stages_to_run())
-        # TODO: Look at StageGraph.validate()
-        # TODO: Do something with dependencies!
+        self._rebuild_graph()
+        self.logger.event("Stages disabled", stages=sorted(stage_names))
 
     def ordered_stages(self) -> list[Stage]:
-            """
-            Runs the topological_order() method on the ``graph`` attribute to extract the 
-            correct order for the ``stages`` to be run in. 
-            """
-            return self.graph.topological_order()
+        """
+        Return the effective stages in dependency-respecting execution order.
+
+        This is the primary method used by ``PipelineRunner`` to determine what to
+        execute. Only stages that are part of the current execution graph appear
+        here; stages disabled via ``PipelineConfig.stages_to_run`` are absent even
+        if they are registered in ``Pipeline.stages``.
+        """
+        return self.graph.topological_order()
 
     def validate(self) -> Pipeline:
         """
-        Confirms that the source files for the stage exist. 
+        Confirm that the pipeline is ready to run.
+
+        Validates source files for every stage in the current execution graph,
+        checks that all stage-configuration names correspond to a known stage, and
+        validates the execution graph for structural consistency. Disabled stages
+        are excluded from source-file validation because they will not be executed.
         """
-        self.logger.event("Validating pipeline", name=self.name)
+        self.logger.event(
+            "Validating pipeline",
+            name=self.name,
+            stages=len(self.stages),
+            enabled_stages=len(self.graph.stages),
+        )
         self._validate_stage_configs()
-        for stage in self.stages:
+        for stage in self.graph.stages:
             stage.validate()
         self.graph.validate()
         return self
@@ -399,11 +521,69 @@ class Pipeline:
 
         raise StageConfigurationError(f"Unsupported stage specification: {type(stage)!r}.")
 
+    def _coerce_stage_config(
+        self,
+        stage_config: StageConfig | Mapping[str, Any] | str | Path,
+        *,
+        name: str | None = None,
+    ) -> StageConfig:
+        """
+        Normalize supported stage-configuration inputs into a ``StageConfig``.
+        """
+        if isinstance(stage_config, StageConfig):
+            if name is not None and stage_config.name != name:
+                raise StageConfigurationError(
+                    f"Stage configuration '{stage_config.name}' does not match stage '{name}'."
+                )
+            return stage_config
+
+        if isinstance(stage_config, Mapping):
+            if name is not None and all(isinstance(value, Mapping) for value in stage_config.values()) and name not in stage_config:
+                available_stage_names = ", ".join(str(stage_name) for stage_name in stage_config)
+                raise StageConfigurationError(
+                    f"Stage configuration '{name}' was not found. Available stage configurations are: {available_stage_names}."
+                )
+            return self.create_stage_config(stage_config, name=name)
+
+        if isinstance(stage_config, (str, Path)):
+            return self.create_stage_config(stage_config, name=name)
+
+        raise StageConfigurationError(f"Unsupported stage configuration specification: {type(stage_config)!r}.")
+
     def _rebuild_graph(self) -> None:
         """
-        Updates the ``graph`` attribute with the latest stage information. 
+        Update the execution graph while validating the full pipeline definition.
+
+        The pipeline keeps ``self.stages`` as the complete stage registry, but
+        ``self.graph`` represents the effective run set after applying
+        ``PipelineConfig.stages_to_run`` and expanding any selected stage's
+        dependencies.
         """
-        self.graph = StageGraph.from_stages(self.stages)
+        full_graph = StageGraph.from_stages(self.stages)
+        full_graph.validate()
+
+        stages_to_run = self._resolve_stages_to_run()
+        if [stage.name for stage in stages_to_run] == [stage.name for stage in self.stages]:
+            self.graph = full_graph
+            return
+
+        self.graph = StageGraph.from_stages(stages_to_run)
+        self.graph.validate()
+
+    def _register_added_stages_in_stage_selection(self, stages: Sequence[Stage]) -> None:
+        """
+        Default newly added stages to disabled once explicit stage selection is in use.
+
+        When ``stages_to_run`` is empty, the pipeline is in implicit "run all"
+        mode and new stages should immediately participate in the execution graph.
+        Once the configuration has switched to an explicit stage-selection mapping,
+        newly added stages stay out of the execution graph until they are enabled.
+        """
+        if not self.config.stages_to_run:
+            return
+
+        for stage in stages:
+            self.config.stages_to_run.setdefault(stage.name, False)
 
 
     def _construct_manifest(self, *, runtime_id: RuntimeID) -> RunManifest:
@@ -423,7 +603,7 @@ class Pipeline:
             git_commit=self._discover_git_commit(),
             stages_run=[],
             parameters=self._manifest_parameters(),
-            inputs={stage.name: list(stage.dependencies) for stage in self.stages},
+            inputs={stage.name: list(stage.dependencies) for stage in self.graph.stages},
             outputs={},
             backend=self.backend,
             package_versions=self._package_versions(),
@@ -666,31 +846,80 @@ class Pipeline:
     
     def _resolve_stages_to_run(self) -> list[Stage]:
         """
-        # TODO: Document
+        Resolve the effective stage subset that should populate the execution graph.
+
+        An empty ``stages_to_run`` mapping means the pipeline runs all known stages.
+        Otherwise, stages explicitly marked ``True`` are selected and their transitive
+        dependencies are pulled in automatically. A dependency that is explicitly
+        disabled in ``stages_to_run`` while another enabled stage requires it raises
+        a ``PipelineConfigurationError``.
         """
-        stage_lookup = {stage.name: stage 
-                        for stage in self.stages}
-        
-        if self.config.stages_to_run == {}:
-            warnings.warn("No stages specified to run. All stages running by default.", PipelineConfigurationWarning)
-            stage_names_to_run = list(stage_lookup.keys())
+        stage_lookup = {stage.name: stage for stage in self.stages}
+        configured_stages_to_run = dict(self.config.stages_to_run or {})
 
-        else:
-            stage_names_to_run = [
-                stage_name 
-                for stage_name, value in self.config.stages_to_run.items() 
-                if value
-                ]
-        
-        if set(stage_lookup.keys()) == set(stage_names_to_run):
+        # When PipelineConfig.stages_to_run is empty, the pipeline is in implicit "run all" mode.
+        if not configured_stages_to_run:
             return self.stages
-        else:
-            # Check that all stages in stage_names_to_run exist in the Pipeline.
-            for stage_name in stage_names_to_run:
-                if stage_name not in list(stage_lookup.keys()):
-                    raise PipelineInitialisationError(f"You're trying to run a stage that does not exist: '{stage_name}'. Please add the stage to the Pipeline.")
 
-            return [stage_lookup[name] for name in stage_names_to_run]
+        unknown_stage_names = sorted(
+            stage_name
+            for stage_name in configured_stages_to_run
+            if stage_name not in stage_lookup
+        )
+        if unknown_stage_names:
+            missing = ", ".join(unknown_stage_names)
+            raise PipelineInitialisationError(
+                f"Pipeline configuration references unknown stages in stages_to_run: {missing}."
+            )
+
+        explicitly_enabled = [
+            stage_name
+            for stage_name, value in configured_stages_to_run.items()
+            if value
+        ]
+        if not explicitly_enabled:
+            return []
+
+        explicitly_disabled = {
+            stage_name
+            for stage_name, value in configured_stages_to_run.items()
+            if not value
+        }
+        resolved_stage_names: set[str] = set()
+        visiting: set[str] = set()
+
+        def add_stage_with_dependencies(stage_name: str, *, required_by: str | None = None) -> None:
+            """
+            Add one selected stage and recursively include everything it depends on.
+
+            ``_resolve_stages_to_run()`` uses this helper to turn the user-facing
+            ``stages_to_run`` selection into a runnable execution set for the
+            ``StageGraph``. It also guards against invalid configurations where an
+            enabled stage depends on a stage that has been explicitly disabled.
+            """
+            if stage_name in resolved_stage_names:
+                return
+            if required_by is not None and stage_name in explicitly_disabled:
+                raise PipelineConfigurationError(
+                    f"Stage '{required_by}' is enabled but depends on disabled stage '{stage_name}'."
+                )
+            if stage_name in visiting:
+                return
+            if stage_name not in stage_lookup:
+                raise PipelineInitialisationError(
+                    f"You're trying to run a stage that does not exist: '{stage_name}'. Please add the stage to the Pipeline."
+                )
+
+            visiting.add(stage_name)
+            resolved_stage_names.add(stage_name)
+            for dependency_name in stage_lookup[stage_name].dependencies:
+                add_stage_with_dependencies(dependency_name, required_by=stage_name)
+            visiting.remove(stage_name)
+
+        for stage_name in explicitly_enabled:
+            add_stage_with_dependencies(stage_name)
+
+        return [stage for stage in self.stages if stage.name in resolved_stage_names]
 
     @classmethod
     def from_files(
@@ -1089,3 +1318,23 @@ class Pipeline:
                 return tuple(str(dependency) for dependency in dependencies[candidate])
 
         return ()
+
+    @staticmethod
+    def _check_stage_configs(stages: list[Stage], stage_configs: Mapping[str, StageConfig]) -> None:
+        """
+        Check that all stages have a corresponding stage configuration.
+
+        Warns
+        ------
+        ``StageConfigurationWarning``
+            If any stage does not have a corresponding stage configuration. Handled in one warning instance for all stages without a configuration.
+        """
+        stage_no_config = []
+        for stage in stages:
+            if stage.name not in stage_configs:
+                stage_no_config.append(stage.name)
+        if stage_no_config:
+            warnings.warn(
+                f"Stage(s) {', '.join(stage_no_config)} added to Pipeline without a corresponding StageConfig. ",
+                StageConfigurationWarning,
+            )
