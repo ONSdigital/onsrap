@@ -123,8 +123,6 @@ def test_from_any(mapping, pipelineconfig, blankpipelineconfig) -> None:
     with pytest.raises(TypeError):
         blankpipelineconfig.from_any(11)
 
-"""NOT SURE HOW TO TEST FROM_FILE()"""
-
 def test_from_file(tmp_path,) -> PipelineConfig:
     pipeline_config = tmp_path / "configuration.py"
     pipeline_config.write_text(
@@ -279,3 +277,6 @@ def test_result_for(pipelinerun, stageresult) -> None:
 def test_succeeded_pipeline(pipelinerun, status, expected) -> None: 
     pipelinerun.status = status
     assert pipelinerun.succeeded == expected
+
+
+#TODO: Test _extract_stages_run and all methods in StageConfig class
