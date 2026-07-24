@@ -102,12 +102,6 @@ class ExecutionContext:
         """
         self.active_stage_name = stage_name
 
-    def stage_config_for(self, stage_name: str) -> StageConfig | None:
-        """
-        Return the configuration bound to a specific stage name, if one exists.
-        """
-        return self.stage_configs.get(stage_name)
-
     @property
     def stage_config(self) -> StageConfig | None:
         """
@@ -122,6 +116,19 @@ class ExecutionContext:
         if self.active_stage_name is None:
             return None
         return self.stage_config_for(self.active_stage_name)
+
+    def stage_config_for(self, stage_name: str) -> StageConfig | None:
+        """
+        Return the configuration for the stage identified by ``stage_name``.
+
+        Returns ``None`` if no configuration has been registered for that stage.
+
+        Parameters
+        ----------
+        ``stage_name`` : str
+            Name of the stage whose configuration should be returned.
+        """
+        return self.stage_configs.get(stage_name)
 
     @property
     def stage_outputs(self) -> dict[str, Any]:
@@ -180,6 +187,8 @@ class ExecutionContext:
 
         Parameters
         ----------
+        ``stage`` : str
+            The name of the stage to get the configuration for.
         ``vars_only`` : bool, default = True
             If True, returns only the variables dictionary from the ``StageConfig``. If False, returns the full ``StageConfig`` instance.
         
