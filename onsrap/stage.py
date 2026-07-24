@@ -105,6 +105,38 @@ class Stage:
         self.metadata = dict(self.metadata or {})
         self.backend = str(self.backend or "python").strip() or "python"
 
+    def __str__(self) -> str:
+        """
+        String method that returns a human-readable representation of the ``Stage`` class.
+
+        Returns
+        -------
+        str
+            A string representation of the ``Stage`` class with its attributes.
+        """
+        return (
+            f"    Name: {self.name}\n    Source: {self.source_label} \n"
+            f"    Dependencies: {self.dependencies}\n    Metadata: {self.metadata} \n"
+            f"    Entrypoint: {self.entrypoint} \n    Backend: {self.backend}"
+        )
+
+    def __repr__(self) -> str:
+        """
+        Representation method that returns a human readable representation of the ``Stage`` class. 
+        This method is structured to be more concise than the ``__str__`` method and is intended for 
+        debugging purposes.
+
+        Returns 
+        -------
+        str
+            A string representation of the ``Stage`` class with its attributes.
+        """
+        return (
+            f"Stage(name={self.name},source={self.source_label}, "
+            f"dependencies={self.dependencies},metadata={self.metadata}, "
+            f"entrypoint={self.entrypoint}, backend={self.backend})"
+        )
+    
     @classmethod
     def from_file(
         cls,
@@ -150,6 +182,7 @@ class Stage:
         path = Path(file_path).expanduser()
         if not path.exists():
             raise StageConfigurationError(f"Stage source file does not exist: {path}")
+
 
         return cls(
             name=name or path.stem,

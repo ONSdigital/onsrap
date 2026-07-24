@@ -112,6 +112,46 @@ class Pipeline:
             stages=[stage.name for stage in self.stages],
         )
 
+    def __str__(self) -> str:
+        """
+        String method that returns a human-readable representation of the ``Pipeline`` class.
+
+        Returns
+        -------
+        str
+            A string representation of the ``Pipeline`` class with its attributes.
+        """
+        stages = "\n".join(f"{str(stage)}\n" for stage in self.stages)
+        graph = [stage.name for stage in self.graph.stages]
+        return (
+            f"\nPipeline Instance Attributes\n"
+            f"--------------------------\n"
+            f"Name:\n    {self.name}\n\nBackend:\n     {self.backend} \n\n"
+            f"Configuration:\n{self.config}\n\nStages:\n{stages} \n"
+            f"Dependencies:\n     {self.dependencies} \n\nLogger:\n     {self.logger} \n\n"
+            f"Executor:\n     {self.executor} \n\nGraph:\n     {graph} \n\n"
+            f"ID:\n     {self.id} \n\nManifest:\n     {self.manifest} \n\nLast Run:\n     {self.last_run}\n"
+        )
+
+    def __repr__(self) -> str:
+        """
+        Representation method that returns a human readable representation of the ``Pipeline`` class. 
+        This method is structured to be more concise than the ``__str__`` method and is 
+        intended for debugging purposes.
+
+        Returns 
+        -------
+        str
+            A string representation of the ``Pipeline`` class with its attributes.
+        """
+        return (
+            f"Pipeline(name={self.name},backend={self.backend}, "
+            f"stages={self.stages},dependencies={self.dependencies}, "
+            f"logger={self.logger},executor={self.executor},graph={self.graph}, "
+            f"id={self.id},manifest={self.manifest},last_run={self.last_run})"
+        )
+
+
     def add_stage(self, *stages: Stage | Mapping[str, Any] | str | Path | Callable[..., Any]) -> None:
             """
             Adds a step to the Pipeline.

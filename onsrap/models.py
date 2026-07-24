@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from textwrap import indent
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -102,8 +103,9 @@ class PipelineConfig:
     ----------
     ``name`` : str, optional
         The name of the pipeline.
-
-        
+    ``stages_to_run`` : dict[str, bool], optional   
+        A dictionary of all stage names alongside a boolean value that indicates 
+        whether the stage should be run or not.
     ``backend`` : str, default = "python"
         The system that the pipeline is run on. 
     ``work_dir`` : Path 
@@ -145,6 +147,44 @@ class PipelineConfig:
         """
         if self.stages_to_run is None:
             self.stages_to_run = {}
+
+    def __str__(self) -> str:
+        """
+        String method that returns a human-readable representation of the ``PipelineConfig`` class.
+
+        Returns
+        -------
+        str
+            A string representation of the ``PipelineConfig`` class with its attributes.
+        """
+        return (
+            f"    Name: {self.name}\n    Stages To Run: {_format_dict(self.stages_to_run, indent=4)}\n"
+            f"    Backend: {self.backend} \n"
+            f"    Work Directory: {self.work_dir}\n    Project Root: {self.project_root}\n"
+            f"    Output Directory: {self.output_dir}\n    Log Directory: {self.log_dir}\n"
+            f"    Data Directory: {self.data_dir}\n    Allow Subprocess Fallback: {self.allow_subprocess_fallback}\n"
+            f"    Python Executable: {self.python_executable}\n    Metadata: \n{_format_dict(self.metadata, indent=8)}"
+        )
+
+    def __repr__(self) -> str:
+        """
+        Representation method that returns a human readable representation of the ``PipelineConfig`` class. 
+        This method is structured to be more concise than the ``__str__`` method and is 
+        intended for debugging purposes.
+
+        Returns 
+        -------
+        str
+            A string representation of the ``PipelineConfig`` class with its attributes.
+        """
+        return (
+            f"PipelineConfig(name={self.name}, stages_to_run={self.stages_to_run}, "
+            f"backend={self.backend}, "
+            f"work_dir={self.work_dir},project_root={self.project_root}, "
+            f"output_dir={self.output_dir},log_dir={self.log_dir},data_dir={self.data_dir}, "
+            f"allow_subprocess_fallback={self.allow_subprocess_fallback}, "
+            f"python_executable={self.python_executable},metadata={self.metadata})"
+        )
 
     @classmethod
     def from_any(
@@ -547,6 +587,47 @@ class RunManifest:
     reason: Optional[str] = None
     user: Optional[str] = None
 
+    def __str__(self) -> str:
+        """
+        String method that returns a human-readable representation of the ``RunManifest``
+        class.
+
+        Returns
+        -------
+        str
+            A string representation of the ``RunManifest`` class with its attributes.
+        """
+
+        return (
+            f"\nRAP Name: {self.rap_name}\nRun ID: {self.run_id} \n"
+            f"Git Commit: {self.git_commit}\nStages Run: {self.stages_run} \n"
+            f"Parameters: \n{_format_dict(self.parameters, indent=4)} \n"
+            f"Inputs: \n{_format_dict(self.inputs, indent=4)} \n"
+            f"Outputs: \n{_format_dict(self.outputs, indent = 4)} \nBackend: {self.backend} \n"
+            f"Package Versions: {self.package_versions} \nTimestamp: {self.timestamp}\n"
+            f"Reason: {self.reason} \nUser: {self.user}\n"
+        )
+
+    def __repr__(self) -> str:
+        """
+        Representation method that returns a human readable representation of the 
+        ``RunManifest`` class. This method is structured to be more concise than 
+        the ``__str__`` method and is intended for debugging purposes.
+
+        Returns 
+        -------
+        str
+            A string representation of the ``RunManifest`` class with its attributes.
+        """
+        return (
+            f"RunManifest(rap_name={self.rap_name}, run_id={self.run_id}, "
+            f"git_commit={self.git_commit}, stages_run={self.stages_run}, "
+            f"parameters={self.parameters}, inputs={self.inputs}, "
+            f"outputs={self.outputs}, backend = {self.backend}, "
+            f"package_versions={self.package_versions}, "
+            f"timestamp={self.timestamp}, reason={self.reason}, user={self.user})"
+        )
+
 
 class RAPDataset:
     def __init__(self):
@@ -670,3 +751,13 @@ class PipelineRun:
         Updates the ``status`` attribute to record that the Pipeline ran successfully. 
         """
         return self.status == PipelineStatus.SUCCEEDED
+
+def _format_dict(d, indent=0):
+            lines = []
+            for key, value in d.items():
+                if isinstance(value, dict):
+                    lines.append(f"{' ' * indent}{key}:")
+                    lines.append(_format_dict(value, indent + 4))
+                else:
+                    lines.append(f"{' ' * indent}{key}: {value}")
+            return "\n".join(lines)

@@ -270,6 +270,12 @@ class PythonStageExecutor:
     def __init__(self, preferred_entrypoints: tuple[str, ...] = PREFERRED_ENTRYPOINTS):
         self.preferred_entrypoints = preferred_entrypoints
 
+    def __str__(self) -> str: 
+        return f"PythonStageExecutor: \n         Preferred Entrypoints: {self.preferred_entrypoints})"
+
+    def __repr__(self) -> str: 
+            return f"PythonStageExecutor(preferred_entrypoints={self.preferred_entrypoints})"
+
     def execute(self, stage: Stage, context: ExecutionContext) -> StageResult:
         """
         Main function to select how ``Stage`` is run.
