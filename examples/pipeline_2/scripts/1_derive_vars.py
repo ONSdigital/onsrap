@@ -64,12 +64,11 @@ def profit_per_order(df):
 
 
 
-def main():
-    df = pd.read_csv("examples/pipeline_2/data/orders_cleaned.csv")
-    delivery_times = {"north":14,
-                      "south":4,
-                      "east":7,
-                      "west":7}
+def main(context=None):
+    config = context.get_stage_config("1_derive_vars")
+    
+    df = pd.read_csv(config["input_location"])
+    delivery_times = config["delivery_times"]
 
     df = correct_date_time(df)
     df = estimate_delivery(df, delivery_times)
@@ -79,7 +78,7 @@ def main():
     df = postage_cost(df)
     df = production_cost(df)
     df = profit_per_order(df)
-    df.to_csv("examples/pipeline_2/data/orders_prepped.csv", index = False)
+    df.to_csv(config["output_location"], index = False)
 
 
 
