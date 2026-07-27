@@ -14,7 +14,7 @@ from .warnings import StageConfigurationWarning, PipelineConfigurationWarning
 from .execution import PythonStageExecutor, StageExecutor
 from .graph import StageGraph
 from .logger import Logger
-from .models import PipelineConfig, StageConfig, PipelineRun, RunManifest, RuntimeID, now
+from .models import GlobalConfig, PipelineConfig, StageConfig, PipelineRun, RunManifest, RuntimeID, now
 from .stage import Stage, _normalize_dependencies
 
 
@@ -628,9 +628,19 @@ class Pipeline:
         This method is the main normalization step for configuration injection. It accepts
         already-constructed config objects, raw mappings, and YAML files, and converts them
         into the three objects the pipeline needs before execution starts.
+
+        Parameters
+        ----------
+        ``config`` : PipelineConfig | Mapping[str, Any] | None
+            The configuration input to resolve into the three objects required for execution.
+
+        Returns
+        -------
+        tuple[PipelineConfig, dict[str, StageConfig], list[Stage], GlobalConfig]
+            The resolved pipeline configuration, stage configurations, configured stages, and global configuration.
         """
         if config is None:
-            return PipelineConfig.from_any(config), {}, []
+            return PipelineConfig.from_any(config), {}, [], GlobalConfig()
 
         if isinstance(config, PipelineConfig):
             stage_configuration = config.metadata.get("stage_configuration", None)
@@ -642,7 +652,14 @@ class Pipeline:
                     "Stage configuration found in PipelineConfig metadata. This is supported for backwards compatibility but a composite config payload is preferred.",
                     StageConfigurationWarning,
                 )
-            return config, self._build_stage_configs(stage_configuration), []
+
+            global_configuration = config.metadata.get("global_config", None)
+            if global_configuration is not None:
+                warnings.warn(
+                    "Global configuration found in PipelineConfig metadata. This is supported for backwards compatibility but a composite config payload is preferred.",
+                    StageConfigurationWarning,
+                )
+            return config, self._build_stage_configs(stage_configuration), [], GlobalConfig.from_dict(global_configuration)
 
         raw_config = self._load_config_mapping(config)
         pipeline_payload, stage_config_payload, global_config_payload = self._split_config_sections(raw_config)
@@ -657,7 +674,9 @@ class Pipeline:
             backend=pipeline_config.backend,
             work_dir=pipeline_config.work_dir,
         )
-        return pipeline_config, stage_configs, configured_stages
+        global_config = GlobalConfig.from_dict(global_config_payload)
+
+        return pipeline_config, stage_configs, configured_stages, global_config
 
 
 

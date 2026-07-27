@@ -546,7 +546,7 @@ class GlobalConfig:
     exclusion: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any], exclusions: dict[str, Any] | None = None) -> GlobalConfig:
+    def from_dict(cls, data: Mapping[str, Any]) -> GlobalConfig:
         """
         Build a ``GlobalConfig`` from a mapping loaded from code or configuration files.
 
@@ -563,6 +563,8 @@ class GlobalConfig:
             A global configuration object.
         """
         payload = dict(data or {})
+
+        exclusions = payload.pop("exclusions", None)
         
         return cls(_variables=payload, 
                    exclusion=exclusions)
