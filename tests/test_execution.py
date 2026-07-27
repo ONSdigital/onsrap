@@ -282,6 +282,11 @@ def test_pythonstageexecutor_setup(pythonstageexecutor) -> None:
 
 
 def test_combine_vars(execution) -> None:
+    """
+    Test that checks that a dictionary is returned, combining values from a global 
+    configuration and a stage configuration whilst removing any stage specific 
+    exclusions. 
+    """
     global_vars = {"global_var1": "value1", "global_var2": "value2"}
     exclusions = {"stage_1": ["global_var2"]}
     stage_vars = {"stage_var1": "value3", "stage_var2": "value4"}
@@ -298,6 +303,10 @@ def test_combine_vars(execution) -> None:
     }
 
 def test_combine_vars_errors(execution) -> None: 
+    """
+    Test that confirms that a warning is raised if there is a variable defined in both 
+    the global and the stage configurations as well as asserting the correct values. 
+    """
     global_vars = {"global_var1": "value1", "global_var2": "value2"}
     exclusions = {"stage_1": ["global_var2"]}
     stage_vars = {"stage_var1": "value3", "global_var1": "value4"}
@@ -317,6 +326,10 @@ def test_combine_vars_errors(execution) -> None:
         }
 
 def test_combine_vars_no_exclusion(execution) -> None:
+    """
+    Test confirming that a dictionary is returned, combining values from a global configuration
+    and a stage configuration when there are no exclusions defined.
+    """
     global_vars = {"global_var1": "value1", "global_var2": "value2"}
     exclusions = {}
     stage_vars = {"stage_var1": "value3", "stage_var2": "value4"}

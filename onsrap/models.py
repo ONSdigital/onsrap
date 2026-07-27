@@ -583,7 +583,8 @@ class GlobalConfig:
         ``self._variables`` : dict[str, Any]
             All global variables for the pipeline.
         ``self.exclusion`` : dict[str, Any]
-            The exclusion list of global variables for each stage.
+            The exclusion list of global variables for each stage. Only returned 
+            if ``keep_exclusion`` is True.
         """
         if keep_exclusion: 
             return self._variables, self.exclusion
