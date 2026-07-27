@@ -429,15 +429,12 @@ class StageConfig:
         The name of the stage that this configuration applies to.
     ``_variables`` : dict[str, Any]
         Arbitrary stage-scoped variables.
-    `_global_variables` : GlobalConfig | None = None
-        Variables that need to be parsed through every stage in the pipeline.
     ``metadata`` : dict[str, Any]
         Additional supporting metadata for the stage configuration.
     """
     # TODO: output location for stages potentially problematic for output overwrites!
     name: str
     _variables: dict[str, Any] = field(default_factory=dict)
-    _all_variables: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -474,7 +471,6 @@ class StageConfig:
         return cls(
             name=str(name).strip(),
             _variables=payload,
-            _all_variables=StageConfig._combine_vars(payload, global_vars),
             metadata=metadata,
         )
 
