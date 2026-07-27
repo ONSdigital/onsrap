@@ -441,7 +441,7 @@ class StageConfig:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_mapping(cls, name: str, data: Mapping[str, Any] | None = None) -> StageConfig:
+    def from_mapping(cls, name: str, data: Mapping[str, Any] | None = None, global_vars: Mapping[str, Any] | None = None) -> StageConfig:
         """
         Build a ``StageConfig`` from a mapping loaded from code or configuration files.
 
@@ -455,6 +455,8 @@ class StageConfig:
             Stage name that this configuration applies to.
         ``data`` : Mapping[str, Any] or None
             Raw configuration payload for that stage.
+        ``global_vars`` : Mapping[str, Any] or None
+            Global variables from config file that need to be parsed to every stage.
 
         Returns
         -------
@@ -463,7 +465,7 @@ class StageConfig:
         """
         payload = dict(data or {})
 
-        globals = GlobalConfig.from_dict(payload.pop("global_variables", {}))
+        globals = GlobalConfig.from_dict(global_vars)
 
         metadata = payload.pop("metadata", {})
         if isinstance(metadata, Mapping):
@@ -535,6 +537,23 @@ class StageConfig:
         if self.metadata:
             data["metadata"] = dict(self.metadata)
         return data
+
+    def combine_vars(self) -> dict[str, Any]:
+        """
+        Combine the stage variables with the global variables, giving precedence to
+        stage variables and raises a warning in case of conflicts.
+        """
+        combined = self._global_variables.variables if self._global_variables else {}
+        conflicts = self._variables.keys() & combined.keys()
+        if conflicts:
+            conflicting = ", ".join(sorted(conflicts))
+            warnings.warn(
+                f"Stage '{self.name}' defines variable(s) that are also defined in global "
+                f"variables: {conflicting}. Stage variables will take precedence.",
+                StageConfigurationError
+            )
+        combined.update(self._variables)
+        return combined
 
 @dataclass
 class GlobalConfig:
