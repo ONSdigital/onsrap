@@ -429,15 +429,15 @@ class StageConfig:
         The name of the stage that this configuration applies to.
     ``_variables`` : dict[str, Any]
         Arbitrary stage-scoped variables.
-    ``datasets`` : dict[str, Any]
-        Optional dataset-related metadata for the stage.
+    `_global_variables` : GlobalConfig | None = None
+        Variables that need to be parsed through every stage in the pipeline.
     ``metadata`` : dict[str, Any]
         Additional supporting metadata for the stage configuration.
     """
     # TODO: output location for stages potentially problematic for output overwrites!
     name: str
     _variables: dict[str, Any] = field(default_factory=dict)
-    datasets: dict[str, Any] = field(default_factory=dict)
+    _global_variables: GlobalConfig | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -463,11 +463,7 @@ class StageConfig:
         """
         payload = dict(data or {})
 
-        datasets = payload.pop("datasets", {})
-        if isinstance(datasets, Mapping):
-            datasets = dict(datasets)
-        else:
-            raise StageConfigurationError("Stage datasets must be provided as a mapping.")
+        globals = GlobalConfig.from_dict(payload.pop("global_variables", {}))
 
         metadata = payload.pop("metadata", {})
         if isinstance(metadata, Mapping):
@@ -478,7 +474,7 @@ class StageConfig:
         return cls(
             name=str(name).strip(),
             _variables=payload,
-            datasets=datasets,
+            _global_variables=globals,
             metadata=metadata,
         )
 
@@ -536,12 +532,45 @@ class StageConfig:
         Serialize the stage configuration back to a mapping suitable for manifests.
         """
         data = dict(self._variables)
-        if self.datasets:
-            data["datasets"] = dict(self.datasets)
         if self.metadata:
             data["metadata"] = dict(self.metadata)
         return data
 
+@dataclass
+class GlobalConfig:
+    """
+    Holds configuration that should be exposed to all stages at runtime.
+
+    Parameters
+    ----------
+    ``_variables`` : dict[str, Any]
+        Variables that should be parsed to all stages throughout the pipeline.
+    """
+    _variables: dict[str, Any] = field(default_factory=dict)
+
+    def from_dict(cls, data: Mapping[str, Any]) -> GlobalConfig:
+        """
+        Build a ``GlobalConfig`` from a mapping loaded from code or configuration files.
+
+        Parameters
+        ----------
+        ``data`` : Mapping[str, Any]
+            Raw configuration payload for the global configuration.
+
+        Returns
+        -------
+        ``GlobalConfig``
+            A normalized global configuration object.
+        """
+        payload = dict(data or {})
+        return cls(_variables=payload)
+
+    @property
+    def variables(self) -> dict[str, Any]:
+        """
+        Return a copy of the global variables.
+        """
+        return dict(self._variables)
 
 @dataclass
 class RunManifest:
