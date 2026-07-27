@@ -110,6 +110,7 @@ class PipelineRunner:
             started_at=started_at,
             working_directory=pipeline.config.work_dir,
             stage_configs=dict(pipeline.stage_configs),
+            global_config=pipeline.global_config,
         )
 
         # Ensure the stages are in order and create a manifest that explains the run.

@@ -95,7 +95,6 @@ class Pipeline:
         if dependencies is not None:
             self._assign_dependencies(dependencies, self.stages)
 
-        #TODO: This is assigned but doesn't have an attribute. Is that an issue?
         self.stage_configs = dict(resolved_stage_configs)
         self.global_configs = dict(resolved_global_config)
         
