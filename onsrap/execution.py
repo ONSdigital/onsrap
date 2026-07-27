@@ -47,6 +47,8 @@ class ExecutionContext:
         Stores relevant variables regarding the stage run and their results.
     ``active_stage_name`` : str or None, default = None
         Name of the stage currently being executed. Used to expose ``stage_config``.
+    ``global_config`` : ``GlobalConfig`` or None, default = None
+        Variables which are parsed to all stages throughout the pipeline.
     """
     pipeline_name: str
     run_id: str
@@ -57,9 +59,9 @@ class ExecutionContext:
     working_directory: Path = field(default_factory=Path.cwd)
     stage_results: dict[str, StageResult] = field(default_factory=dict)
     stage_configs: dict[str, StageConfig] = field(default_factory=dict)
-    global_config: GlobalConfig | None = None
     variables: dict[str, Any] = field(default_factory=dict)
     active_stage_name: str | None = None
+    global_config: GlobalConfig | None = None
 
     def record(self, result: StageResult) -> StageResult:
         """

@@ -57,7 +57,7 @@ class Pipeline:
         executor: StageExecutor | None = None,
     ):
         # if config is not None:
-        resolved_config, resolved_stage_configs, configured_stages = self._resolve_config(config)
+        resolved_config, resolved_stage_configs, configured_stages, resolved_global_config = self._resolve_config(config)
 
         self.name = name or resolved_config.name or "pipeline"
         self.backend = backend or resolved_config.backend or "python"
@@ -95,9 +95,11 @@ class Pipeline:
         if dependencies is not None:
             self._assign_dependencies(dependencies, self.stages)
 
+        #TODO: This is assigned but doesn't have an attribute. Is that an issue?
         self.stage_configs = dict(resolved_stage_configs)
+        self.global_configs = dict(resolved_global_config)
+        
         self._sync_stage_configs()
-
         self._rebuild_graph()
         self.id: RuntimeID | None = None
         self.manifest: RunManifest | None = None
@@ -349,70 +351,6 @@ class Pipeline:
         self.graph.validate()
         return self
     
-    def create_stage_config(
-        self,
-        s_config: Mapping[str, Any] | str | Path,
-        *,
-        name: str | None = None,
-    ) -> StageConfig:
-        """
-        Create a ``StageConfig`` from direct data, a stage-name keyed mapping, or a config file.
-
-        Parameters
-        ----------
-        ``s_config`` : Mapping[str, Any] | str | Path
-            Either a single stage payload, a mapping keyed by stage name, or a config file.
-            Config files may contain a top-level ``stage_configuration`` section or may consist
-            solely of stage-name keyed configuration entries.
-        ``name`` : str or None, keyword-only
-            Stage name to extract when the input contains more than one stage configuration.
-
-        Returns
-        -------
-        ``StageConfig``
-            The normalized stage configuration for the requested stage.
-
-        Raises
-        ------
-        ``StageConfigurationError``
-            If the input cannot be resolved to exactly one stage configuration.
-        """
-        # TODO: Comment the logical sections here for better readability
-        if isinstance(s_config, Mapping):
-            if "pipeline_variables" in s_config or "stage_configuration" in s_config or "stage_config" in s_config:
-                _, stage_config_payload = self._split_config_sections(s_config)
-                stage_configs = self._build_stage_configs(stage_config_payload)
-            elif name is not None and name in s_config and isinstance(s_config[name], Mapping):
-                stage_configs = self._build_stage_configs(s_config)
-            else:
-                if name is None:
-                    if len(s_config) != 1:
-                        raise StageConfigurationError(
-                            "A stage configuration mapping must include exactly one stage when no name is provided."
-                        )
-                    name, stage_payload = next(iter(s_config.items()))
-                else:
-                    stage_payload = s_config
-
-                if not isinstance(stage_payload, Mapping):
-                    raise StageConfigurationError("Stage configuration values must be provided as a mapping.")
-
-                return StageConfig.from_mapping(str(name), stage_payload)
-
-            return self._select_stage_config(stage_configs, name=name)
-
-        raw_payload = self._load_config_mapping(s_config)
-        if "pipeline_variables" in raw_payload or "stage_configuration" in raw_payload or "stage_config" in raw_payload:
-            _, stage_config_payload = self._split_config_sections(raw_payload)
-            stage_configs = self._build_stage_configs(stage_config_payload)
-        elif all(isinstance(value, Mapping) for value in raw_payload.values()):
-            stage_configs = self._build_stage_configs(raw_payload)
-        else:
-            raise StageConfigurationError(
-                "Config files passed to create_stage_config must define a stage-configuration section or a mapping of stage names to configuration mappings."
-            )
-
-        return self._select_stage_config(stage_configs, name=name)
 
     def run(self) -> PipelineRun:
         """
@@ -708,7 +646,7 @@ class Pipeline:
             return config, self._build_stage_configs(stage_configuration), []
 
         raw_config = self._load_config_mapping(config)
-        pipeline_payload, stage_config_payload = self._split_config_sections(raw_config)
+        pipeline_payload, stage_config_payload, global_config_payload = self._split_config_sections(raw_config)
         normalized_pipeline_payload = self._normalize_pipeline_payload(pipeline_payload)
 
         stage_definitions = normalized_pipeline_payload.pop("stages", ())
@@ -1125,39 +1063,49 @@ class Pipeline:
             Contents of the pipeline configuration settings defined in the configuration file. 
         ``stage_payload``: Mapping[str, Any] | None
             Contents of the stage configuration settings defined in the configuration file. 
+        ``global_payload``: Mapping[str, Any] | None
+            Contents of the global configuration settings defined in the configuration file.
 
         Raises
         ------
         ``PipelineConfigurationWarning`` 
-            If blank values for pipeline_payload or stage_payload are detected. 
+            If blank values for pipeline_payload or global_payload are detected. 
             If there are remaining keys in the ``raw_config`` that have not been extracted. 
 
+        ``StageConfigurationWarning``
+            If blank values for stage_payload are detected.
+
         ``PipelineConfigurationError`` 
-            If the pipeline_payload or stage_payload are not mapping types. 
+            If the pipeline_payload, global_payload or stage_payload are not mapping types. 
         """
         possible_stage_keys = ("stage_configuration", "stage_config")
         possible_pipeline_keys = ("pipeline_variables","pipeline_config")
-        stage_configuration = Pipeline._extract_keys(possible_stage_keys, raw_config)
-        pipeline_configuration = Pipeline._extract_keys(possible_pipeline_keys, raw_config)
+        possible_global_keys = ("global_configuration", "global_config")
 
-        pipeline_payload = raw_config.get(pipeline_configuration,{})
-        if pipeline_payload is None: 
-            warnings.warn("Blank pipeline configuration detected. Please check that this is correct.", PipelineConfigurationWarning) 
+        stage_payload, stage_configuration = Pipeline._extract_mappings(possible_stage_keys, raw_config, StageConfigurationWarning)
+        pipeline_payload, pipeline_configuration = Pipeline._extract_mappings(possible_pipeline_keys, raw_config, PipelineConfigurationWarning)
+        global_payload, global_configuration = Pipeline._extract_mappings(possible_global_keys, raw_config, PipelineConfigurationWarning)
 
-        stage_payload = raw_config.get(stage_configuration,{})
-        if stage_payload is None: 
-            warnings.warn("Blank stage configuration detected. Please check that this is correct.", StageConfigurationWarning) 
-
-        remaining_keys = set(raw_config) - {pipeline_configuration, stage_configuration}
+        remaining_keys = set(raw_config) - {pipeline_configuration, stage_configuration, global_configuration}
         if remaining_keys:
             warnings.warn("There are remaining sections in your configuration file that have not been extracted. Please check that all your configurations are in the pipeline or stage configuration keys.", 
             PipelineConfigurationWarning)
 
-        if not isinstance(pipeline_payload, Mapping):
-            raise PipelineConfigurationError(f"The {pipeline_configuration} section must be a mapping.")
-        if not isinstance(stage_payload, Mapping):
-            raise PipelineConfigurationError(f"The {stage_configuration} section must be a mapping.")
-        return pipeline_payload, stage_payload
+        return pipeline_payload, stage_payload, global_payload
+
+    @staticmethod
+    def _extract_mappings(keys: tuple[str,...],
+                          config: Mapping[str, Any],
+                          warning: PipelineConfigurationWarning | StageConfigurationWarning) -> tuple[dict[str, Any], str]:
+
+        configuration = Pipeline._extract_keys(keys, config)
+        payload = config.get(configuration,{})
+        if payload is None: 
+            warnings.warn(f"Blank {configuration} configuration detected. Please check that this is correct.", warning)
+        if not isinstance(payload, Mapping):
+            raise PipelineConfigurationError(f"The {configuration} section must be a mapping.")
+        return payload, configuration
+
 
     @staticmethod
     def _extract_keys(possible_keys: tuple[str, ...],
