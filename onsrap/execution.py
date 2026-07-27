@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any, Protocol, TYPE_CHECKING
 import warnings
 
+from onsrap.warnings import StageConfigurationWarning
+
 from .errors import StageConfigurationError, StageExecutionError, StageLoadError, PipelineConfigurationError
 from .loader import PREFERRED_ENTRYPOINTS, discover_python_entrypoint, load_python_callable
 from .logger import Logger
@@ -283,14 +285,15 @@ class ExecutionContext:
 
         Raises
         ------
-        ``StageConfigurationError``
+        ``StageConfigurationWarning``
             If there are conflicting variables between the global and stage configuration,
             a warning is raised to alert the user that the stage configuration will take
             precedence.
         """
         #Extracts variables from global config without exclusion lookup
-        global_vars, exclusions = self.global_config.get_attributes() if self.global_config else {}
-        stage_exclusions = dict(exclusions[self.active_stage_name])
+        global_vars, exclusions = self.global_config.get_attributes() if self.global_config else ({}, {})
+        stage_exclusions_extract = exclusions.get(self.active_stage_name, [])
+        stage_exclusions = [exclusion for exclusion in stage_exclusions_extract]
 
         combined = {k: v for k, v in global_vars.items() if k not in stage_exclusions}
 
@@ -303,7 +306,7 @@ class ExecutionContext:
             warnings.warn(
                 f"Stage defines variable(s) that are also defined in global "
                 f"variables: {conflicting}. Stage variables will take precedence.",
-                StageConfigurationError
+                StageConfigurationWarning
             )
         combined.update(stage_vars)
         return combined

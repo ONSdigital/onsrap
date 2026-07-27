@@ -1,10 +1,11 @@
 from onsrap.execution import ExecutionContext, PythonStageExecutor
-from onsrap.models import PipelineConfig, StageConfig, StageResult, StageStatus
+from onsrap.models import GlobalConfig, PipelineConfig, StageConfig, StageResult, StageStatus
 from onsrap.logger import Logger
 from pathlib import Path
 import pytest
 import onsrap.execution as execution_module
 from onsrap.errors import PipelineConfigurationError
+from onsrap.warnings import StageConfigurationWarning
 
 @pytest.fixture
 def logger() -> Logger:
@@ -279,6 +280,58 @@ def pythonstageexecutor() -> PythonStageExecutor:
 def test_pythonstageexecutor_setup(pythonstageexecutor) -> None: 
     assert pythonstageexecutor.preferred_entrypoints == ("main.py","run.py")
 
+
+def test_combine_vars(execution) -> None:
+    global_vars = {"global_var1": "value1", "global_var2": "value2"}
+    exclusions = {"stage_1": ["global_var2"]}
+    stage_vars = {"stage_var1": "value3", "stage_var2": "value4"}
+    execution.global_config = GlobalConfig(_variables=global_vars, exclusion=exclusions)
+    execution.stage_configs = {
+        "stage_1": StageConfig(name="stage_1", _variables=stage_vars),
+    }
+    execution.active_stage_name = "stage_1"
+    combined_vars = execution._combine_vars()
+    assert combined_vars == {
+        "stage_var1": "value3",
+        "stage_var2": "value4",
+        "global_var1": "value1"
+    }
+
+def test_combine_vars_errors(execution) -> None: 
+    global_vars = {"global_var1": "value1", "global_var2": "value2"}
+    exclusions = {"stage_1": ["global_var2"]}
+    stage_vars = {"stage_var1": "value3", "global_var1": "value4"}
+    execution.global_config = GlobalConfig(_variables=global_vars, exclusion=exclusions)
+    execution.stage_configs = {
+        "stage_1": StageConfig(name="stage_1", _variables=stage_vars),
+    }
+    execution.active_stage_name = "stage_1"
+
+    with pytest.warns(StageConfigurationWarning, 
+                      match="Stage defines variable\\(s\\) that are also defined in global "
+                            "variables: global_var1\\. Stage variables will take precedence."):
+         combined_vars = execution._combine_vars()
+         assert combined_vars == {
+            "stage_var1": "value3",
+            "global_var1": "value4"
+        }
+
+def test_combine_vars_no_exclusion(execution) -> None:
+    global_vars = {"global_var1": "value1", "global_var2": "value2"}
+    exclusions = {}
+    stage_vars = {"stage_var1": "value3", "stage_var2": "value4"}
+    execution.global_config = GlobalConfig(_variables=global_vars, exclusion=exclusions)
+    execution.stage_configs = {
+        "stage_1": StageConfig(name="stage_1", _variables=stage_vars),
+    }
+    execution.active_stage_name = "stage_1"
+    combined_vars = execution._combine_vars()
+    assert combined_vars == {
+        "stage_var1": "value3",
+        "stage_var2": "value4",
+        "global_var1": "value1",
+        "global_var2": "value2"
+    }
 """CONTINUE FROM EXECUTE CLASS METHOD"""
 @pytest.fixture
 def stage_config() -> StageConfig:
