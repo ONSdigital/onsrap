@@ -437,7 +437,7 @@ class StageConfig:
     # TODO: output location for stages potentially problematic for output overwrites!
     name: str
     _variables: dict[str, Any] = field(default_factory=dict)
-    _global_variables: GlobalConfig | None = None
+    _all_variables: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -465,8 +465,6 @@ class StageConfig:
         """
         payload = dict(data or {})
 
-        globals = GlobalConfig.from_dict(global_vars)
-
         metadata = payload.pop("metadata", {})
         if isinstance(metadata, Mapping):
             metadata = dict(metadata)
@@ -476,7 +474,7 @@ class StageConfig:
         return cls(
             name=str(name).strip(),
             _variables=payload,
-            _global_variables=globals,
+            _all_variables=StageConfig._combine_vars(payload, global_vars),
             metadata=metadata,
         )
 
@@ -538,21 +536,19 @@ class StageConfig:
             data["metadata"] = dict(self.metadata)
         return data
 
-    def combine_vars(self) -> dict[str, Any]:
-        """
-        Combine the stage variables with the global variables, giving precedence to
-        stage variables and raises a warning in case of conflicts.
-        """
-        combined = self._global_variables.variables if self._global_variables else {}
-        conflicts = self._variables.keys() & combined.keys()
+#TODO: Add method to remove variables from global variables that are not needed based on stage. 
+    @staticmethod
+    def _combine_vars(stage_vars: dict[str, Any], global_vars: dict[str, Any] | None) -> dict[str, Any]:
+        combined = dict(global_vars or {})
+        conflicts = stage_vars.keys() & combined.keys()
         if conflicts:
             conflicting = ", ".join(sorted(conflicts))
             warnings.warn(
-                f"Stage '{self.name}' defines variable(s) that are also defined in global "
+                f"Stage defines variable(s) that are also defined in global "
                 f"variables: {conflicting}. Stage variables will take precedence.",
                 StageConfigurationError
             )
-        combined.update(self._variables)
+        combined.update(stage_vars)
         return combined
 
 @dataclass
@@ -579,17 +575,11 @@ class GlobalConfig:
         Returns
         -------
         ``GlobalConfig``
-            A normalized global configuration object.
+            A global configuration object.
         """
         payload = dict(data or {})
         return cls(_variables=payload)
 
-    @property
-    def variables(self) -> dict[str, Any]:
-        """
-        Return a copy of the global variables.
-        """
-        return dict(self._variables)
 
 @dataclass
 class RunManifest:
