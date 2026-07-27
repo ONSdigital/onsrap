@@ -562,8 +562,10 @@ class GlobalConfig:
         Variables that should be parsed to all stages throughout the pipeline.
     """
     _variables: dict[str, Any] = field(default_factory=dict)
+    exclusion: dict[str, Any] = field(default_factory=dict)
 
-    def from_dict(cls, data: Mapping[str, Any]) -> GlobalConfig:
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any], exclusions: dict[str, Any] | None = None) -> GlobalConfig:
         """
         Build a ``GlobalConfig`` from a mapping loaded from code or configuration files.
 
@@ -571,6 +573,8 @@ class GlobalConfig:
         ----------
         ``data`` : Mapping[str, Any]
             Raw configuration payload for the global configuration.
+        ``exclusions`` : dict[str, Any] or None
+            A lookup of which global variables should be excluded from each stage. 
 
         Returns
         -------
@@ -578,7 +582,32 @@ class GlobalConfig:
             A global configuration object.
         """
         payload = dict(data or {})
-        return cls(_variables=payload)
+        
+        return cls(_variables=payload, 
+                   exclusion=exclusions)
+
+    def get_attributes(self, keep_exclusion: bool = True) -> dict[str, Any]:
+        """
+        Return a copy of the global variables, optionally excluding any variables
+        specified in the exclusion list.
+
+        Parameters
+        ----------
+        ``keep_exclusion`` : bool, default = True
+            If True, return both _variables and exclusion.
+            If False, return only the variables and not the exclusion list.
+
+        Returns
+        -------
+        ``self._variables`` : dict[str, Any]
+            All global variables for the pipeline.
+        ``self.exclusion`` : dict[str, Any]
+            The exclusion list of global variables for each stage.
+        """
+        if keep_exclusion: 
+            return self._variables, self.exclusion
+        else:
+            return self._variables
 
 
 @dataclass
