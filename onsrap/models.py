@@ -536,21 +536,6 @@ class StageConfig:
             data["metadata"] = dict(self.metadata)
         return data
 
-#TODO: Add method to remove variables from global variables that are not needed based on stage. 
-    @staticmethod
-    def _combine_vars(stage_vars: dict[str, Any], global_vars: dict[str, Any] | None) -> dict[str, Any]:
-        combined = dict(global_vars or {})
-        conflicts = stage_vars.keys() & combined.keys()
-        if conflicts:
-            conflicting = ", ".join(sorted(conflicts))
-            warnings.warn(
-                f"Stage defines variable(s) that are also defined in global "
-                f"variables: {conflicting}. Stage variables will take precedence.",
-                StageConfigurationError
-            )
-        combined.update(stage_vars)
-        return combined
-
 @dataclass
 class GlobalConfig:
     """

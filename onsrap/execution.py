@@ -7,11 +7,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol, TYPE_CHECKING
+import warnings
 
-from .errors import StageExecutionError, StageLoadError, PipelineConfigurationError
+from .errors import StageConfigurationError, StageExecutionError, StageLoadError, PipelineConfigurationError
 from .loader import PREFERRED_ENTRYPOINTS, discover_python_entrypoint, load_python_callable
 from .logger import Logger
-from .models import PipelineConfig, StageConfig, StageResult, StageStatus, now
+from .models import GlobalConfig, PipelineConfig, StageConfig, StageResult, StageStatus, now
 
 if TYPE_CHECKING:
     from .stage import Stage
@@ -56,6 +57,7 @@ class ExecutionContext:
     working_directory: Path = field(default_factory=Path.cwd)
     stage_results: dict[str, StageResult] = field(default_factory=dict)
     stage_configs: dict[str, StageConfig] = field(default_factory=dict)
+    global_config: GlobalConfig | None = None
     variables: dict[str, Any] = field(default_factory=dict)
     active_stage_name: str | None = None
 
@@ -258,6 +260,51 @@ class ExecutionContext:
         if file_name is not None:    
             return root / file_name
         return root
+
+    def _combine_vars(self) -> dict[str, Any]:
+        """
+        Private method that combines the global variables and the stage 
+        variables for the current stage. 
+
+        Global variables are extracted from the ``global_config`` attribute 
+        and any variables which are marked as to be excluded from the exclusion
+        attribute are removed. The global variables are then combined with the stage
+        specific variables and returned as a dictionary. Conflicts raise a warning
+        to alert the user that the stage configuration definition will be used as a 
+        priority. 
+
+        Returns
+        -------
+        ``combined``: dict[str, Any]
+            A dictionary of all variables required for the stage that are sourced 
+            through the configuration. 
+
+        Raises
+        ------
+        ``StageConfigurationError``
+            If there are conflicting variables between the global and stage configuration,
+            a warning is raised to alert the user that the stage configuration will take
+            precedence.
+        """
+        #Extracts variables from global config without exclusion lookup
+        global_vars, exclusions = self.global_config.get_attributes() if self.global_config else {}
+        stage_exclusions = dict(exclusions[self.active_stage_name])
+
+        combined = {k: v for k, v in global_vars.items() if k not in stage_exclusions}
+
+        stage_config = self.stage_config_for(self.active_stage_name)
+        stage_vars = stage_config.variables
+        
+        conflicts = stage_vars.keys() & combined.keys()
+        if conflicts:
+            conflicting = ", ".join(sorted(conflicts))
+            warnings.warn(
+                f"Stage defines variable(s) that are also defined in global "
+                f"variables: {conflicting}. Stage variables will take precedence.",
+                StageConfigurationError
+            )
+        combined.update(stage_vars)
+        return combined
         
 
 
