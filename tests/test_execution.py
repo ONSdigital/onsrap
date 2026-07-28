@@ -176,6 +176,23 @@ def test_resolve_output_root(execution) -> None:
     with pytest.raises(PipelineConfigurationError): 
         execution_blank_config.resolve_output_root()
 
+def test_stage_config_accessors_return_named_and_active_configs(config, logger) -> None:
+    stage_config = StageConfig(name="stage_test", _variables={"years_to_run": 2017})
+    context = ExecutionContext(
+        "test_pipeline",
+        "run_id_1234",
+        config,
+        logger,
+        Path("tmp/run"),
+        stage_configs={"stage_test": stage_config},
+        active_stage_name="stage_test",
+    )
+
+    assert context.stage_config_for("stage_test") == stage_config
+    assert context.get_stage_config("stage_test") == {"years_to_run": 2017}
+    assert context.get_stage_config() == {"years_to_run": 2017}
+    assert context.get_stage_config(vars_only=False) == stage_config
+
 """
 Parameters for testing multiple add_folder options in 
 test_resolve_given_path_add_folders function.

@@ -113,21 +113,22 @@ class ExecutionContext:
 
         This property is ``None`` outside an active stage run.
         """
-        if self.active_stage_name is None:
-            return None
         return self.stage_config_for(self.active_stage_name)
 
-    def stage_config_for(self, stage_name: str) -> StageConfig | None:
+    def stage_config_for(self, stage_name: str | None) -> StageConfig | None:
         """
-        Return the configuration for the stage identified by ``stage_name``.
+        Return the configuration registered for ``stage_name``.
 
-        Returns ``None`` if no configuration has been registered for that stage.
+        Unlike ``stage_config``, this helper does not depend on the currently
+        active stage and can be used to inspect any known stage configuration.
 
         Parameters
         ----------
-        ``stage_name`` : str
+        ``stage_name`` : str or None
             Name of the stage whose configuration should be returned.
         """
+        if stage_name is None:
+            return None
         return self.stage_configs.get(stage_name)
 
     @property
@@ -176,7 +177,7 @@ class ExecutionContext:
         raise PipelineConfigurationError("Please parse a run directory to " \
         "the ExecutionContext.")
 
-    def get_stage_config(self, vars_only: bool = True) -> dict[str, Any] | StageConfig:
+    def get_stage_config(self, stage: str | None = None, vars_only: bool = True) -> dict[str, Any] | StageConfig | None:
         """
         Returns the configuration for the stage currently being executed, with optional arguments.
 
@@ -194,13 +195,13 @@ class ExecutionContext:
         
         Returns
         -------
-        dict[str, Any] or StageConfig
+        dict[str, Any] or StageConfig or None
             The parameters contained within the configuration for the currently active stage. 
             If ``vars_only`` is set to False, returns the StageConfig object itself, containing all attributes including variables, metadata, and dataframes.
         """
-        stage_config = self.stage_config
+        stage_config = self.stage_config_for(stage) if stage is not None else self.stage_config
         if stage_config is None:
-            return {}
+            return {} if vars_only else None
         if vars_only:
             return stage_config.variables
         return stage_config
