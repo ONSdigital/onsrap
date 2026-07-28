@@ -438,7 +438,7 @@ class StageConfig:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_mapping(cls, name: str, data: Mapping[str, Any] | None = None, global_vars: Mapping[str, Any] | None = None) -> StageConfig:
+    def from_mapping(cls, name: str, data: Mapping[str, Any] | None = None) -> StageConfig:
         """
         Build a ``StageConfig`` from a mapping loaded from code or configuration files.
 
@@ -452,8 +452,7 @@ class StageConfig:
             Stage name that this configuration applies to.
         ``data`` : Mapping[str, Any] or None
             Raw configuration payload for that stage.
-        ``global_vars`` : Mapping[str, Any] or None
-            Global variables from config file that need to be parsed to every stage.
+        # Removed global_vars parameter
 
         Returns
         -------
@@ -546,13 +545,13 @@ class GlobalConfig:
     exclusion: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> GlobalConfig:
+    def from_dict(cls, data: Mapping[str, Any] | None) -> GlobalConfig:
         """
         Build a ``GlobalConfig`` from a mapping loaded from code or configuration files.
 
         Parameters
         ----------
-        ``data`` : Mapping[str, Any]
+        ``data`` : Mapping[str, Any] | None
             Raw configuration payload for the global configuration.
         ``exclusions`` : dict[str, Any] or None
             A lookup of which global variables should be excluded from each stage. 
@@ -562,6 +561,9 @@ class GlobalConfig:
         ``GlobalConfig``
             A global configuration object.
         """
+        if data is None:
+            return cls()
+        
         payload = dict(data or {})
 
         exclusions = payload.pop("exclusions", None)
