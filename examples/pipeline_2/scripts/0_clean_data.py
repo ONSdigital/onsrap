@@ -1,4 +1,5 @@
 import pandas as pd
+from onsrap import ExecutionContext
 
 
 def check_variables(df, expected_variables):
@@ -32,27 +33,20 @@ def standardise_columns(df):
 
 
 
-def main():
-    orders = pd.read_csv("examples/pipeline_2/data/orders.csv")
+def main(context=None):
+    config = context.get_stage_config("0_clean_data")
+    print(config)
 
-    expected_variables = ["order_id",
-                      "customer_name",
-                      "region",
-                      "product",
-                      "quantity",
-                      "unit_price",
-                      "order_date",
-                      "order_method"]
+    orders = pd.read_csv(config["input_location"])
 
-    identifiable_cols = ["customer_name",
-                         "age",
-                         "dob",
-                         "address"]
+    expected_variables = config["expected_variables"]
+    identifiable_cols = config["identifiable_cols"]
     
-    check_variables(orders,expected_variables)
+    check_variables(orders, expected_variables)
     print(orders.dtypes)
     orders = remove_identifiable(orders, identifiable_cols)
     orders = standardise_columns(orders)
-    orders.to_csv("examples/pipeline_2/data/orders_cleaned.csv", index = False)
+    orders.to_csv(config["output_location"], index = False)
 
-main()
+if __name__ == "__main__":
+    main()

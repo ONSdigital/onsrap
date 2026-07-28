@@ -5,11 +5,15 @@ from textwrap import dedent
 
 import pytest
 import yaml
+import subprocess
+import sys
 
 from onsrap.errors import StageConfigurationError
 from onsrap.graph import StageGraph
 from onsrap.pipeline import Pipeline
 from onsrap.stage import Stage
+from onsrap.warnings import PipelineConfigurationWarning, StageConfigurationWarning
+
 
 
 def test_pipeline_from_files_executes_python_entrypoints(tmp_path: Path) -> None:
@@ -37,17 +41,21 @@ def test_pipeline_from_files_executes_python_entrypoints(tmp_path: Path) -> None
         encoding="utf-8",
     )
 
-    pipeline = Pipeline.from_files(
-        [first_stage, second_stage],
-        dependencies={"second_stage": ("first_stage",)},
-        config={"pipeline_config":{"work_dir": tmp_path,
-                                    "project_root": tmp_path,
-                                    "log_dir": tmp_path / "logs"},
-                "stage_configuration": {}
-        },
-    )
+    with pytest.warns(PipelineConfigurationWarning,
+                      match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline.from_files(
+            [first_stage, second_stage],
+            dependencies={"second_stage": ("first_stage",)},
+            config={"pipeline_config":{"work_dir": tmp_path,
+                                        "project_root": tmp_path,
+                                        "log_dir": tmp_path / "logs"},
+                    "stage_configuration": {}
+            },
+        )
 
-    run = pipeline.run()
+    with pytest.warns(StageConfigurationWarning, 
+                      match = "Output directory is not specified. Using project root or work directory as the run output."):
+        run = pipeline.run()
 
     assert run.succeeded is True
     assert [result.name for result in run.stage_results] == ["first_stage", "second_stage"]
@@ -71,17 +79,23 @@ def test_pipeline_uses_run_specific_output_directory(tmp_path: Path) -> None:
         + "\n",
         encoding="utf-8",
     )
+    with pytest.warns(PipelineConfigurationWarning,
+                      match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline.from_files(
+            [writer_stage],
+            config={"pipeline_config":{"work_dir": tmp_path,
+                                        "project_root": tmp_path,
+                                        "log_dir": tmp_path / "logs"},
+                    "stage_configuration": {}},
+        )
 
-    pipeline = Pipeline.from_files(
-        [writer_stage],
-        config={"pipeline_config":{"work_dir": tmp_path,
-                                    "project_root": tmp_path,
-                                    "log_dir": tmp_path / "logs"},
-                "stage_configuration": {}},
-    )
+    with pytest.warns(StageConfigurationWarning, 
+                      match = "Output directory is not specified. Using project root or work directory as the run output."):
 
-    first_run = pipeline.run()
-    second_run = pipeline.run()
+        #TODO: This warning functions however from the name of the test, I would assume that the output
+        #directory has been set so this needs to be reviewed.
+        first_run = pipeline.run()
+        second_run = pipeline.run()
 
     first_output = Path(first_run.stage_outputs["writer_stage"]["output_path"])
     second_output = Path(second_run.stage_outputs["writer_stage"]["output_path"])
@@ -98,15 +112,20 @@ def test_pipeline_falls_back_to_subprocess_for_plain_python_scripts(tmp_path: Pa
     script_stage = tmp_path / "script_stage.py"
     script_stage.write_text("print('script fallback works')\n", encoding="utf-8")
 
-    pipeline = Pipeline.from_files(
-        [script_stage],
-        name="script-pipeline",
-        config={"pipeline_config":{"work_dir": tmp_path,
-                                    "project_root": tmp_path,
-                                    "log_dir": tmp_path / "logs"},
-                "stage_configuration": {}},
-    )
-    run = pipeline.run()
+    with pytest.warns(PipelineConfigurationWarning,
+                      match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline.from_files(
+            [script_stage],
+            name="script-pipeline",
+            config={"pipeline_config":{"work_dir": tmp_path,
+                                        "project_root": tmp_path,
+                                        "log_dir": tmp_path / "logs"},
+                    "stage_configuration": {}},
+        )
+
+    with pytest.warns(StageConfigurationWarning, 
+                      match = "Output directory is not specified. Using project root or work directory as the run output."):        
+        run = pipeline.run()
 
     assert run.stage_results[0].outputs.strip() == "script fallback works"
     assert run.stage_results[0].stdout.strip() == "script fallback works"
@@ -172,15 +191,16 @@ def test_pipeline_from_config_builds_stages_and_injects_stage_config(tmp_path: P
         encoding="utf-8",
     )
 
-    pipeline = Pipeline.from_config(config_file)
-
-    #TODO: Fix above line of code. _split_config method is running twice when runs through from_config as it is called 
-    #as part of the __init__ and part of the from_dict() that from_config() calls. Need to review how to normalise.
+    with pytest.warns(PipelineConfigurationWarning,
+                      match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline.from_config(config_file)
 
     assert [stage.name for stage in pipeline.stages] == ["0_data_validation"]
     assert pipeline.stage_configs["0_data_validation"].get("years_to_run") == 2017
 
-    run = pipeline.run()
+    with pytest.warns(StageConfigurationWarning, 
+                      match = "Output directory is not specified. Using project root or work directory as the run output."):
+        run = pipeline.run()
 
     assert run.stage_outputs["0_data_validation"] == {
         "stage_name": "0_data_validation",
@@ -202,16 +222,18 @@ def test_pipeline_rejects_unknown_stage_configuration(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    pipeline = Pipeline.from_files(
-        [stage_file],
-        config={"pipeline_config":{"work_dir": tmp_path,
-                                    "project_root": tmp_path,
-                                    "log_dir": tmp_path / "logs"},
-            "stage_configuration": {
-                "missing_stage": {"years_to_run": 2017},
+    with pytest.warns(PipelineConfigurationWarning,
+                      match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline.from_files(
+            [stage_file],
+            config={"pipeline_config":{"work_dir": tmp_path,
+                                        "project_root": tmp_path,
+                                        "log_dir": tmp_path / "logs"},
+                "stage_configuration": {
+                    "missing_stage": {"years_to_run": 2017},
+                },
             },
-        },
-    )
+        )
 
     with pytest.raises(StageConfigurationError, match="unknown stages"):
         pipeline.validate()
@@ -286,7 +308,9 @@ def test_pipeline_from_config_parses_stage_configuration_payloads(tmp_path: Path
     config_file = tmp_path / "conf.yaml"
     config_file.write_text(yaml.safe_dump(config_payload, sort_keys=False), encoding="utf-8")
 
-    pipeline = Pipeline.from_config(config_file)
+    with pytest.warns(PipelineConfigurationWarning,
+                      match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline.from_config(config_file)
 
     assert pipeline.name == "parse-test"
     assert pipeline.config.work_dir == tmp_path
@@ -370,12 +394,16 @@ def test_pipeline_from_config_scales_stage_configuration_to_many_stages(tmp_path
         encoding="utf-8",
     )
 
-    pipeline = Pipeline.from_config(config_file)
+    with pytest.warns(PipelineConfigurationWarning,
+                      match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline.from_config(config_file)
 
     assert [stage.name for stage in pipeline.stages] == stage_names
     assert sorted(pipeline.stage_configs) == stage_names
 
-    run = pipeline.run()
+    with pytest.warns(StageConfigurationWarning, 
+                      match = "Output directory is not specified. Using project root or work directory as the run output."):
+        run = pipeline.run()
 
     assert run.manifest.stages_run == stage_names
     assert sorted(run.manifest.parameters["stage_configuration"]) == stage_names
@@ -389,3 +417,27 @@ def test_pipeline_from_config_scales_stage_configuration_to_many_stages(tmp_path
         assert output["known_stage_configs"] == stage_names
         expected_previous = None if index == 0 else index - 1
         assert output["previous_ordinal"] == expected_previous
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+MAIN_SCRIPTS = [
+    REPO_ROOT / "examples" / "pipeline_1" / "main.py",
+    REPO_ROOT / "examples" / "pipeline_2" / "main.py",
+]
+
+@pytest.mark.parametrize("script_path", MAIN_SCRIPTS, ids=lambda p: p.parent.name)
+def test_example_main_scripts_run_successfully(script_path: Path) -> None:
+    result = subprocess.run(
+        [sys.executable, str(script_path)],
+        cwd=REPO_ROOT,          
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, (
+        f"Script failed: {script_path}\n"
+        f"stdout:\n{result.stdout}\n"
+        f"stderr:\n{result.stderr}"
+    )
+    assert "completed with" in result.stdout.lower()
