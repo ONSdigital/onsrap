@@ -114,4 +114,5 @@ def main():
     curate_report(report, values)
     write_report(report)
 
-main()
+if __name__ == "__main__":
+    main()

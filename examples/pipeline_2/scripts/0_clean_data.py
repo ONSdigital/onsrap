@@ -1,4 +1,5 @@
 import pandas as pd
+from onsrap import ExecutionContext
 
 
 def check_variables(df, expected_variables):
@@ -34,6 +35,7 @@ def standardise_columns(df):
 
 def main(context=None):
     config = context.get_stage_config("0_clean_data")
+    print(config)
 
     orders = pd.read_csv(config["input_location"])
 
@@ -46,4 +48,5 @@ def main(context=None):
     orders = standardise_columns(orders)
     orders.to_csv(config["output_location"], index = False)
 
-main()
+if __name__ == "__main__":
+    main()

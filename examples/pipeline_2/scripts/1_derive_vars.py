@@ -82,4 +82,5 @@ def main(context=None):
 
 
 
-main()
+if __name__ == "__main__":
+    main()
