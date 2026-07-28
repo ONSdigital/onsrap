@@ -24,7 +24,7 @@ def config() -> PipelineConfig:
     data_dir = Path("tmp/config_data")
     return PipelineConfig(
         "test_pipeline",
-        {"test_stage":True},
+        {"stage_test":True},
         "python",
         work_dir, 
         project_root,
@@ -52,8 +52,8 @@ def execution(config, logger, stageresult, stage_config) -> ExecutionContext:
         run_dir,
         '2024-05-06 15:45:30',
         work_dir,
-        {"test_stage":stageresult},
-        {"test_stage":stage_config},
+        {"stage_test":stageresult},
+        {"stage_test":stage_config},
         {},
         None
     )
@@ -131,7 +131,7 @@ def test_stage_outputs(execution, stageresult) -> None:
     execution.record(stageresult)
     assert execution.stage_outputs == {"stage_test":"example output"}
 
-def test_get_data_dir(execution) -> None: 
+def test_get_data_dir(execution, stageresult) -> None: 
     """
     Tests that get_data_dir method extracts the path from the execution context
     or, if the context is None, returns an error to indicate that additional input is
@@ -263,16 +263,13 @@ def test_pythonstageexecutor_setup(pythonstageexecutor) -> None:
     assert pythonstageexecutor.preferred_entrypoints == ("main.py","run.py")
 
 """CONTINUE FROM EXECUTE CLASS METHOD"""
-#TODO: add tests for set_active_stage, stage_config_for, stage_config, and get_stage_config 
-
-
 @pytest.fixture
 def stage_config() -> StageConfig:
     """
     Return a StageConfig object for testing.
     """
     return StageConfig(
-        name="test_stage",
+        name="stage_test",
         _variables={"sex":"gender",
                     "dob":"date_of_birth"},
         datasets={},
@@ -289,4 +286,31 @@ def test_set_active_stage(execution, stage_config) -> None:
     assert execution.active_stage_name == stage_config.name
     execution.set_active_stage(None)
     assert execution.active_stage_name == None
+
+def test_stage_config_for(execution, stage_config) -> None:
+    """
+    Tests that stage_config_for returns the StageConfig for a named stage.
+    """
+    assert execution.stage_config_for(stage_config.name) == stage_config
+    assert execution.stage_config_for("missing_stage") is None
+
+def test_stage_config(execution, stage_config) -> None:
+    """
+    Tests that stage_config exposes the currently active stage configuration.
+    """
+    assert execution.stage_config is None
+    execution.set_active_stage(stage_config.name)
+    assert execution.stage_config == stage_config
+
+def test_get_stage_config(execution, stage_config) -> None:
+    """
+    Tests that get_stage_config returns variables by default and the full
+    StageConfig object when requested.
+    """
+    assert execution.get_stage_config() == {}
+    assert execution.get_stage_config(vars_only=False) == {}
+
+    execution.set_active_stage(stage_config.name)
+    assert execution.get_stage_config() == {"sex": "gender", "dob": "date_of_birth"}
+    assert execution.get_stage_config(vars_only=False) == stage_config
 

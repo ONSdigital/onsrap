@@ -169,7 +169,7 @@ class ExecutionContext:
         raise PipelineConfigurationError("Please parse a run directory to " \
         "the ExecutionContext.")
 
-    def get_stage_config(self, vars_only: bool = True) -> dict | StageConfig:
+    def get_stage_config(self, vars_only: bool = True) -> dict[str, Any] | StageConfig:
         """
         Returns the configuration for the stage currently being executed, with optional arguments.
 
@@ -185,13 +185,16 @@ class ExecutionContext:
         
         Returns
         -------
-        dict or StageConfig
+        dict[str, Any] or StageConfig
             The parameters contained within the configuration for the currently active stage. 
             If ``vars_only`` is set to False, returns the StageConfig object itself, containing all attributes including variables, metadata, and dataframes.
         """
+        stage_config = self.stage_config
+        if stage_config is None:
+            return {}
         if vars_only:
-            return self.stage_config_for(self.active_stage_name).variables()
-        return self.stage_config_for(self.active_stage_name) or {}
+            return stage_config.variables
+        return stage_config
     
     def resolve_given_path(self, stage_name: str | None, 
                            path_name: str | None, 
