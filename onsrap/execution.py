@@ -183,7 +183,7 @@ class ExecutionContext:
         raise PipelineConfigurationError("Please parse a run directory to " \
         "the ExecutionContext.")
 
-    def get_stage_config(self, stage: str | None = None, vars_only: bool = True) -> dict[str, Any] | StageConfig | None:
+    def get_stage_config(self, stage: str | None = None, with_global: bool = True, vars_only: bool = True) -> dict[str, Any] | StageConfig | None:
         """
         Returns the configuration for the stage currently being executed, with optional arguments.
 
@@ -205,9 +205,21 @@ class ExecutionContext:
             The parameters contained within the configuration for the currently active stage. 
             If ``vars_only`` is set to False, returns the StageConfig object itself, containing all attributes including variables, metadata, and dataframes.
         """
-        stage_config = self.stage_config_for(stage) if stage is not None else self.stage_config
+        stage_config: StageConfig | None = self.stage_config_for(stage) if stage is not None else self.stage_config
+
+        if with_global and not vars_only:
+            raise PipelineConfigurationError(
+                "get_stage_config() cannot return a StageConfig when with_global=True. "
+                "Global and stage variables are combined into a dictionary; use vars_only=True "
+                "or set with_global=False to retrieve the raw StageConfig object."
+            )
+
         if stage_config is None:
+            if with_global:
+                return self._combine_vars()
             return {} if vars_only else None
+        if with_global:
+            return self._combine_vars(stage_config)
         if vars_only:
             return stage_config.variables
         return stage_config
@@ -265,7 +277,7 @@ class ExecutionContext:
             return root / file_name
         return root
 
-    def _combine_vars(self) -> dict[str, Any]:
+    def _combine_vars(self, stage: StageConfig | None = None) -> dict[str, Any]:
         """
         Private method that combines the global variables and the stage 
         variables for the current stage. 
@@ -290,15 +302,18 @@ class ExecutionContext:
             a warning is raised to alert the user that the stage configuration will take
             precedence.
         """
-        #Extracts variables from global config without exclusion lookup
+        resolved_stage = stage or self.stage_config
         global_vars, exclusions = self.global_config.get_attributes() if self.global_config else ({}, {})
-        stage_exclusions_extract = exclusions.get(self.active_stage_name, [])
+        exclusions = exclusions or {}
+
+        if resolved_stage is None:
+            return dict(global_vars)
+
+        stage_exclusions_extract = exclusions.get(resolved_stage.name, [])
         stage_exclusions = [exclusion for exclusion in stage_exclusions_extract]
 
-        combined = {k: v for k, v in global_vars.items() if k not in stage_exclusions}
-
-        stage_config = self.stage_config_for(self.active_stage_name)
-        stage_vars = stage_config.variables
+        combined = {key: value for key, value in global_vars.items() if key not in stage_exclusions}
+        stage_vars = resolved_stage.variables
         
         conflicts = stage_vars.keys() & combined.keys()
         if conflicts:

@@ -192,7 +192,9 @@ def test_stage_config_accessors_return_named_and_active_configs(config, logger) 
     assert context.stage_config_for("stage_test") == stage_config
     assert context.get_stage_config("stage_test") == {"years_to_run": 2017}
     assert context.get_stage_config() == {"years_to_run": 2017}
-    assert context.get_stage_config(vars_only=False) == stage_config
+    with pytest.raises(PipelineConfigurationError):
+        context.get_stage_config(vars_only=False)
+    assert context.get_stage_config(with_global=False, vars_only=False) == stage_config
 
 """
 Parameters for testing multiple add_folder options in 
@@ -355,7 +357,6 @@ def stage_config() -> StageConfig:
         name="stage_test",
         _variables={"sex":"gender",
                     "dob":"date_of_birth"},
-        datasets={},
         metadata={}
         )
 
@@ -391,9 +392,13 @@ def test_get_stage_config(execution, stage_config) -> None:
     StageConfig object when requested.
     """
     assert execution.get_stage_config() == {}
-    assert execution.get_stage_config(vars_only=False) == {}
+    with pytest.raises(PipelineConfigurationError):
+        execution.get_stage_config(vars_only=False)
+    assert execution.get_stage_config(with_global=False, vars_only=False) is None
 
     execution.set_active_stage(stage_config.name)
     assert execution.get_stage_config() == {"sex": "gender", "dob": "date_of_birth"}
-    assert execution.get_stage_config(vars_only=False) == stage_config
+    with pytest.raises(PipelineConfigurationError):
+        execution.get_stage_config(vars_only=False)
+    assert execution.get_stage_config(with_global=False, vars_only=False) == stage_config
 
