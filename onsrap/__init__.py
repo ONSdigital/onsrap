@@ -22,6 +22,7 @@ from .models import (
     StageConfig,
     StageResult,
     StageStatus,
+    GlobalConfig,
 )
 from .pipeline import Pipeline
 from .runner import PipelineRunner
@@ -32,6 +33,7 @@ __all__ = [
     "DependencyCycleError",
     "DuplicateStageError",
     "ExecutionContext",
+    "GlobalConfig",
     "LogConfig",
     "Logger",
     "MissingDependencyError",
