@@ -1150,8 +1150,7 @@ class Pipeline:
 
         remaining_keys = set(raw_config) - {pipeline_configuration, stage_configuration}
         if remaining_keys:
-            warnings.warn("There are remaining sections in your configuration file that have not been extracted." \
-            " Please check that all your configurations are in the pipeline or stage configuration keys.", 
+            warnings.warn("There are remaining sections in your configuration file that have not been extracted. Please check that all your configurations are in the pipeline or stage configuration keys.", 
             PipelineConfigurationWarning)
 
         if not isinstance(pipeline_payload, Mapping):
