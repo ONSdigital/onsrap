@@ -56,7 +56,6 @@ class Pipeline:
         logger: Logger | None = None,
         executor: StageExecutor | None = None,
     ):
-        # if config is not None:
         resolved_config, resolved_stage_configs, configured_stages, resolved_global_config = self._resolve_config(config)
 
         self.name = name or resolved_config.name or "pipeline"
@@ -96,7 +95,7 @@ class Pipeline:
             self._assign_dependencies(dependencies, self.stages)
 
         self.stage_configs = dict(resolved_stage_configs)
-        self.global_configs = dict(resolved_global_config)
+        self.global_config = resolved_global_config 
         
         self._sync_stage_configs()
         self._rebuild_graph()
@@ -484,10 +483,13 @@ class Pipeline:
                 raise StageConfigurationError(
                     f"Stage configuration '{name}' was not found. Available stage configurations are: {available_stage_names}."
                 )
-            return self.create_stage_config(stage_config, name=name)
+            return StageConfig.from_mapping(name=name, data=stage_config)
 
         if isinstance(stage_config, (str, Path)):
-            return self.create_stage_config(stage_config, name=name)
+            import yaml
+
+            payload = dict(yaml.safe_load(Path(stage_config).read_text()))
+            return StageConfig.from_mapping(name=name, data=payload)
 
         raise StageConfigurationError(f"Unsupported stage configuration specification: {type(stage_config)!r}.")
 
@@ -621,7 +623,7 @@ class Pipeline:
     def _resolve_config(
         self,
         config: PipelineConfig | Mapping[str, Any] | None,
-    ) -> tuple[PipelineConfig, dict[str, StageConfig], list[Stage]]:
+    ) -> tuple[PipelineConfig, dict[str, StageConfig], list[Stage], GlobalConfig]: 
         """
         Resolve supported configuration inputs into pipeline config, stage config, and stages.
 
@@ -815,6 +817,10 @@ class Pipeline:
 
         # When PipelineConfig.stages_to_run is empty, the pipeline is in implicit "run all" mode.
         if not configured_stages_to_run:
+            warnings.warn(
+                "No stages specified to run. All stages running by default.",
+                PipelineConfigurationWarning
+            )
             return self.stages
 
         unknown_stage_names = sorted(
@@ -843,6 +849,7 @@ class Pipeline:
         }
         resolved_stage_names: set[str] = set()
         visiting: set[str] = set()
+        
 
         def add_stage_with_dependencies(stage_name: str, *, required_by: str | None = None) -> None:
             """
