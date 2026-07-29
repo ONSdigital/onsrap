@@ -11,6 +11,9 @@ from onsrap.runner import _log_config
 
 
 def test_log_config_writes_manifest_config_as_block_style_yaml(tmp_path: Path) -> None:
+    """
+    Tests that the ``_log_config`` function correctly writes the manifest configuration to a YAML file in block style format.
+    """
     run_dir = tmp_path / "runs" / "synthetic_run"
     run_dir.mkdir(parents=True)
 

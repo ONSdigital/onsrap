@@ -443,6 +443,14 @@ def test_example_main_scripts_run_successfully(script_path: Path) -> None:
     assert "completed with" in result.stdout.lower()
 
 def test_pipeline_run_writes_manifest_config_yaml_to_run_directory(tmp_path: Path) -> None:
+    """
+    Integration test that checks that the _log_config method is correctly called within 
+    PipelineRunner.run() and that the information is parsed in a suitable format to a YAML
+    file in the run directory. 
+
+    This test also captures that _combine_configs() correctly converts all configuration 
+    information into a single dictionary that can be serialized to YAML.
+    """
     stage_file = tmp_path / "single_stage.py"
     stage_file.write_text(
         dedent(
