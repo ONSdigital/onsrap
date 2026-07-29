@@ -1105,7 +1105,7 @@ class Pipeline:
         """
         possible_stage_keys = ("stage_configuration", "stage_config")
         possible_pipeline_keys = ("pipeline_variables","pipeline_config")
-        possible_global_keys = ("global_configuration", "global_config")
+        possible_global_keys = ("global_configuration", "global_config", "global_variables", "global_vars")
 
         stage_payload, stage_configuration = Pipeline._extract_mappings(possible_stage_keys, raw_config, StageConfigurationWarning)
         pipeline_payload, pipeline_configuration = Pipeline._extract_mappings(possible_pipeline_keys, raw_config, PipelineConfigurationWarning)
