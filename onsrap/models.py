@@ -640,6 +640,7 @@ class RunManifest:
     timestamp: str = ""
     reason: Optional[str] = None
     user: Optional[str] = None
+    config: Optional[dict[str, Any]] = None
 
     def __str__(self) -> str:
         """
