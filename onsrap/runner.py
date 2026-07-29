@@ -250,7 +250,9 @@ def _log_config(run_dir: str, context: ExecutionContext, manifest: RunManifest) 
     ``manifest`` : RunManifest
         The manifest of the current pipeline run, containing metadata and outputs.
     """
-    config_file = run_dir / f"configuration_for_{context.pipeline_name}_{context.started_at}_{context.run_id}.yaml"
+    date = context.started_at.date()
+
+    config_file = run_dir / f"configuration_for_{context.pipeline_name}_{date}_{context.run_id[-8:]}.yaml"
     import yaml
     with open(config_file, "w") as f:
         yaml.safe_dump(manifest.config, f, default_flow_style=False)
