@@ -9,7 +9,7 @@ from .errors import StageExecutionError
 from .warnings import StageConfigurationWarning
 from .execution import ExecutionContext
 from .logger import Logger
-from .models import PipelineRun, PipelineStatus, now
+from .models import PipelineRun, PipelineStatus, RunManifest, now
 
 if TYPE_CHECKING:
     from .pipeline import Pipeline
@@ -121,6 +121,8 @@ class PipelineRunner:
         manifest.outputs = {}
         pipeline.manifest = manifest
 
+        _log_config(run_dir, context, manifest)
+
         self.logger.event(
             "Pipeline started",
             name=pipeline.name,
@@ -231,3 +233,25 @@ def main(argv: list[str] | None = None) -> int:
     pipeline = Pipeline.from_files(args.stages, name=args.name)
     pipeline.run()
     return 0
+
+
+def _log_config(run_dir: str, context: ExecutionContext, manifest: RunManifest) -> None:
+    """
+    Outputs the configurations used in an instance of a pipeline to a YAML file in the run directory. 
+
+    The file is kept in the block flow style typically expected of a YAML file. 
+
+    Parameters
+    ----------
+    ``run_dir`` : str
+        The directory where the pipeline run is being executed. 
+    ``context`` : ExecutionContext
+        The context of the current pipeline run, containing configuration and state information.
+    ``manifest`` : RunManifest
+        The manifest of the current pipeline run, containing metadata and outputs.
+    """
+    config_file = Path(run_dir) / f"configuration_for_{context.pipeline_name}_{context.started_at}_{context.run_id}.yaml"
+    import yaml
+    with open(config_file, "w") as f:
+        yaml.safe_dump(manifest.config, f, default_flow_style=False)
+
