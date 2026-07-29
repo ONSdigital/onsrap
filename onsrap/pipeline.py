@@ -563,10 +563,14 @@ class Pipeline:
             A dictionary containing the configuration for the Pipeline, the stages, and 
             the global configuration. 
         """
+        global_variables, exclusions = self.global_config.get_attributes()
+        global_configuration = dict(global_variables or {})
+        global_configuration["exclusions"] = exclusions
+            
         all_stage_configuration = {name: config.to_dict() for name, config in self.stage_configs.items()}
         configuration = {"pipeline_config": self.config.to_dict(),
                          "stage_configs": all_stage_configuration,
-                         "global_config": self.global_config.get_attributes()}
+                         "global_config": global_configuration}
 
         return configuration
 
