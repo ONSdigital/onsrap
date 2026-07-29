@@ -455,24 +455,27 @@ def test_pipeline_run_writes_manifest_config_yaml_to_run_directory(tmp_path: Pat
         encoding="utf-8",
     )
 
-    pipeline = Pipeline.from_files(
-        [stage_file],
-        name="config-export-pipeline",
-        config={
-            "pipeline_config": {
-                "work_dir": tmp_path,
-                "project_root": tmp_path,
-                "log_dir": tmp_path / "logs",
+    with pytest.warns(PipelineConfigurationWarning,
+                      match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline.from_files(
+            [stage_file],
+            name="config-export-pipeline",
+            config={
+                "pipeline_config": {
+                    "work_dir": tmp_path,
+                    "project_root": tmp_path,
+                    "log_dir": tmp_path / "logs",
+                },
+                "stage_configuration": {},
+                "global_configuration": {
+                    "dry_run": True,
+                }
             },
-            "stage_configuration": {},
-            "global_configuration": {
-                "dry_run": True,
-            }
-        },
-    )
+        )
 
-
-    run = pipeline.run()
+    with pytest.warns(StageConfigurationWarning, 
+                      match = "Output directory is not specified. Using project root or work directory as the run output."):
+        run = pipeline.run()
 
     run_dir = tmp_path / "runs" / run.manifest.run_id
     config_file = run_dir / (
