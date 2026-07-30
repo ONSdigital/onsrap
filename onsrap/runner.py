@@ -259,6 +259,25 @@ def _log_config(run_dir: str, context: ExecutionContext, manifest: RunManifest) 
 
 
 def _flatten(obj, prefix="", sep="."):
+    """
+    Converts nested dictionaries or lists into flat object using dot notation for keys. 
+    Each key in the resulting dictionary represents the nested branching to get to the value
+    in the original dictionary. 
+
+    Parameters
+    ----------
+    ``obj`` : dict or list
+        The object to flatten, which can be a dictionary or a list.
+    ``prefix`` : str
+        The prefix to use for the keys in the flattened dictionary. Defaults to an empty string.
+    ``sep`` : str
+        The separator to use between keys in the flattened dictionary. Defaults to a dot (".").
+
+    Returns 
+    -------
+    dict
+        A flattened dictionary where each key represents the path to the value in the original object.
+    """
     items = {}
     if isinstance(obj, dict):
         for k, v in obj.items():
@@ -270,7 +289,29 @@ def _flatten(obj, prefix="", sep="."):
         items[prefix] = obj
     return items
 
-def _diff_yaml_files(path_a, path_b):
+def _diff_yaml_files(path_a: Path, path_b: Path) -> dict:
+    """
+    Calculates the differences between two YAML files and returns a programming oriented dictionary 
+    describing the changes. 
+    
+    This function calls the  ``_flatten`` function to the loaded in dictionaries from the YAML files.
+    These are then differenced to account for whether a value has changed between the two files, 
+    been added to the second file and was not present in the first, or removed from the second file
+    and is only present in the first. This output is structured as {changed: {}, added: {}, removed: {}}.
+
+    Parameters
+    ----------
+    ``path_a`` : Path
+        The path to the first YAML file to compare.
+    ``path_b`` : Path
+        The path to the second YAML file to compare.
+
+    Returns
+    -------
+    dict
+        A dictionary describing the differences between the two YAML files, structured as 
+        {changed: {}, added: {}, removed: {}}.
+    """
     import yaml
 
     with open(path_a) as f: doc_a = yaml.safe_load(f)
@@ -292,6 +333,22 @@ def _diff_yaml_files(path_a, path_b):
     }
 
 def _print_diff(diff: dict) -> dict:
+    """
+    Prints the differences between two YAML files in a human-readable format and returns 
+    the computer-readable dictionary so that it could be used for logging processes if 
+    required.
+
+    Parameters
+    ----------
+    diff : dict
+        A dictionary describing the differences between two YAML files, structured as 
+        {changed: {}, added: {}, removed: {}}.
+
+    Returns
+    -------
+    dict
+        The same dictionary that was passed in as the ``diff`` parameter.
+    """
     changed = diff["changed"]
     added   = diff["added"]
     removed = diff["removed"]
@@ -317,6 +374,26 @@ def _print_diff(diff: dict) -> dict:
     return diff
 
 def print_config_diffs(file_1, file_2) -> dict:
+    """
+    A combining function that calculates the differences between two YAML files
+    and then prints the outputs to the terminal as well as returning the computer-readable
+    dictionary of the differences. 
+    
+    This works by calling the ``_diff_yaml_files`` function to calculate the differences and 
+    then calling the ``_print_diff`` function to print the differences.
 
+    Parameters
+    ----------
+    ``file_1`` : Path
+        The path to the first YAML file to compare.
+    ``file_2`` : Path
+        The path to the second YAML file to compare.
+
+    Returns 
+    -------
+    dict
+        A dictionary describing the differences between the two YAML files, structured as 
+        {changed: {}, added: {}, removed: {}}.
+    """
     diff_dict = _diff_yaml_files(file_1, file_2)
     return _print_diff(diff_dict)
