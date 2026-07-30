@@ -257,3 +257,66 @@ def _log_config(run_dir: str, context: ExecutionContext, manifest: RunManifest) 
     with open(config_file, "w") as f:
         yaml.safe_dump(manifest.config, f, default_flow_style=False)
 
+
+def _flatten(obj, prefix="", sep="."):
+    items = {}
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            items.update(_flatten(v, f"{prefix}{sep}{k}" if prefix else k, sep))
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            items.update(_flatten(v, f"{prefix}[{i}]", sep))
+    else:
+        items[prefix] = obj
+    return items
+
+def _diff_yaml_files(path_a, path_b):
+    import yaml
+
+    with open(path_a) as f: doc_a = yaml.safe_load(f)
+    with open(path_b) as f: doc_b = yaml.safe_load(f)
+
+    flat_a = _flatten(doc_a)
+    flat_b = _flatten(doc_b)
+
+    keys_a, keys_b = set(flat_a), set(flat_b)
+
+    return {
+        "changed": {
+            k: (flat_a[k], flat_b[k])
+            for k in keys_a & keys_b
+            if flat_a[k] != flat_b[k]
+        },
+        "added":   {k: flat_b[k] for k in keys_b - keys_a},
+        "removed": {k: flat_a[k] for k in keys_a - keys_b},
+    }
+
+def _print_diff(diff: dict) -> dict:
+    changed = diff["changed"]
+    added   = diff["added"]
+    removed = diff["removed"]
+
+    if changed:
+        print(f"\nCHANGED ({len(changed)})")
+        for key, (val_a, val_b) in sorted(changed.items()):
+            print(f"  {key}:  {val_a!r}  →  {val_b!r}")
+
+    if added:
+        print(f"\nADDED in second configuration ({len(added)})")
+        for key, val in sorted(added.items()):
+            print(f"  {key}: {val!r}")
+
+    if removed:
+        print(f"\nREMOVED in second configuration ({len(removed)})")
+        for key, val in sorted(removed.items()):
+            print(f"  {key}: {val!r}")
+
+    if not any([changed, added, removed]):
+        print("Files are identical.")
+
+    return diff
+
+def print_config_diffs(file_1, file_2) -> dict:
+
+    diff_dict = _diff_yaml_files(file_1, file_2)
+    return _print_diff(diff_dict)

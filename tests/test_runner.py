@@ -1,3 +1,5 @@
+from textwrap import dedent
+
 import pytest
 
 from pathlib import Path
@@ -7,7 +9,7 @@ import yaml
 from onsrap.execution import ExecutionContext
 from onsrap.logger import Logger
 from onsrap.models import PipelineConfig, RunManifest
-from onsrap.runner import _log_config
+from onsrap.runner import _log_config, print_config_diffs
 
 
 def test_log_config_writes_manifest_config_as_block_style_yaml(tmp_path: Path) -> None:
@@ -85,3 +87,51 @@ def test_log_config_writes_manifest_config_as_block_style_yaml(tmp_path: Path) -
     assert "pipeline_config: {" not in file_text
     assert "stage_configs: {" not in file_text
     assert "global_config: {" not in file_text
+
+def test_print_config_diffs(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    test_file_a = tmp_path / "config_a.yaml"
+    test_file_b = tmp_path / "config_b.yaml"
+
+    test_file_a.write_text(
+        dedent("""
+                pipeline_config:
+                    name: synthetic_pipeline
+                    output_dir: outputs #This is removed in file_b
+                stage_configs:
+                    stage_a:
+                        years_to_run: 2026
+                        target_variable: classification
+                global_config:
+                    dry_run: True
+                """).strip()
+                + "\n",
+                encoding="utf-8",
+                )
+
+    test_file_b.write_text(
+        dedent("""
+                pipeline_config:
+                    name: synthetic_pipeline
+                    backend: python
+                stage_configs:
+                    stage_a:
+                        years_to_run: 2026
+                        target_variable: identification
+                global_config:
+                    dry_run: True
+                """).strip()
+                + "\n",
+                encoding="utf-8",
+                )
+
+    assert print_config_diffs(test_file_a, test_file_b) == {
+        "changed": {"stage_configs.stage_a.target_variable": ("classification", "identification")},
+        "added": {"pipeline_config.backend": "python"},
+        "removed": {"pipeline_config.output_dir": "outputs"}
+    }
+
+    captured = capsys.readouterr()
+    assert "CHANGED (1)" in captured.out
+    assert "ADDED in second configuration (1)" in captured.out
+    assert "REMOVED in second configuration (1)" in captured.out
+    assert "stage_configs.stage_a.target_variable" in captured.out
