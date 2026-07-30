@@ -89,6 +89,12 @@ def test_log_config_writes_manifest_config_as_block_style_yaml(tmp_path: Path) -
     assert "global_config: {" not in file_text
 
 def test_print_config_diffs(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """
+    Tests that two configuration files are correctly compared and the differences are 
+    both returned in a computer-readable format and printed to the console. One change 
+    for each category (changed, added, removed) is included in the test to ensure that 
+    all cases are handled correctly.
+    """
     test_file_a = tmp_path / "config_a.yaml"
     test_file_b = tmp_path / "config_b.yaml"
 
@@ -96,7 +102,7 @@ def test_print_config_diffs(tmp_path: Path, capsys: pytest.CaptureFixture[str]) 
         dedent("""
                 pipeline_config:
                     name: synthetic_pipeline
-                    output_dir: outputs #This is removed in file_b
+                    output_dir: outputs 
                 stage_configs:
                     stage_a:
                         years_to_run: 2026
