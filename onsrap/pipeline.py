@@ -8,6 +8,7 @@ import sys
 from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
+import re
 
 from .errors import StageConfigurationError, PipelineInitialisationError, PipelineConfigurationError
 from .warnings import StageConfigurationWarning, PipelineConfigurationWarning
@@ -710,10 +711,13 @@ class Pipeline:
         outputs are saved for each run.
         """
 
-        output_dir_keys = ("output_dir", "output_directory", "output_path", "output_location")
+        OUTPUT_DIR_KEY_RE = re.compile(
+            r"^(?:out(?:put)?)(?:$|[_\-\s]?(?:dir(?:ectory)?|path|loc(?:ation)?|file))$",
+        re.IGNORECASE
+        )
         #TODO: Regex? for output directory
         for stage in self.stages: 
-            if any(key in self.stage_configs[stage.name]._variables for key in output_dir_keys):
+            if any(OUTPUT_DIR_KEY_RE.match(key) for key in self.stage_configs[stage.name]._variables):
                 warnings.warn(
                     f"Stage configuration for {stage.name} contains output directory keys. This will result "
                     f"in overwriting previous run outputs. Please set your output location in the stage scripts "
@@ -721,7 +725,7 @@ class Pipeline:
                     StageConfigurationWarning,
                 )
                 self.logger.event(f"Warning: stage configuration for {stage.name} contains output directory keys. Risk of overwriting outputs.",
-                                  keys_found = [key for key in output_dir_keys if key in self.stage_configs[stage.name]._variables]
+                                  keys_found = [key for key in self.stage_configs[stage.name]._variables if OUTPUT_DIR_KEY_RE.match(key)]
                 )
 
     def _validate_stage_configs(self) -> None:
