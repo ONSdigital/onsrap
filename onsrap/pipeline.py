@@ -354,7 +354,7 @@ class Pipeline:
         self.graph.validate()
 
         self._output_dir_conflict_check()
-        
+
         return self
     
 
@@ -743,9 +743,12 @@ class Pipeline:
             for directory in available_output_dirs:
                 output_dir = self.stage_configs[stage.name].get(directory, None)
                 if Path(output_dir).exists() and self.config.overwrite is False:
+                    self.logger.event(f"Error: Output directory {output_dir} already exists. Pipeline will crash to prevent overwrite.",
+                                       overwrite = self.config.overwrite)
                     raise StageConfigurationError(
                         f"Stage configuration for {stage.name} contains an output directory path that already exists. Please set a unique "
                         f"output directory for this stage to prevent overwriting.")
+                
                 if Path(output_dir).exists() and self.config.overwrite is True:
                     warnings.warn(
                         f"Stage configuration for {stage.name} contains an output directory path that already exists. As the overwrite "
