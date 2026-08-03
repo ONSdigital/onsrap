@@ -99,7 +99,6 @@ class Pipeline:
         self.global_config = resolved_global_config 
         
         self._sync_stage_configs()
-        self._check_output_dir_in_stage_configs()
         
         self._rebuild_graph()
         self.id: RuntimeID | None = None
@@ -227,7 +226,6 @@ class Pipeline:
         self._check_stage_configs(added_stages, self.stage_configs)
 
         self._sync_stage_configs()
-        self._check_output_dir_in_stage_configs()
         self._rebuild_graph()
 
         self.logger.event(
@@ -707,33 +705,38 @@ class Pipeline:
             self.stage_configs.setdefault(stage.name, StageConfig(name=stage.name))
             
 
-    def _check_output_dir_in_stage_configs(self) -> None:
+    def _check_output_dir_in_stage_configs(self, regex_pattern, name: str) -> None:
         """
         Checks ``StageConfig`` instances for output directory keys and raises a warning if any are found, 
         as this will result in overwriting previous run outputs. Users are advised to set their output 
         location in the stage scripts using the ``resolve_output_path()`` function to ensure unique 
         outputs are saved for each run.
+
+        Parameters
+        ----------
+        ``regex_pattern``
+            The regular expression pattern used to identify output directory keys in the stage configurations.
+
+        ``name``
+            The stage name to check for output directory keys in the stage configurations.
         """
 
-        OUTPUT_DIR_KEY_RE = re.compile(
-            r"^(?:out(?:put)?)(?:$|[_\-\s]?(?:dir(?:ectory)?|path|loc(?:ation)?|file))$",
-        re.IGNORECASE
-        )
-        for stage in self.stages: 
-            if any(OUTPUT_DIR_KEY_RE.match(key) for key in self.stage_configs[stage.name]._variables):
-                warnings.warn(
-                    f"Stage configuration for {stage.name} contains output directory keys. This will result "
-                    f"in overwriting previous run outputs. Please set your output location in the stage scripts "
-                    f"using the resolve_output_root() method to ensure unique outputs are saved for each run.",
-                    StageConfigurationWarning,
-                )
-                self.logger.event(f"Warning: stage configuration for {stage.name} contains output directory keys. Risk of overwriting outputs.",
-                                  keys_found = [key for key in self.stage_configs[stage.name]._variables if OUTPUT_DIR_KEY_RE.match(key)]
-                )
+        OUTPUT_DIR_KEY_RE = regex_pattern
+        if any(OUTPUT_DIR_KEY_RE.match(key) for key in self.stage_configs[name]._variables):
+            warnings.warn(
+                f"Stage configuration for {name} contains output directory keys. This will result "
+                f"in overwriting previous run outputs. Please set your output location in the stage scripts "
+                f"using the resolve_output_root() method to ensure unique outputs are saved for each run.",
+                StageConfigurationWarning,
+            )
+            self.logger.event(f"Warning: stage configuration for {name} contains output directory keys. Risk of overwriting outputs.",
+                                keys_found = [key for key in self.stage_configs[name]._variables if OUTPUT_DIR_KEY_RE.match(key)]
+            )
 
     def _output_dir_conflict_check(self) -> None:
         """
-        Checks whether the output directory already exists and raises an error if it does, unless the overwrite parameter is set to True.
+        Checks whether the output directory has been assigned in stage configurations and already exists. It raises an error if 
+        it does, unless the overwrite parameter is set to True.
 
         For each stage in the Pipeline, checks whether an output directory has been defined in the stage configurations. If it has been 
         defined, it checks whether the Path value for the output directory already exists. If it does already exist, raise either an 
@@ -754,6 +757,8 @@ class Pipeline:
         
         for stage in self.stages: 
             available_output_dirs = [key for key in self.stage_configs[stage.name]._variables if OUTPUT_DIR_KEY_RE.match(key)]
+            self._check_output_dir_in_stage_configs(regex_pattern=OUTPUT_DIR_KEY_RE, name=stage.name)
+
             for directory in available_output_dirs:
                 output_dir = self.stage_configs[stage.name].get(directory, None)
                 if Path(output_dir).exists() and self.config.overwrite is False:
