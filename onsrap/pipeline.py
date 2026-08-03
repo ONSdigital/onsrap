@@ -98,6 +98,7 @@ class Pipeline:
         self.global_config = resolved_global_config 
         
         self._sync_stage_configs()
+        self._check_output_dir_in_stage_configs()
         self._rebuild_graph()
         self.id: RuntimeID | None = None
         self.manifest: RunManifest | None = None
@@ -649,7 +650,7 @@ class Pipeline:
             If an output location is recorded in stage configuration, a warning is raised to inform the user that 
             this will result in overwriting previous run outputs.
         """
-        output_dir_keys = ("output_dir", "output_directory", "output_path", "output_location")
+        
         if config is None:
             return PipelineConfig.from_any(config), {}, [], GlobalConfig()
 
@@ -663,12 +664,6 @@ class Pipeline:
                     "Stage configuration found in PipelineConfig metadata. This is supported for backwards compatibility but a composite config payload is preferred.",
                     StageConfigurationWarning,
                 )
-                if any(key in stage_configuration for key in output_dir_keys):
-                            warnings.warn(
-                                "Stage configuration contains output directory keys. This will result in overwriting previous run outputs. Please set your "
-                                "output location in the stage scripts using the resolve_output_path() function to ensure unique outputs are saved for each run.",
-                                StageConfigurationWarning,
-                            )
 
             global_configuration = config.metadata.get("global_config", None)
             if global_configuration is not None:
@@ -681,14 +676,6 @@ class Pipeline:
         raw_config = self._load_config_mapping(config)
         pipeline_payload, stage_config_payload, global_config_payload = self._split_config_sections(raw_config)
         normalized_pipeline_payload = self._normalize_pipeline_payload(pipeline_payload)
-
-        
-        if any(key in stage_config_payload for key in output_dir_keys):
-            warnings.warn(
-                "Stage configuration contains output directory keys. This will result in overwriting previous run outputs. Please set your "
-                "output location in the stage scripts using the resolve_output_path() function to ensure unique outputs are saved for each run.",
-                StageConfigurationWarning,
-            )
 
         stage_definitions = normalized_pipeline_payload.pop("stages", ())
 
@@ -707,9 +694,29 @@ class Pipeline:
     def _sync_stage_configs(self) -> None:
         """
         Ensure every known stage has a ``StageConfig`` entry, even if it is empty.
+
         """
         for stage in self.stages:
             self.stage_configs.setdefault(stage.name, StageConfig(name=stage.name))
+            
+
+    def _check_output_dir_in_stage_configs(self) -> None:
+        """
+        Checks ``StageConfig`` instances for output directory keys and raises a warning if any are found, 
+        as this will result in overwriting previous run outputs. Users are advised to set their output 
+        location in the stage scripts using the ``resolve_output_path()`` function to ensure unique 
+        outputs are saved for each run.
+        """
+
+        output_dir_keys = ("output_dir", "output_directory", "output_path", "output_location")
+        for stage in self.stages: 
+            if any(key in self.stage_configs[stage.name]._variables for key in output_dir_keys):
+                warnings.warn(
+                    f"Stage configuration for {stage.name} contains output directory keys. This will result "
+                    f"in overwriting previous run outputs. Please set your output location in the stage scripts "
+                    f"using the resolve_output_path() function to ensure unique outputs are saved for each run.",
+                    StageConfigurationWarning,
+                )
 
     def _validate_stage_configs(self) -> None:
         """
