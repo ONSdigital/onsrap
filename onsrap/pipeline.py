@@ -100,6 +100,7 @@ class Pipeline:
         
         self._sync_stage_configs()
         self._check_output_dir_in_stage_configs()
+        
         self._rebuild_graph()
         self.id: RuntimeID | None = None
         self.manifest: RunManifest | None = None
@@ -351,6 +352,9 @@ class Pipeline:
         for stage in self.graph.stages:
             stage.validate()
         self.graph.validate()
+
+        self._output_dir_conflict_check()
+        
         return self
     
 
@@ -715,7 +719,6 @@ class Pipeline:
             r"^(?:out(?:put)?)(?:$|[_\-\s]?(?:dir(?:ectory)?|path|loc(?:ation)?|file))$",
         re.IGNORECASE
         )
-        #TODO: Regex? for output directory
         for stage in self.stages: 
             if any(OUTPUT_DIR_KEY_RE.match(key) for key in self.stage_configs[stage.name]._variables):
                 warnings.warn(
@@ -727,6 +730,30 @@ class Pipeline:
                 self.logger.event(f"Warning: stage configuration for {stage.name} contains output directory keys. Risk of overwriting outputs.",
                                   keys_found = [key for key in self.stage_configs[stage.name]._variables if OUTPUT_DIR_KEY_RE.match(key)]
                 )
+
+    def _output_dir_conflict_check(self) -> None:
+
+        OUTPUT_DIR_KEY_RE = re.compile(
+                    r"^(?:out(?:put)?)(?:$|[_\-\s]?(?:dir(?:ectory)?|path|loc(?:ation)?|file))$",
+                re.IGNORECASE
+                )
+        
+        for stage in self.stages: 
+            available_output_dirs = [key for key in self.stage_configs[stage.name]._variables if OUTPUT_DIR_KEY_RE.match(key)]
+            for directory in available_output_dirs:
+                output_dir = self.stage_configs[stage.name].get(directory, None)
+                if Path(output_dir).exists() and self.config.overwrite is False:
+                    raise StageConfigurationError(
+                        f"Stage configuration for {stage.name} contains an output directory path that already exists. Please set a unique "
+                        f"output directory for this stage to prevent overwriting.")
+                if Path(output_dir).exists() and self.config.overwrite is True:
+                    warnings.warn(
+                        f"Stage configuration for {stage.name} contains an output directory path that already exists. As the overwrite "
+                        f"parameter is True, the pipeline will proceed and will overwrite the previous run file."
+                    )
+                    self.logger.event(f"Warning: Output directory {output_dir} already exists however permissions allow overwriting. The previous file "
+                                      f"will be overwritten.", overwrite = self.config.overwrite)
+                    
 
     def _validate_stage_configs(self) -> None:
         """
