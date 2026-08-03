@@ -732,6 +732,20 @@ class Pipeline:
                 )
 
     def _output_dir_conflict_check(self) -> None:
+        """
+        Checks whether the output directory already exists and raises an error if it does, unless the overwrite parameter is set to True.
+
+        For each stage in the Pipeline, checks whether an output directory has been defined in the stage configurations. If it has been 
+        defined, it checks whether the Path value for the output directory already exists. If it does already exist, raise either an 
+        error or a warning based on an overwrite configuration. Log either the error or the warning in the Logger. 
+
+        Raises
+        ------
+        StageConfigurationError
+            If the overwrite parameter in the PipelineConfig is set to False and the output directory already exists.
+        StageConfigurationWarning
+            If the overwrite parameter in the PipelineConfig is set to True and the output directory already exists. 
+        """
 
         OUTPUT_DIR_KEY_RE = re.compile(
                     r"^(?:out(?:put)?)(?:$|[_\-\s]?(?:dir(?:ectory)?|path|loc(?:ation)?|file))$",
@@ -752,7 +766,7 @@ class Pipeline:
                 if Path(output_dir).exists() and self.config.overwrite is True:
                     warnings.warn(
                         f"Stage configuration for {stage.name} contains an output directory path that already exists. As the overwrite "
-                        f"parameter is True, the pipeline will proceed and will overwrite the previous run file."
+                        f"parameter is True, the pipeline will proceed and will overwrite the previous run file.", StageConfigurationWarning
                     )
                     self.logger.event(f"Warning: Output directory {output_dir} already exists however permissions allow overwriting. The previous file "
                                       f"will be overwritten.", overwrite = self.config.overwrite)
