@@ -640,7 +640,16 @@ class Pipeline:
         -------
         tuple[PipelineConfig, dict[str, StageConfig], list[Stage], GlobalConfig]
             The resolved pipeline configuration, stage configurations, configured stages, and global configuration.
+
+        Raises
+        ------
+        ``StageConfigurationWarning``
+            If a stage configuration is found within the metadata section of a PipelineConfig instance, a warning is
+            raised to indicate that a composite configuration payload is preferred.
+            If an output location is recorded in stage configuration, a warning is raised to inform the user that 
+            this will result in overwriting previous run outputs.
         """
+        output_dir_keys = ("output_dir", "output_directory", "output_path", "output_location")
         if config is None:
             return PipelineConfig.from_any(config), {}, [], GlobalConfig()
 
@@ -654,6 +663,12 @@ class Pipeline:
                     "Stage configuration found in PipelineConfig metadata. This is supported for backwards compatibility but a composite config payload is preferred.",
                     StageConfigurationWarning,
                 )
+                if any(key in stage_configuration for key in output_dir_keys):
+                            warnings.warn(
+                                "Stage configuration contains output directory keys. This will result in overwriting previous run outputs. Please set your "
+                                "output location in the stage scripts using the resolve_output_path() function to ensure unique outputs are saved for each run.",
+                                StageConfigurationWarning,
+                            )
 
             global_configuration = config.metadata.get("global_config", None)
             if global_configuration is not None:
@@ -667,6 +682,14 @@ class Pipeline:
         pipeline_payload, stage_config_payload, global_config_payload = self._split_config_sections(raw_config)
         normalized_pipeline_payload = self._normalize_pipeline_payload(pipeline_payload)
 
+        
+        if any(key in stage_config_payload for key in output_dir_keys):
+            warnings.warn(
+                "Stage configuration contains output directory keys. This will result in overwriting previous run outputs. Please set your "
+                "output location in the stage scripts using the resolve_output_path() function to ensure unique outputs are saved for each run.",
+                StageConfigurationWarning,
+            )
+
         stage_definitions = normalized_pipeline_payload.pop("stages", ())
 
         pipeline_config = PipelineConfig.from_mapping(normalized_pipeline_payload)
@@ -679,8 +702,7 @@ class Pipeline:
         global_config = GlobalConfig.from_dict(global_config_payload)
 
         return pipeline_config, stage_configs, configured_stages, global_config
-
-
+ 
 
     def _sync_stage_configs(self) -> None:
         """
