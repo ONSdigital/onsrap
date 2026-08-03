@@ -714,7 +714,7 @@ class Pipeline:
                 warnings.warn(
                     f"Stage configuration for {stage.name} contains output directory keys. This will result "
                     f"in overwriting previous run outputs. Please set your output location in the stage scripts "
-                    f"using the resolve_output_path() function to ensure unique outputs are saved for each run.",
+                    f"using the resolve_output_root() function to ensure unique outputs are saved for each run.",
                     StageConfigurationWarning,
                 )
 
