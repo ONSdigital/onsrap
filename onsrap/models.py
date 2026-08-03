@@ -127,6 +127,8 @@ class PipelineConfig:
         pipeline. 
     ``metadata`` : dict[str, Any]
         Any additional information on the pipeline. 
+    ``overwrite`` : bool, default = False
+        Indicates whether the pipeline should overwrite previous outputs. 
     """
     name: Optional[str] = None
     stages_to_run: Optional[dict[str, bool]] = None
@@ -139,6 +141,7 @@ class PipelineConfig:
     allow_subprocess_fallback: bool = True
     python_executable: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    overwrite: bool = False
 
     def __post_init__(self) -> None:
         """
