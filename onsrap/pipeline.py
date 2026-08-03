@@ -225,6 +225,7 @@ class Pipeline:
         self._check_stage_configs(added_stages, self.stage_configs)
 
         self._sync_stage_configs()
+        self._check_output_dir_in_stage_configs()
         self._rebuild_graph()
 
         self.logger.event(
@@ -252,6 +253,7 @@ class Pipeline:
         """
         parsed_stage_config = self._coerce_stage_config(stage_config, name=name)
         self.stage_configs[parsed_stage_config.name] = parsed_stage_config
+        self._check_output_dir_in_stage_configs()
         self.logger.event("Stage configuration added", stage=parsed_stage_config.name)
     
     def enable_stage(self, *stage_name: str | list[str]) -> None:
@@ -709,13 +711,17 @@ class Pipeline:
         """
 
         output_dir_keys = ("output_dir", "output_directory", "output_path", "output_location")
+        #TODO: Regex? for output directory
         for stage in self.stages: 
             if any(key in self.stage_configs[stage.name]._variables for key in output_dir_keys):
                 warnings.warn(
                     f"Stage configuration for {stage.name} contains output directory keys. This will result "
                     f"in overwriting previous run outputs. Please set your output location in the stage scripts "
-                    f"using the resolve_output_root() function to ensure unique outputs are saved for each run.",
+                    f"using the resolve_output_root() method to ensure unique outputs are saved for each run.",
                     StageConfigurationWarning,
+                )
+                self.logger.event(f"Warning: stage configuration for {stage.name} contains output directory keys. Risk of overwriting outputs.",
+                                  keys_found = [key for key in output_dir_keys if key in self.stage_configs[stage.name]._variables]
                 )
 
     def _validate_stage_configs(self) -> None:
