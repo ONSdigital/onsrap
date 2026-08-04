@@ -256,7 +256,7 @@ class Pipeline:
             Optional stage name used when the parsed configuration payload does not
             identify the stage on its own.
         """
-parsed_stage_config = self._coerce_stage_config(stage_config, name=name)
+        parsed_stage_config = self._coerce_stage_config(stage_config, name=name)
         self.stage_configs[parsed_stage_config.name] = parsed_stage_config
         self._check_output_dir_in_stage_configs(name=parsed_stage_config.name)
         self.logger.event("Stage configuration added", stage=parsed_stage_config.name)
