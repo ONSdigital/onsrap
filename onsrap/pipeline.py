@@ -554,7 +554,7 @@ class Pipeline:
 
     def _combine_configs(self) -> dict[str,Any]:
         """
-        Combines all configurations within the Pipeline into one dictionary which can 
+        Combines all configurations (PipelineConfig, GlobalConfig, StageConfig) within the Pipeline into one dictionary which can 
         be recorded in the RunManifest for the run. 
 
         Returns 

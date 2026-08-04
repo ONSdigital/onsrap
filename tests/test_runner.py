@@ -39,7 +39,6 @@ def test_log_config_writes_manifest_config_as_block_style_yaml(tmp_path: Path) -
         config=config,
         logger=Logger(),
         run_dir=run_dir,
-        started_at="2026-07-29_120000",
         working_directory=tmp_path,
         stage_configs={},
         global_config=None,
@@ -72,7 +71,7 @@ def test_log_config_writes_manifest_config_as_block_style_yaml(tmp_path: Path) -
 
     expected_file = run_dir / (
         "configuration_for_"
-        f"{context.pipeline_name}_{context.started_at}_{context.run_id}.yaml"
+        f"{context.pipeline_name}_{context.started_at.date()}_{context.run_id[-8:]}.yaml"
     )
 
     assert expected_file.exists()

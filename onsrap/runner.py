@@ -235,16 +235,16 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _log_config(run_dir: str, context: ExecutionContext, manifest: RunManifest) -> None:
+def _log_config(run_dir: Path, context: ExecutionContext, manifest: RunManifest) -> None:
     """
-    Outputs the configurations used in an instance of a pipeline to a YAML file in the run directory. 
+    Outputs the configurations used in an instance of a pipeline to a YAML file in the run directory.
 
-    The file is kept in the block flow style typically expected of a YAML file. 
+    The file is kept in the block flow style typically expected of a YAML file.
 
     Parameters
     ----------
-    ``run_dir`` : str
-        The directory where the pipeline run is being executed. 
+    ``run_dir`` : Path
+        The directory where the pipeline run is being executed.
     ``context`` : ExecutionContext
         The context of the current pipeline run, containing configuration and state information.
     ``manifest`` : RunManifest
@@ -254,11 +254,11 @@ def _log_config(run_dir: str, context: ExecutionContext, manifest: RunManifest) 
 
     config_file = run_dir / f"configuration_for_{context.pipeline_name}_{date}_{context.run_id[-8:]}.yaml"
     import yaml
-    with open(config_file, "w") as f:
-        yaml.safe_dump(manifest.config, f, default_flow_style=False)
+    with open(config_file, "w", encoding="utf-8") as f:
+        yaml.safe_dump(manifest.config or {}, f, default_flow_style=False)
 
 
-def _flatten(obj, prefix="", sep="."):
+def _flatten(obj: dict | list, prefix: str = "", sep: str = ".") -> dict:
     """
     Converts nested dictionaries or lists into flat object using dot notation for keys. 
     Each key in the resulting dictionary represents the nested branching to get to the value
@@ -314,12 +314,13 @@ def _diff_yaml_files(path_a: Path, path_b: Path) -> dict:
     """
     import yaml
 
-    with open(path_a) as f: doc_a = yaml.safe_load(f)
-    with open(path_b) as f: doc_b = yaml.safe_load(f)
+    with open(path_a, encoding="utf-8") as f:
+        doc_a = yaml.safe_load(f) or {}
+    with open(path_b, encoding="utf-8") as f:
+        doc_b = yaml.safe_load(f) or {}
 
     flat_a = _flatten(doc_a)
     flat_b = _flatten(doc_b)
-
     keys_a, keys_b = set(flat_a), set(flat_b)
 
     return {
