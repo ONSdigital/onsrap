@@ -127,6 +127,8 @@ class PipelineConfig:
         pipeline. 
     ``metadata`` : dict[str, Any]
         Any additional information on the pipeline. 
+    ``overwrite`` : bool, default = False
+        Indicates whether the pipeline should overwrite previous outputs. 
     """
     name: Optional[str] = None
     stages_to_run: Optional[dict[str, bool]] = None
@@ -139,6 +141,7 @@ class PipelineConfig:
     allow_subprocess_fallback: bool = True
     python_executable: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    overwrite: bool = False
 
     def __post_init__(self) -> None:
         """
@@ -163,7 +166,8 @@ class PipelineConfig:
             f"    Work Directory: {self.work_dir}\n    Project Root: {self.project_root}\n"
             f"    Output Directory: {self.output_dir}\n    Log Directory: {self.log_dir}\n"
             f"    Data Directory: {self.data_dir}\n    Allow Subprocess Fallback: {self.allow_subprocess_fallback}\n"
-            f"    Python Executable: {self.python_executable}\n    Metadata: \n{_format_dict(self.metadata, indent=8)}"
+            f"    Python Executable: {self.python_executable}\n    Overwrite: {self.overwrite}\n"
+            f"    Metadata: \n{_format_dict(self.metadata, indent=8)}"
         )
 
     def __repr__(self) -> str:
@@ -183,7 +187,8 @@ class PipelineConfig:
             f"work_dir={self.work_dir}, project_root={self.project_root}, "
             f"output_dir={self.output_dir}, log_dir={self.log_dir}, data_dir={self.data_dir}, "
             f"allow_subprocess_fallback={self.allow_subprocess_fallback}, "
-            f"python_executable={self.python_executable}, metadata={self.metadata})"
+            f"python_executable={self.python_executable}, overwrite={self.overwrite}, "
+            f"metadata={self.metadata})"
         )
 
     @classmethod
@@ -254,6 +259,7 @@ class PipelineConfig:
         log_dir = Path(payload.pop("log_dir", "logs"))
         data_dir = Path(payload.pop("data_dir", "data"))
         raw_subprocess_fallback = payload.pop("allow_subprocess_fallback", True)
+        overwrite = PipelineConfig._to_bool(payload.pop("overwrite", False))
         if isinstance(raw_subprocess_fallback, str):
             warnings.warn(
                 "allow_subprocess_fallback should be a boolean, not a string. "
@@ -278,6 +284,7 @@ class PipelineConfig:
             log_dir=log_dir,
             data_dir=data_dir,
             allow_subprocess_fallback=allow_subprocess_fallback,
+            overwrite=overwrite,
             python_executable=python_executable,
             metadata=metadata,
         )

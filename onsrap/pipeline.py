@@ -8,6 +8,7 @@ import sys
 from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
+import re
 
 from .errors import StageConfigurationError, PipelineInitialisationError, PipelineConfigurationError
 from .warnings import StageConfigurationWarning, PipelineConfigurationWarning
@@ -20,6 +21,11 @@ from .stage import Stage, _normalize_dependencies
 
 ACCEPTED_CONFIG_TYPES = (".yaml", ".yml")
 AVAILABLE_EXECUTORS = ("python",)
+#captures long and short versions of output, directory, path, location, and file that's not case sensitive.
+OUTPUT_DIR_KEY_RE = re.compile(
+            r"^(?:out(?:put)?)(?:$|[_\-\s]?(?:dir(?:ectory)?|path|loc(?:ation)?|file))$",
+        re.IGNORECASE
+        )
 
 class Pipeline:
     """
@@ -98,6 +104,7 @@ class Pipeline:
         self.global_config = resolved_global_config 
         
         self._sync_stage_configs()
+        
         self._rebuild_graph()
         self.id: RuntimeID | None = None
         self.manifest: RunManifest | None = None
@@ -249,8 +256,9 @@ class Pipeline:
             Optional stage name used when the parsed configuration payload does not
             identify the stage on its own.
         """
-        parsed_stage_config = self._coerce_stage_config(stage_config, name=name)
+parsed_stage_config = self._coerce_stage_config(stage_config, name=name)
         self.stage_configs[parsed_stage_config.name] = parsed_stage_config
+        self._check_output_dir_in_stage_configs(name=parsed_stage_config.name)
         self.logger.event("Stage configuration added", stage=parsed_stage_config.name)
     
     def enable_stage(self, *stage_name: str | list[str]) -> None:
@@ -347,6 +355,9 @@ class Pipeline:
         for stage in self.graph.stages:
             stage.validate()
         self.graph.validate()
+
+        self._output_dir_conflict_check()
+
         return self
     
 
@@ -664,7 +675,15 @@ class Pipeline:
         -------
         tuple[PipelineConfig, dict[str, StageConfig], list[Stage], GlobalConfig]
             The resolved pipeline configuration, stage configurations, configured stages, and global configuration.
+
+        Raises
+        ------
+        ``StageConfigurationWarning``
+            If a stage configuration is found within the metadata section of a PipelineConfig instance, a warning is
+            raised to indicate that a composite configuration payload is preferred.
+            Output-location warnings are emitted during ``Pipeline.validate()`` when stage configurations are inspected.
         """
+        
         if config is None:
             return PipelineConfig.from_any(config), {}, [], GlobalConfig()
 
@@ -703,15 +722,100 @@ class Pipeline:
         global_config = GlobalConfig.from_dict(global_config_payload)
 
         return pipeline_config, stage_configs, configured_stages, global_config
-
-
+ 
 
     def _sync_stage_configs(self) -> None:
         """
         Ensure every known stage has a ``StageConfig`` entry, even if it is empty.
+
         """
         for stage in self.stages:
             self.stage_configs.setdefault(stage.name, StageConfig(name=stage.name))
+            
+
+    def _check_output_dir_in_stage_configs(self, name: str) -> None:
+        """
+        Checks ``StageConfig`` instances for output directory keys and raises a warning if any are found, 
+        as this will result in overwriting previous run outputs. Users are advised to set their output 
+        location in the stage scripts using the ``resolve_output_path()`` function to ensure unique 
+        outputs are saved for each run.
+
+        Parameters
+        ----------
+        ``regex_pattern``
+            The regular expression pattern used to identify output directory keys in the stage configurations.
+
+        ``name``
+            The stage name to check for output directory keys in the stage configurations.
+        """
+
+        if any(OUTPUT_DIR_KEY_RE.match(key) for key in self.stage_configs[name]._variables):
+            warnings.warn(
+                f"Stage configuration for {name} contains output directory keys. This will result "
+                f"in overwriting previous run outputs. Please set your output location in the stage scripts "
+                f"using the resolve_output_root() method to ensure unique outputs are saved for each run.",
+                StageConfigurationWarning,
+            )
+            self.logger.event(f"Warning: stage configuration for {name} contains output directory keys. Risk of overwriting outputs.",
+                                keys_found = [key for key in self.stage_configs[name]._variables if OUTPUT_DIR_KEY_RE.match(key)]
+            )
+
+    def _output_dir_conflict_check(self) -> None:
+        """
+        Checks whether the output directory has been assigned in stage configurations and already exists. It raises an error if 
+        it does, unless the overwrite parameter is set to True.
+
+        For each stage in the Pipeline, checks whether an output directory has been defined in the stage configurations. If it has been 
+        defined, it checks whether the Path value for the output directory already exists. If it does already exist, raise either an 
+        error or a warning based on an overwrite configuration. Log either the error or the warning in the Logger. 
+
+        Raises
+        ------
+        StageConfigurationError
+            If the overwrite parameter in the PipelineConfig is set to False and the output directory already exists.
+        StageConfigurationWarning
+            If the overwrite parameter in the PipelineConfig is set to True and the output directory already exists. 
+        """
+
+        
+        for stage in self.stages: 
+            available_output_dirs = [key for key in self.stage_configs[stage.name]._variables if OUTPUT_DIR_KEY_RE.match(key)]
+            self._check_output_dir_in_stage_configs(name=stage.name)
+
+            for directory in available_output_dirs:
+                output_dir = self.stage_configs[stage.name].get(directory)
+                if not output_dir:
+                    continue
+
+                output_path = Path(output_dir)
+                if not output_path.is_absolute():
+                    output_path = self.config.work_dir / output_path
+
+                exists = output_path.exists()
+                overwrite = bool(self.config.overwrite)
+
+                if exists and not overwrite:
+                    self.logger.event(
+                        f"Error: Output directory {output_path} already exists. Pipeline will crash to prevent overwrite.",
+                        overwrite=overwrite,
+                    )
+                    raise StageConfigurationError(
+                        f"Stage configuration for {stage.name} contains an output directory path that already exists. Please set a unique "
+                        f"output directory for this stage to prevent overwriting."
+                    )
+
+                if exists and overwrite:
+                    warnings.warn(
+                        f"Stage configuration for {stage.name} contains an output directory path that already exists. As the overwrite "
+                        f"parameter is True, the pipeline will proceed and will overwrite the previous run file.",
+                        StageConfigurationWarning,
+                    )
+                    self.logger.event(
+                        f"Warning: Output directory {output_path} already exists however permissions allow overwriting. The previous file "
+                        f"will be overwritten.",
+                        overwrite=overwrite,
+                    )
+                    
 
     def _validate_stage_configs(self) -> None:
         """

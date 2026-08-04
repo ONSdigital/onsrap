@@ -19,6 +19,7 @@ pipeline_variables:
   data_dir: examples/pipeline_2/data
   output_dir: examples/pipeline_2/outputs
   log_dir: examples/pipeline_2/logs
+  overwrite: True
   metadata:
     example: retail-orders-using-configuration
     description: "This is an example of a pipeline that uses configuration files to run a retail orders pipeline."
@@ -26,6 +27,7 @@ pipeline_variables:
     0_clean_data: True
     1_derive_vars: True
     2_reporting: True
+  
     
 global_variables:
   year_of_run: 2020
