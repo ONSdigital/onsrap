@@ -290,3 +290,21 @@ def test_generate_context_correctly_assigns_executor() -> None:
     with pytest.raises(PipelineInitialisationError):
         Pipeline(backend="nonexistent_backend",
                  stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+
+def test_validate_stage_backends_errors() -> None: 
+    """
+    Test that the _validate_stage_backends method correctly raises an error if 
+    the backends for a stage do not match the Pipeline backend or if there are 
+    multiple backends across the stages. 
+
+    Successful runs not tested here as they are covered in test_generate_context_
+    correctly_assigns_executor(). 
+    """
+
+    with pytest.raises(PipelineInitialisationError):
+        Pipeline(backend="python",
+                 stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=(), backend="nonexistent_backend")])
+        with pytest.raises(PipelineInitialisationError):
+                Pipeline(backend="python",
+                         stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=(), backend="nonexistent_backend"),
+                                 Stage("Stage_1", source=Path("Stage_1.py"), dependencies=(), backend="python")])
