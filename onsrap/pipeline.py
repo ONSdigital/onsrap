@@ -21,6 +21,11 @@ from .stage import Stage, _normalize_dependencies
 
 ACCEPTED_CONFIG_TYPES = (".yaml", ".yml")
 AVAILABLE_EXECUTORS = ("python",)
+#captures long and short versions of output, directory, path, location, and file that's not case sensitive.
+OUTPUT_DIR_KEY_RE = re.compile(
+            r"^(?:out(?:put)?)(?:$|[_\-\s]?(?:dir(?:ectory)?|path|loc(?:ation)?|file))$",
+        re.IGNORECASE
+        )
 
 class Pipeline:
     """
@@ -705,7 +710,7 @@ class Pipeline:
             self.stage_configs.setdefault(stage.name, StageConfig(name=stage.name))
             
 
-    def _check_output_dir_in_stage_configs(self, regex_pattern, name: str) -> None:
+    def _check_output_dir_in_stage_configs(self, name: str) -> None:
         """
         Checks ``StageConfig`` instances for output directory keys and raises a warning if any are found, 
         as this will result in overwriting previous run outputs. Users are advised to set their output 
@@ -721,7 +726,6 @@ class Pipeline:
             The stage name to check for output directory keys in the stage configurations.
         """
 
-        OUTPUT_DIR_KEY_RE = regex_pattern
         if any(OUTPUT_DIR_KEY_RE.match(key) for key in self.stage_configs[name]._variables):
             warnings.warn(
                 f"Stage configuration for {name} contains output directory keys. This will result "
@@ -750,15 +754,10 @@ class Pipeline:
             If the overwrite parameter in the PipelineConfig is set to True and the output directory already exists. 
         """
 
-        #captures long and short versions of output, directory, path, location, and file that's not case sensitive.
-        OUTPUT_DIR_KEY_RE = re.compile(
-                    r"^(?:out(?:put)?)(?:$|[_\-\s]?(?:dir(?:ectory)?|path|loc(?:ation)?|file))$",
-                re.IGNORECASE
-                )
         
         for stage in self.stages: 
             available_output_dirs = [key for key in self.stage_configs[stage.name]._variables if OUTPUT_DIR_KEY_RE.match(key)]
-            self._check_output_dir_in_stage_configs(regex_pattern=OUTPUT_DIR_KEY_RE, name=stage.name)
+            self._check_output_dir_in_stage_configs(name=stage.name)
 
             for directory in available_output_dirs:
                 output_dir = self.stage_configs[stage.name].get(directory, None)
