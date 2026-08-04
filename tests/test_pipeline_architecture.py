@@ -441,3 +441,65 @@ def test_example_main_scripts_run_successfully(script_path: Path) -> None:
         f"stderr:\n{result.stderr}"
     )
     assert "completed with" in result.stdout.lower()
+
+def test_pipeline_run_writes_manifest_config_yaml_to_run_directory(tmp_path: Path) -> None:
+    """
+    Integration test that checks that the _log_config method is correctly called within 
+    PipelineRunner.run() and that the information is parsed in a suitable format to a YAML
+    file in the run directory. 
+
+    This test also captures that _combine_configs() correctly converts all configuration 
+    information into a single dictionary that can be serialized to YAML.
+    """
+    stage_file = tmp_path / "single_stage.py"
+    stage_file.write_text(
+        dedent(
+            """
+            def run(context):
+                return {"status": "ok"}
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.warns(PipelineConfigurationWarning,
+                      match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline.from_files(
+            [stage_file],
+            name="config-export-pipeline",
+            config={
+                "pipeline_config": {
+                    "work_dir": tmp_path,
+                    "project_root": tmp_path,
+                    "log_dir": tmp_path / "logs",
+                },
+                "stage_configuration": {},
+                "global_configuration": {
+                    "dry_run": True,
+                }
+            },
+        )
+
+    with pytest.warns(StageConfigurationWarning, 
+                      match = "Output directory is not specified. Using project root or work directory as the run output."):
+        run = pipeline.run()
+
+    run_dir = tmp_path / "runs" / run.manifest.run_id
+    config_file = run_dir / (
+        f"configuration_for_{pipeline.name}_{run.started_at.date()}_{run.manifest.run_id[-8:]}.yaml"
+    )
+
+    assert config_file.exists()
+
+    file_text = config_file.read_text(encoding="utf-8")
+    parsed_yaml = yaml.safe_load(file_text)
+
+    assert parsed_yaml == run.manifest.config
+    assert "pipeline_config:\n" in file_text
+    assert "stage_configs:\n" in file_text
+    assert "global_config:\n" in file_text
+    assert "pipeline_config: {" not in file_text
+    assert "stage_configs: {" not in file_text
+    assert "global_config: {" not in file_text
+    assert "  dry_run: true" in file_text

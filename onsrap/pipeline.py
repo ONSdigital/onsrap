@@ -549,7 +549,31 @@ class Pipeline:
             timestamp=runtime_id.timestamp.isoformat(),
             reason=self.config.metadata.get("reason"),
             user=self._current_user(),
+            config = self._combine_configs(),
         )
+
+    def _combine_configs(self) -> dict[str,Any]:
+        """
+        Combines all configurations (PipelineConfig, GlobalConfig, StageConfig) within the Pipeline into one dictionary which can 
+        be recorded in the RunManifest for the run. 
+
+        Returns 
+        -------
+        dict[str,Any]
+            A dictionary containing the configuration for the Pipeline, the stages, and 
+            the global configuration. 
+        """
+        global_variables, exclusions = self.global_config.get_attributes()
+        global_configuration = dict(global_variables or {})
+        global_configuration["exclusions"] = exclusions
+            
+        all_stage_configuration = {name: config.to_dict() for name, config in self.stage_configs.items()}
+        configuration = {"pipeline_config": self.config.to_dict(),
+                         "stage_configs": all_stage_configuration,
+                         "global_config": global_configuration}
+
+        return configuration
+
 
     def _create_runtime_id(self) -> RuntimeID:
         """
