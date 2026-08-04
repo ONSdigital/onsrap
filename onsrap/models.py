@@ -259,7 +259,7 @@ class PipelineConfig:
         log_dir = Path(payload.pop("log_dir", "logs"))
         data_dir = Path(payload.pop("data_dir", "data"))
         raw_subprocess_fallback = payload.pop("allow_subprocess_fallback", True)
-        overwrite = payload.pop("overwrite", False)
+        overwrite = PipelineConfig._to_bool(payload.pop("overwrite", False))
         if isinstance(raw_subprocess_fallback, str):
             warnings.warn(
                 "allow_subprocess_fallback should be a boolean, not a string. "

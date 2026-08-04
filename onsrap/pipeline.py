@@ -256,9 +256,9 @@ class Pipeline:
             Optional stage name used when the parsed configuration payload does not
             identify the stage on its own.
         """
-        parsed_stage_config = self._coerce_stage_config(stage_config, name=name)
+parsed_stage_config = self._coerce_stage_config(stage_config, name=name)
         self.stage_configs[parsed_stage_config.name] = parsed_stage_config
-        self._check_output_dir_in_stage_configs()
+        self._check_output_dir_in_stage_configs(name=parsed_stage_config.name)
         self.logger.event("Stage configuration added", stage=parsed_stage_config.name)
     
     def enable_stage(self, *stage_name: str | list[str]) -> None:
@@ -657,8 +657,7 @@ class Pipeline:
         ``StageConfigurationWarning``
             If a stage configuration is found within the metadata section of a PipelineConfig instance, a warning is
             raised to indicate that a composite configuration payload is preferred.
-            If an output location is recorded in stage configuration, a warning is raised to inform the user that 
-            this will result in overwriting previous run outputs.
+            Output-location warnings are emitted during ``Pipeline.validate()`` when stage configurations are inspected.
         """
         
         if config is None:
@@ -760,21 +759,38 @@ class Pipeline:
             self._check_output_dir_in_stage_configs(name=stage.name)
 
             for directory in available_output_dirs:
-                output_dir = self.stage_configs[stage.name].get(directory, None)
-                if Path(output_dir).exists() and self.config.overwrite is False:
-                    self.logger.event(f"Error: Output directory {output_dir} already exists. Pipeline will crash to prevent overwrite.",
-                                       overwrite = self.config.overwrite)
+                output_dir = self.stage_configs[stage.name].get(directory)
+                if not output_dir:
+                    continue
+
+                output_path = Path(output_dir)
+                if not output_path.is_absolute():
+                    output_path = self.config.work_dir / output_path
+
+                exists = output_path.exists()
+                overwrite = bool(self.config.overwrite)
+
+                if exists and not overwrite:
+                    self.logger.event(
+                        f"Error: Output directory {output_path} already exists. Pipeline will crash to prevent overwrite.",
+                        overwrite=overwrite,
+                    )
                     raise StageConfigurationError(
                         f"Stage configuration for {stage.name} contains an output directory path that already exists. Please set a unique "
-                        f"output directory for this stage to prevent overwriting.")
-                
-                if Path(output_dir).exists() and self.config.overwrite is True:
+                        f"output directory for this stage to prevent overwriting."
+                    )
+
+                if exists and overwrite:
                     warnings.warn(
                         f"Stage configuration for {stage.name} contains an output directory path that already exists. As the overwrite "
-                        f"parameter is True, the pipeline will proceed and will overwrite the previous run file.", StageConfigurationWarning
+                        f"parameter is True, the pipeline will proceed and will overwrite the previous run file.",
+                        StageConfigurationWarning,
                     )
-                    self.logger.event(f"Warning: Output directory {output_dir} already exists however permissions allow overwriting. The previous file "
-                                      f"will be overwritten.", overwrite = self.config.overwrite)
+                    self.logger.event(
+                        f"Warning: Output directory {output_path} already exists however permissions allow overwriting. The previous file "
+                        f"will be overwritten.",
+                        overwrite=overwrite,
+                    )
                     
 
     def _validate_stage_configs(self) -> None:
