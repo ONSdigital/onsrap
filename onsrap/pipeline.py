@@ -75,11 +75,6 @@ class Pipeline:
         
         self.logger = logger or Logger(log_dir=self.config.log_dir)
 
-        if executor is not None:
-            self.executor = executor
-        else:
-            self._generate_context()
-            
         if stages is not None and configured_stages:
             raise PipelineInitialisationError(
                 "Stages parsed through both Pipeline construction and configuration file. Either provide stages through the constructor or the configuration file, not both."
@@ -89,6 +84,11 @@ class Pipeline:
             if stages is None
             else [self._coerce_stage(stage) for stage in stages]
         )
+
+        if executor is not None:
+            self.executor = executor
+        else:
+            self._generate_context()
 
         self.dependencies = dependencies
         if dependencies is not None and stages is None:
