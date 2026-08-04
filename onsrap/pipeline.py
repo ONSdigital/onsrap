@@ -750,6 +750,7 @@ class Pipeline:
             If the overwrite parameter in the PipelineConfig is set to True and the output directory already exists. 
         """
 
+        #captures long and short versions of output, directory, path, location, and file that's not case sensitive.
         OUTPUT_DIR_KEY_RE = re.compile(
                     r"^(?:out(?:put)?)(?:$|[_\-\s]?(?:dir(?:ectory)?|path|loc(?:ation)?|file))$",
                 re.IGNORECASE
