@@ -11,12 +11,9 @@ from onsrap.runner import _log_config, print_config_diffs
 
 
 class TestLogConfig:
-    def test_writes_manifest_config_as_block_style_yaml(
-            self, 
-            tmp_path: Path
-            ) -> None:
+    def test_writes_manifest_config_as_block_style_yaml(self, tmp_path: Path) -> None:
         """
-        Tests that the ``_log_config`` function correctly writes the manifest 
+        Tests that the ``_log_config`` function correctly writes the manifest
         configuration to a YAML file in block style format.
         """
         run_dir = tmp_path / "runs" / "synthetic_run"
@@ -96,9 +93,9 @@ class TestPrintConfigDiffs:
     @staticmethod
     def _write_yaml(path: Path, content: str) -> None:
         """
-        Helper function that writes a YAML file to the specified path with 
-        the provided content. The content is dedented and stripped of 
-        leading/trailing whitespace before being written to the file. A newline is 
+        Helper function that writes a YAML file to the specified path with
+        the provided content. The content is dedented and stripped of
+        leading/trailing whitespace before being written to the file. A newline is
         added at the end of the file.
         """
         path.write_text(dedent(content).strip() + "\n", encoding="utf-8")
