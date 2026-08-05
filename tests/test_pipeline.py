@@ -111,34 +111,40 @@ def test_add_dependencies_single_dict(tmp_path):
 
 
 def test_add_stage_parses_stage_configs_keyword() -> None:
-    pipeline = Pipeline()
-    stage = Stage("Stage_1", source=Path("Stage_1.py"), dependencies=())
-    stage_config = StageConfig(name="Stage_1", _variables={"years_to_run": 2017})
+    with pytest.warns(PipelineConfigurationWarning,
+                          match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline()
+        stage = Stage("Stage_1", source=Path("Stage_1.py"), dependencies=())
+        stage_config = StageConfig(name="Stage_1", _variables={"years_to_run": 2017})
 
-    pipeline.add_stage(stage, stage_configs=[stage_config])
+        pipeline.add_stage(stage, stage_configs=[stage_config])
 
-    assert pipeline.stages[-1].name == "Stage_1"
-    assert pipeline.stage_configs["Stage_1"].require("years_to_run") == 2017
+        assert pipeline.stages[-1].name == "Stage_1"
+        assert pipeline.stage_configs["Stage_1"].require("years_to_run") == 2017
 
 
 def test_add_stage_warns_when_stage_config_count_mismatches() -> None:
-    pipeline = Pipeline()
-    stage_0 = Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())
-    stage_1 = Stage("Stage_1", source=Path("Stage_1.py"), dependencies=())
+    with pytest.warns(PipelineConfigurationWarning,
+                          match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline()
+        stage_0 = Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())
+        stage_1 = Stage("Stage_1", source=Path("Stage_1.py"), dependencies=())
 
-    with pytest.warns(StageConfigurationWarning) as recorded_warnings:
-        pipeline.add_stage(stage_0, stage_1, stage_configs=[{"years_to_run": 2017}])
+        with pytest.warns(StageConfigurationWarning) as recorded_warnings:
+            pipeline.add_stage(stage_0, stage_1, stage_configs=[{"years_to_run": 2017}])
 
-    assert any(
-        "does not match the number of stages" in str(recorded_warning.message)
-        for recorded_warning in recorded_warnings
-    )
-    assert pipeline.stage_configs["Stage_0"].require("years_to_run") == 2017
-    assert pipeline.stage_configs["Stage_1"].to_dict() == {}
+        assert any(
+            "does not match the number of stages" in str(recorded_warning.message)
+            for recorded_warning in recorded_warnings
+        )
+        assert pipeline.stage_configs["Stage_0"].require("years_to_run") == 2017
+        assert pipeline.stage_configs["Stage_1"].to_dict() == {}
 
 
 def test_add_stage_config_coerces_mapping_payload_for_named_stage() -> None:
-    pipeline = Pipeline(stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+    with pytest.warns(PipelineConfigurationWarning,
+                          match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline(stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
 
     pipeline.add_stage_config({"years_to_run": 2017}, name="Stage_0")
 
@@ -154,6 +160,7 @@ def test_resolve_stages_to_run_includes_transitive_dependencies() -> None:
     stage_1 = Stage("Stage_1", source=Path("Stage_1.py"), dependencies=("Stage_0",))
     stage_2 = Stage("Stage_2", source=Path("Stage_2.py"), dependencies=("Stage_1",))
 
+    
     pipeline = Pipeline(
         stages=[stage_0, stage_1, stage_2],
         config=PipelineConfig(stages_to_run={"Stage_2": True}),
@@ -178,7 +185,10 @@ def test_self_stages_is_full_registry_after_disable() -> None:
     """Pipeline.stages always holds all stages; only graph.stages is the effective run set."""
     stage_0 = Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())
     stage_1 = Stage("Stage_1", source=Path("Stage_1.py"), dependencies=())
-    pipeline = Pipeline(stages=[stage_0, stage_1])
+
+    with pytest.warns(PipelineConfigurationWarning,
+                              match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline(stages=[stage_0, stage_1])
 
     pipeline.disable_stage("Stage_1")
 
@@ -190,7 +200,9 @@ def test_self_stages_is_full_registry_after_disable() -> None:
 def test_disable_stage_in_implicit_mode_creates_explicit_selection() -> None:
     stage_0 = Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())
     stage_1 = Stage("Stage_1", source=Path("Stage_1.py"), dependencies=())
-    pipeline = Pipeline(stages=[stage_0, stage_1])
+    with pytest.warns(PipelineConfigurationWarning,
+                              match = "No stages specified to run. All stages running by default."):
+        pipeline = Pipeline(stages=[stage_0, stage_1])
 
     pipeline.disable_stage("Stage_1")
 
