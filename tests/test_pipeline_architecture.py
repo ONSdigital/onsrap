@@ -49,7 +49,8 @@ def test_pipeline_from_files_executes_python_entrypoints(tmp_path: Path) -> None
             config={"pipeline_config":{"work_dir": tmp_path,
                                         "project_root": tmp_path,
                                         "log_dir": tmp_path / "logs"},
-                    "stage_configuration": {}
+                    "stage_configuration": {},
+                    "global_config":{}
             },
         )
 
@@ -86,7 +87,8 @@ def test_pipeline_uses_run_specific_output_directory(tmp_path: Path) -> None:
             config={"pipeline_config":{"work_dir": tmp_path,
                                         "project_root": tmp_path,
                                         "log_dir": tmp_path / "logs"},
-                    "stage_configuration": {}},
+                    "stage_configuration": {},
+                    "global_config":{}},
         )
 
     with pytest.warns(StageConfigurationWarning, 
@@ -120,7 +122,8 @@ def test_pipeline_falls_back_to_subprocess_for_plain_python_scripts(tmp_path: Pa
             config={"pipeline_config":{"work_dir": tmp_path,
                                         "project_root": tmp_path,
                                         "log_dir": tmp_path / "logs"},
-                    "stage_configuration": {}},
+                    "stage_configuration": {},
+                    "global_config":{}},
         )
 
     with pytest.warns(StageConfigurationWarning, 
@@ -185,6 +188,8 @@ def test_pipeline_from_config_builds_stages_and_injects_stage_config(tmp_path: P
               0_data_validation:
                 years_to_run: 2017
                 target_variable: "classification"
+            global_configuration:
+              dry_run: true
             """
         ).strip()
         + "\n",
@@ -232,6 +237,7 @@ def test_pipeline_rejects_unknown_stage_configuration(tmp_path: Path) -> None:
                 "stage_configuration": {
                     "missing_stage": {"years_to_run": 2017},
                 },
+                "global_config":{}
             },
         )
 
@@ -303,6 +309,7 @@ def test_pipeline_from_config_parses_stage_configuration_payloads(tmp_path: Path
                 },
             },
         },
+        "global_config":{}
     }
 
     config_file = tmp_path / "conf.yaml"
@@ -320,10 +327,9 @@ def test_pipeline_from_config_parses_stage_configuration_payloads(tmp_path: Path
     assert pipeline.stages[0].source_path == (scripts_dir / "0_extract.py").resolve()
     assert pipeline.stages[0].metadata["owner"] == "analytics"
     assert pipeline.stages[1].dependencies == ("0_extract",)
-    assert pipeline.stage_configs["0_extract"].variables == {"years_to_run": 2017}
-    assert pipeline.stage_configs["0_extract"].datasets == {"orders": {"path": "data/orders.csv"}}
+    assert pipeline.stage_configs["0_extract"].variables == {"years_to_run": 2017, "datasets": {"orders": {"path": "data/orders.csv"}}}
     assert pipeline.stage_configs["0_extract"].metadata == {"purpose": "extract"}
-    assert pipeline.create_stage_config(config_file, name="1_transform").require("target_variable") == "classification"
+    assert pipeline.stage_configs["1_transform"].require("target_variable") == "classification"
 
 
 def test_pipeline_from_config_scales_stage_configuration_to_many_stages(tmp_path: Path) -> None:
@@ -388,6 +394,9 @@ def test_pipeline_from_config_scales_stage_configuration_to_many_stages(tmp_path
                     "stages": stage_definitions,
                 },
                 "stage_configuration": stage_configuration,
+                "global_config": {
+                    "dry_run": True,
+                },
             },
             sort_keys=False,
         ),
