@@ -216,6 +216,10 @@ class TestExecutionContext:
     def test_stage_config_accessors_return_named_and_active_configs(
         self, config, logger
     ) -> None:
+        """
+        Tests that getter methods to return the stage_config for a named stage
+        returns correct attributes based on given parameters.
+        """
         stage_config = StageConfig(name="stage_test", _variables={"years_to_run": 2017})
         context = ExecutionContext(
             "test_pipeline",
@@ -357,6 +361,10 @@ def pythonstageexecutor() -> PythonStageExecutor:
 
 class TestPythonStageExecutor:
     def test_pythonstageexecutor_setup(self, pythonstageexecutor) -> None:
+        """
+        Checks that entrypoints are set correctly in the PythonStageExecutor
+        instance.
+        """
         assert pythonstageexecutor.preferred_entrypoints == ("main.py", "run.py")
 
 
