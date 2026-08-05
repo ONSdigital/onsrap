@@ -13,6 +13,8 @@ from onsrap.models import (
     StageStatus,
 )
 
+from tests.test_execution import stageresult
+
 STARTED_AT = datetime.datetime(2024, 5, 6, 15, 45, 30)
 FINISHED_AT = datetime.datetime(2024, 5, 7, 15, 45, 30)
 
@@ -136,27 +138,12 @@ class TestPipelineConfig:
         with pytest.raises(TypeError):
             blankpipelineconfig.from_any(11)
 
-    def test_from_file(self, tmp_path, expected_pipeline_config) -> PipelineConfig:
-        pipeline_config = tmp_path / "configuration.py"
-        pipeline_config.write_text(
-            dedent(
-                """
-                {"name":"test_rap",
-                                 "backend":"python",
-                                 "work_dir":"tmp/work",
-                                 "project_root":"project",
-                                 "log_dir":"tmp/logs",
-                                 "data_dir":"tmp/data",
-                                 "allow_subprocess_fallback":True,
-                                 "python_executable": ,
-                                 "metadata":{"variables":["name","age"],
-                                             "num_stages":6}
-                                             }
-                """
-            ).strip()
-            + "\n",
-            encoding="utf-8",
-        )
+    def test_from_file_errors(self, tmp_path) -> PipelineConfig:
+        """
+        Checks that a PipelineConfig instance raises the correct exceptions when a
+        file is not found or the file does not contain a dictionary mapping. 
+        """
+
         no_map_pipeline_config = tmp_path / "not_valid.py"
         no_map_pipeline_config.write_text(
             dedent(
@@ -167,14 +154,53 @@ class TestPipelineConfig:
             + "\n",
             encoding="utf-8",
         )
-        configuration = PipelineConfig.from_file(pipeline_config)
-        assert configuration == expected_pipeline_config
 
         fake_file = "path_not_real"
         with pytest.raises(FileNotFoundError):
             PipelineConfig.from_file(fake_file)
         with pytest.raises(TypeError):
             PipelineConfig.from_file(no_map_pipeline_config)
+
+    def test_from_file_success(
+            self, tmp_path, expected_pipeline_config
+            ) -> PipelineConfig:
+            """
+            Checks that a PipelineConfig instance is created successfully from a mock 
+            file.
+            """
+            pipeline_config = tmp_path / "configuration.py"
+            pipeline_config.write_text(
+                dedent(
+                    """
+                    {"name":"test_rap",
+                                     "backend":"python",
+                                     "work_dir":"tmp/work",
+                                     "project_root":"project",
+                                     "log_dir":"tmp/logs",
+                                     "data_dir":"tmp/data",
+                                     "allow_subprocess_fallback":True,
+                                     "python_executable": ,
+                                     "metadata":{"variables":["name","age"],
+                                                 "num_stages":6}
+                                                 }
+                    """
+                ).strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            no_map_pipeline_config = tmp_path / "not_valid.py"
+            no_map_pipeline_config.write_text(
+                dedent(
+                    """
+                    variable = "Hello world"
+                    """
+                ).strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            configuration = PipelineConfig.from_file(pipeline_config)
+            assert configuration == expected_pipeline_config
+
 
     def test_to_dict(self, pipelineconfig) -> None:
         """
