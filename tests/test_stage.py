@@ -45,6 +45,11 @@ class TestStage:
     def test_stage_creation_callable(self, stage_test) -> None:
         """
         Tests that attributes have been appropriately assigned to Stage class.
+
+        Parameter
+        ---------
+        stage_test : Stage
+            A ``Stage`` object created with a callable source for testing.
         """
         assert stage_test.name == "callable_stage"
         assert stage_test.source == example_function
@@ -57,6 +62,16 @@ class TestStage:
         """
         Tests that a StageConfigurationError is raised if the name is left blank
         in a Stage class instance.
+
+        Parameters
+        ----------
+        ``example_function`` : callable
+            A callable function to pass as a source for a ``Stage`` class instance.
+
+        Raises
+        ------
+        ``StageConfigurationError``
+            If the name is left blank in a ``Stage`` class instance. 
         """
         with pytest.raises(StageConfigurationError):
             Stage("", example_function, ["stage_1"], {"info": "example"})
@@ -64,6 +79,12 @@ class TestStage:
     def test_stage_source_type(self) -> None:
         """
         Tests that a non-valid source type returns a StageConfigurationError.
+
+        Raises
+        ------
+        ``StageConfigurationError``
+            If the source is not a valid callable or file path in a ``Stage`` class 
+            instance.
         """
         with pytest.raises(StageConfigurationError):
             Stage("callable_stage", 11, ["stage_1"], {"info": "example"})
@@ -71,6 +92,11 @@ class TestStage:
     def test_stage_backend(self, example_function) -> None:
         """
         Tests that backend can be any string, None, and corrects for whitespace.
+
+        Parameters
+        ----------
+        ``example_function`` : callable
+            A callable function to pass as a source for a ``Stage`` class instance.
         """
         stage_diff = Stage(
             "callable_stage",
@@ -100,29 +126,44 @@ class TestStage:
     def test_stage_from_files_error(self, tmp_path: Path) -> None:
         """
         Tests that if the file doesn't exist, a StageConfigurationError is raised.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary path provided by pytest for testing file creation and 
+            manipulation.
+        
+        Raises
+        ------
+        ``StageConfigurationError``
+            If the source file doesn't exist when attempting to create a 
+            ``Stage`` instance
         """
         source_file = tmp_path / "not_an_actual_file.py"
         with pytest.raises(StageConfigurationError):
             Stage.from_file(source_file)
 
-    def test_stage_from_callable_name(self) -> None:
+    def test_stage_from_callable_name(self, example_function) -> None:
         """
         Tests that a stage name is extracted from a callable object stage.
+
+        Parameters
+        ----------
+        ``example_function`` : callable
+            A callable function to pass as a source for a ``Stage`` class instance.
         """
-
-        def example_function():
-            pass
-
         test = Stage.from_callable(example_function)
         assert test.name == "example_function"
 
-    def test_from_dict_norm(self) -> None:
+    def test_from_dict_norm(self, example_function) -> None:
         """
         Tests that a stage instance is created from a dictionary item.
-        """
 
-        def example_function():
-            pass
+        Parameters
+        ----------
+        ``example_function`` : callable
+            A callable function to pass as a source for a ``Stage`` class instance.
+        """
 
         data = {"name": "test_Stage", "callable": example_function}
         stage = Stage.from_dict(data)
@@ -132,6 +173,11 @@ class TestStage:
         """
         Tests adding different types of dependencies when the original dependency is
         a list.
+
+        Parameters
+        ----------
+        ``stage_test`` : Stage
+            A ``Stage`` object created with a callable source for testing.
         """
         new_deps = ["stage2", "stage3"]
         new_deps_blank = []
@@ -145,6 +191,21 @@ class TestStage:
     def test_validate(self, stage_test, tmp_path) -> None:
         """
         Tests whether an error is raised if the source file isn't suitable.
+
+        Parameters
+        ----------
+        ``stage_test`` : Stage
+            A ``Stage`` object created with a callable source for testing.
+        ``tmp_path`` : Path
+            A temporary path provided by pytest for testing file creation and 
+            manipulation.
+
+        Raises
+        ------
+        ``StageConfigurationError``
+            If the source is not a valid callable or file path in a ``Stage`` class 
+            instance. In this instance, it raises if the source is None, an empty
+            string, or a Path object that is not a file.
         """
         stage_test.source = None
         with pytest.raises(StageConfigurationError):
@@ -157,10 +218,20 @@ class TestStage:
         with pytest.raises(StageConfigurationError):
             stage_test.validate()
 
-    def test_source_path(self, stage_test, tmp_path) -> None:
+    def test_source_path(self, stage_test, tmp_path, example_function) -> None:
         """
         Tests whether source_path detects a path vs other valid and invalid source 
         types.
+
+        Parameters
+        ----------
+        ``stage_test`` : Stage
+            A ``Stage`` object created with a callable source for testing.
+        ``tmp_path`` : Path
+            A temporary path provided by pytest for testing file creation and 
+            manipulation.
+        ``example_function`` : callable
+            A callable function to pass as a source for a ``Stage`` class instance.
         """
         stage_test.source = tmp_path / "fake_file.py"
         assert stage_test.source_path == tmp_path / "fake_file.py"
@@ -168,24 +239,27 @@ class TestStage:
         assert stage_test.source_path is None
         stage_test.source = "not a file path"
         assert stage_test.source_path is None
-
-        def example_function():
-            pass
-
         stage_test.source = example_function
         assert stage_test.source_path is None
 
-    def test_source_label(self, stage_test, tmp_path) -> None:
+    def test_source_label(self, stage_test, tmp_path, example_function) -> None:
         """
         Tests that source_label is created if the source is a Path or a callable
         and is None if it is another type.
+
+        Parameters
+        ----------
+        ``stage_test`` : Stage
+            A ``Stage`` object created with a callable source for testing.
+        ``tmp_path`` : Path
+            A temporary path provided by pytest for testing file creation and 
+            manipulation.
+        ``example_function`` : callable
+            A callable function to pass as a source for a ``Stage`` class instance.
         """
         stage_test.source = tmp_path / "fake_file.py"
         temp_path_str = str(tmp_path / "fake_file.py")
         assert stage_test.source_label == temp_path_str
-
-        def example_function():
-            pass
 
         stage_test.source = example_function
         assert stage_test.source_label == "tests.test_stage.example_function"
@@ -203,6 +277,12 @@ class TestStageFactories:
     def test_stage_instance_from_file(self, tmp_path) -> None:
         """
         Tests that a Stage instance is created from a filepath.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary path provided by pytest for testing file creation and 
+            manipulation.
         """
         test_stage = tmp_path / "test_stage.py"
         test_stage.write_text(

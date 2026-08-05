@@ -57,6 +57,11 @@ class TestRuntimeID:
     def test_runtimeID_creation(self, runtimeID) -> None:
         """
         Test that a RuntimeID is correctly created.
+
+        Parameters
+        ----------
+        ``runtimeID`` : RuntimeID
+            A RuntimeID instance for testing.
         """
         assert runtimeID.id == "abc123"
         assert runtimeID.timestamp == datetime.datetime(2026, 7, 7, 13, 5, 46)
@@ -66,6 +71,11 @@ class TestRuntimeID:
     def test_getter_functions_runtimeID(self, runtimeID) -> None:
         """
         Tests all the getter functions for the RuntimeID instance.
+
+        Parameters
+        ----------
+        ``runtimeID`` : RuntimeID
+            A RuntimeID instance for testing.
         """
         assert runtimeID.get_id() == "abc123"
         assert runtimeID.get_timestamp() == datetime.datetime(2026, 7, 7, 13, 5, 46)
@@ -101,6 +111,12 @@ def expected_pipeline_config() -> PipelineConfig:
 
 @pytest.fixture
 def pipelineconfig(expected_pipeline_config) -> PipelineConfig:
+    """
+    Returns a PipelineConfig instance for testing that is derived
+    fromthe expected_pipeline_config fixture. Used as a separate 
+    fixture to ensure that the behaviour of the from_any() method is 
+    tested correctly in the TestPipelineConfig class.
+    """
     return expected_pipeline_config
 
 
@@ -130,6 +146,16 @@ class TestPipelineConfig:
         Test derivation for a PipelineConfig instance using the from_any() method. This
         test checks all methods EXCEPT from_file as this will be covered in another 
         test due to creation of a mock file being required.
+
+        Parameters
+        ----------
+        ``mapping`` : dict
+            A dictionary mapping of values for a PipelineConfig instance.
+
+        Raises
+        ------
+        TypeError
+            If the input to from_any() is not of a supported type.
         """
         assert blankpipelineconfig.from_any(None) == PipelineConfig()
         assert blankpipelineconfig.from_any(pipelineconfig) == expected_pipeline_config
@@ -142,6 +168,20 @@ class TestPipelineConfig:
         """
         Checks that a PipelineConfig instance raises the correct exceptions when a
         file is not found or the file does not contain a dictionary mapping. 
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary path provided by pytest for testing file creation and 
+            manipulation.
+
+        Raises
+        ------
+        ``FileNotFoundError``
+            If the file path provided does not exist.
+
+        ``TypeError``
+            If the file does not contain a dictionary mapping.
         """
 
         no_map_pipeline_config = tmp_path / "not_valid.py"
@@ -167,6 +207,15 @@ class TestPipelineConfig:
             """
             Checks that a PipelineConfig instance is created successfully from a mock 
             file.
+
+            Parameters
+            ----------
+            ``tmp_path`` : Path
+                A temporary path provided by pytest for testing file creation and 
+                manipulation.  
+            ``expected_pipeline_config`` : PipelineConfig
+                A PipelineConfig instance that is expected to be created from the mock
+                file.
             """
             pipeline_config = tmp_path / "configuration.py"
             pipeline_config.write_text(
@@ -206,6 +255,11 @@ class TestPipelineConfig:
         """
         Test of to_dict() class method for PipelineConfig that it outputs the 
         PipelineConfig values as a dictionary.
+
+        Parameters
+        ----------
+        ``pipelineconfig`` : PipelineConfig
+            A PipelineConfig instance for testing.
         """
 
         assert pipelineconfig.to_dict() == {
@@ -249,6 +303,11 @@ class TestStageResult:
         """
         Uses a StageResult instance created in test_execution to ensure that
         the class instance is created suitably with required defaults.
+
+        Parameters
+        ----------
+        ``stageresult`` : StageResult
+            A StageResult instance for testing.
         """
         assert stageresult.name == "stage_test"
         assert stageresult.status == "pending"
@@ -276,6 +335,16 @@ class TestStageResult:
         """
         Tests succeeded() method for StageResult which outputs True or False depending
         on the status of the StageResult.
+
+        Parameters
+        ----------
+        ``stageresult`` : StageResult
+            A StageResult instance for testing.
+        ``status_stage`` : StageStatus
+            A StageStatus value to set the status of the StageResult instance.
+        ``expected_stage`` : bool
+            The expected boolean output from the succeeded() method based on the 
+            status of the StageResult instance.
         """
         stageresult.status = status_stage
         assert stageresult.succeeded == expected_stage
@@ -284,6 +353,11 @@ class TestStageResult:
         """
         Tests that duration_seconds() method calculates the correct duration in seconds
         between the started_at and finished_at attributes of the StageResult instance.
+
+        Parameters
+        ----------
+        ``stageresult`` : StageResult
+            A StageResult instance for testing.
         """
         stageresult.started_at = STARTED_AT
         stageresult.finished_at = FINISHED_AT
@@ -293,6 +367,17 @@ class TestStageResult:
 
 @pytest.fixture
 def pipelinerun(stageresult, runmanifest) -> PipelineRun:
+    """
+    Creates a PipelineRun instance for testing that is used in the TestPipelineRun
+    class.
+
+    Parameters
+    ----------
+    ``stageresult`` : StageResult
+        A StageResult instance for testing.
+    ``runmanifest`` : RunManifest
+        A RunManifest instance for testing.
+    """
     return PipelineRun(
         runmanifest,
         PipelineStatus.SUCCEEDED,
@@ -310,6 +395,15 @@ class TestPipelineRun:
         """
         Checks that the PipelineRun instance is created successfully with the correct 
         attributes and values.
+
+        Parameters
+        ----------
+        ``pipelinerun`` : PipelineRun
+            A PipelineRun instance for testing. 
+        ``runmanifest`` : RunManifest
+            A RunManifest instance for testing.
+        ``stageresult`` : StageResult
+            A StageResult instance for testing.
         """
         assert pipelinerun.manifest == runmanifest
         assert pipelinerun.status == PipelineStatus.SUCCEEDED
@@ -319,6 +413,11 @@ class TestPipelineRun:
         assert pipelinerun.stage_outputs == {"stage_test": "example output"}
 
     def test_result_for(self, pipelinerun, stageresult) -> None:
+        """
+        Checks that the result_for() method of the PipelineRun instance returns the
+        correct StageResult instance when provided with a valid stage name, and returns
+        None when the stage name is not found.
+        """
         assert pipelinerun.result_for("stage_test") == stageresult
         assert pipelinerun.result_for("not_a_stage") is None
 
@@ -335,6 +434,16 @@ class TestPipelineRun:
         """
         Checks that the succeeded() method of the PipelineRun instance returns the
         correct boolean value based on its status.
+
+        Parameters
+        ----------
+        ``pipelinerun`` : PipelineRun
+            A PipelineRun instance for testing.
+        ``status`` : PipelineStatus
+            A PipelineStatus value to set the status of the PipelineRun instance.
+        ``expected`` : bool
+            The expected boolean output from the succeeded() method based on the 
+            status of the PipelineRun instance.
         """
         pipelinerun.status = status
         assert pipelinerun.succeeded == expected

@@ -15,6 +15,11 @@ class TestLogConfig:
         """
         Tests that the ``_log_config`` function correctly writes the manifest
         configuration to a YAML file in block style format.
+
+        Parameters
+        ----------
+        tmp_path : Path
+            A temporary directory provided by pytest for creating test files.
         """
         run_dir = tmp_path / "runs" / "synthetic_run"
         run_dir.mkdir(parents=True)
@@ -97,6 +102,13 @@ class TestPrintConfigDiffs:
         the provided content. The content is dedented and stripped of
         leading/trailing whitespace before being written to the file. A newline is
         added at the end of the file.
+
+        Parameters
+        ----------
+        ``path`` : Path
+            The path where the YAML file will be written.  
+        ``content`` : str
+            The YAML content to write to the file.
         """
         path.write_text(dedent(content).strip() + "\n", encoding="utf-8")
 
@@ -110,6 +122,13 @@ class TestPrintConfigDiffs:
         are both returned in a computer-readable format and printed to the console.
         One change for each category (changed, added, removed) is included in the test
         to ensure that all cases are handled correctly.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for creating test files.
+        ``capsys`` : pytest.CaptureFixture[str]
+            A pytest fixture that captures output to stdout and stderr during the test.
         """
         test_file_a = tmp_path / "config_a.yaml"
         test_file_b = tmp_path / "config_b.yaml"
