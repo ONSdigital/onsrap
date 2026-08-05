@@ -38,7 +38,8 @@ class TestPipelineFromFiles:
             tmp_path: Path
             ) -> None:
         """
-        
+        Checks that the pipeline entrypoints are run successfully by reviewing
+        the outputs of the stages. 
         """
         first_stage = tmp_path / "first_stage.py"
         first_stage.write_text(
@@ -78,7 +79,24 @@ class TestPipelineFromFiles:
         assert [result.name for result in run.stage_results] == ["first_stage", "second_stage"]
         assert run.stage_outputs == {"first_stage": "alpha", "second_stage": "alpha-beta"}
 
-    def test_pipeline_uses_run_specific_output_directory(self, tmp_path: Path) -> None:
+    def test_pipeline_uses_run_specific_output_location(self, tmp_path: Path) -> None:
+        """
+        Checks that the pipelines produce outputs in unique locations based on runs.
+        As each run produces a unique run_id, the outputs should be written to unique
+        directories. This test checks that when the same pipeline is run twice, the
+        outputs are saved into two locations.  
+
+        Raises
+        ------
+        'PipelineConfigurationWarning'
+            Expected and asserted as there is no stage specification in the Pipeline
+            configuration. This does not affect the test capability. 
+        'StageConfigurationWarning'
+            Expected and asserted as there is no output directory specified 
+            in the configuration. This means that the Pipeline defaults to using 
+            the project root or working directory as the parent directory for the run
+            output. This does not affect the test capability.
+        """
         writer_stage = tmp_path / "writer_stage.py"
         writer_stage.write_text(
             dedent(
@@ -102,10 +120,9 @@ class TestPipelineFromFiles:
             )
 
         with pytest.warns(StageConfigurationWarning, match=OUTPUT_DIRECTORY_WARNING):
-            # TODO: This warning functions however from the name of the test, I would assume that the output
-            # directory has been set so this needs to be reviewed.
             first_run = pipeline.run()
             second_run = pipeline.run()
+
 
         first_output = Path(first_run.stage_outputs["writer_stage"]["output_path"])
         second_output = Path(second_run.stage_outputs["writer_stage"]["output_path"])
@@ -118,6 +135,10 @@ class TestPipelineFromFiles:
         assert second_output.parents[2].name == second_run.manifest.run_id
 
     def test_pipeline_falls_back_to_subprocess_for_plain_python_scripts(self, tmp_path: Path) -> None:
+        """
+        Checks that a pipeline will run with a non-module based Python script by running the
+        entire script. 
+        """
         script_stage = tmp_path / "script_stage.py"
         script_stage.write_text("print('script fallback works')\n", encoding="utf-8")
 
@@ -137,6 +158,10 @@ class TestPipelineFromFiles:
 
 class TestStageGraph:
     def test_stage_graph_detects_cycles(self) -> None:
+        """
+        Checks that the stage graph appropriately detects required orders
+        based on dependencies in the stages. 
+        """
         first_stage = Stage(name="first_stage", source=lambda context: None, dependencies=("second_stage",))
         second_stage = Stage(name="second_stage", source=lambda context: None, dependencies=("first_stage",))
 
@@ -152,6 +177,10 @@ class TestStageGraph:
 
 class TestPipelineFromConfig:
     def test_pipeline_from_config_builds_stages_and_injects_stage_config(self, tmp_path: Path) -> None:
+        """
+        Checks that from_config() method appropriately builds the configurations
+        for the pipeline and uses the configurations to run the Pipeline.
+        """
         scripts_dir = tmp_path / "scripts"
         scripts_dir.mkdir()
 
@@ -191,6 +220,7 @@ class TestPipelineFromConfig:
                   0_data_validation:
                     years_to_run: 2017
                     target_variable: "classification"
+
                 global_configuration:
                   dry_run: true
                 """
@@ -216,6 +246,10 @@ class TestPipelineFromConfig:
 
 
     def test_pipeline_rejects_unknown_stage_configuration(self, tmp_path: Path) -> None:
+        """
+        Checks that the pipeline raises an error when a stage configuration is provided
+        for a stage that is not within the pipeline. 
+        """
         stage_file = tmp_path / "single_stage.py"
         stage_file.write_text(
             dedent(
@@ -243,6 +277,12 @@ class TestPipelineFromConfig:
 
 
     def test_pipeline_from_config_parses_stage_configuration_payloads(self, tmp_path: Path) -> None:
+        """
+        Checks that the correct information from a configuration file is parsed into 
+        the correct attributes of a PipelineConfig, StageConfig, and GlobalConfig 
+        instance. Also covers that the stage configuration is correctly injected into
+        the stage.
+        """
         scripts_dir = tmp_path / "scripts"
         scripts_dir.mkdir()
 
@@ -332,6 +372,10 @@ class TestPipelineFromConfig:
 
 
     def test_pipeline_from_config_scales_stage_configuration_to_many_stages(self, tmp_path: Path) -> None:
+        """
+        Checks that multiple stage configurations can be parsed from a configuration 
+        file and input in the correct order into the pipeline.
+        """
         scripts_dir = tmp_path / "scripts"
         scripts_dir.mkdir()
 
@@ -435,6 +479,9 @@ MAIN_SCRIPTS = [
 class TestExamples:
     @pytest.mark.parametrize("script_path", MAIN_SCRIPTS, ids=lambda p: p.parent.name)
     def test_example_main_scripts_run_successfully(self, script_path: Path) -> None:
+        """
+        Checks that a main script in a pipeline is successfully run.
+        """
         result = subprocess.run(
             [sys.executable, str(script_path)],
             cwd=REPO_ROOT,
