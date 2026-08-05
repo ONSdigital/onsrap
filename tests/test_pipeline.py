@@ -15,6 +15,11 @@ NO_STAGES_WARNING = "No stages specified to run. All stages running by default."
 @pytest.fixture
 def stage_factory():
     def _build_stage(name: str, dependencies=(), source: Path | None = None) -> Stage:
+        """
+            Function that builds a Stage object with a given name, dependencies, and a
+            source file path that's built out of the name if it is not provided. This 
+            standardises the creation of Stage objects for testing. 
+            """
         resolved_source = source if source is not None else Path(f"{name}.py")
         return Stage(name, source=resolved_source, dependencies=dependencies)
 
@@ -139,6 +144,12 @@ class TestPipelineNamingAndInit:
 
 class TestPipelineStageConfigHandling:
     def test_add_stage_parses_stage_configs_keyword(self, stage_factory) -> None:
+        """
+        Tests that when a stage is added after a Pipeline has been initialised, 
+        the stage and the stage_configurations are correctly added to the 
+        Pipeline instance and the stage_configurations are correctly associated
+        with the stage. 
+        """
         with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
             pipeline = Pipeline()
             stage = stage_factory("Stage_1")
@@ -154,6 +165,11 @@ class TestPipelineStageConfigHandling:
     def test_add_stage_warns_when_stage_config_count_mismatches(
         self, stage_factory
     ) -> None:
+        """
+        Tests that when a stage is added but there is not the correct number of 
+        stage_configs provided, a warning is raised and the stage_configuration
+        for that stage is added as a blank StageConfig object.
+        """
         with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
             pipeline = Pipeline()
             stage_0 = stage_factory("Stage_0")
@@ -174,6 +190,11 @@ class TestPipelineStageConfigHandling:
     def test_add_stage_config_coerces_mapping_payload_for_named_stage(
         self, stage_factory
     ) -> None:
+        """
+        Tests that when a stage_configuration is added to a Pipeline instance, 
+        the configuration is correctly associated with the named stage and that
+        the configuration is coerced into a StageConfig object if it is provided.
+        """
         with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
             pipeline = Pipeline(stages=[stage_factory("Stage_0")])
 
@@ -186,6 +207,11 @@ class TestPipelineStageSelectionAndGraph:
     def test_resolve_stages_to_run_includes_transitive_dependencies(
         self, stage_factory
     ) -> None:
+        """
+        Tests that when resolving stages_to_run, the Pipeline instance correctly
+        includes all dependent stages required in the StageGraph even if these
+        are not explicitly called out in the configuration.
+        """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1", dependencies=("Stage_0",))
         stage_2 = stage_factory("Stage_2", dependencies=("Stage_1",))
@@ -209,6 +235,10 @@ class TestPipelineStageSelectionAndGraph:
     def test_resolve_stages_to_run_rejects_disabled_dependencies(
         self, stage_factory
     ) -> None:
+        """
+        Checks that when resolving stages_to_run, the Pipeline init raises an
+        error if a stage is enabled but one of its dependencies is disabled.
+        """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1", dependencies=("Stage_0",))
 
@@ -240,6 +270,10 @@ class TestPipelineStageSelectionAndGraph:
     def test_disable_stage_in_implicit_mode_creates_explicit_selection(
         self, stage_factory
     ) -> None:
+        """
+        Tests that when a stage is manually disabled in a Pipeline instance, it
+        is initialised in the stages_to_run configuration. 
+        """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1")
         with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
@@ -250,6 +284,11 @@ class TestPipelineStageSelectionAndGraph:
         assert pipeline.config.stages_to_run == {"Stage_0": True, "Stage_1": False}
 
     def test_enable_stage_restores_stage_in_explicit_mode(self, stage_factory) -> None:
+        """
+        Tests that when a stage is manually enabled in a Pipeline instance, it
+        is correctly reflected in the stages_to_run configuration and the stage
+        is included in the execution graph.
+        """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1")
         pipeline = Pipeline(
@@ -265,6 +304,10 @@ class TestPipelineStageSelectionAndGraph:
     def test_add_stage_keeps_new_stage_out_of_explicit_selection(
         self, stage_factory
     ) -> None:
+        """
+        Tests that when a new stage is added to a Pipeline instance, it is
+        kept out of the explicit selection.
+        """
         stage_0 = stage_factory("Stage_0")
         pipeline = Pipeline(
             stages=[stage_0],
@@ -273,8 +316,9 @@ class TestPipelineStageSelectionAndGraph:
 
         pipeline.add_stage(
             stage_factory("Stage_1"),
-            stage_configs=[StageConfig(name="Stage_1")],
-        )
+            stage_configs=[StageConfig(name="Stage_1")]
+            )
+        
 
         assert pipeline.config.stages_to_run["Stage_1"] is False
         assert [stage.name for stage in pipeline.graph.stages] == ["Stage_0"]
@@ -283,6 +327,10 @@ class TestPipelineStageSelectionAndGraph:
         self,
         stage_factory,
     ) -> None:
+        """
+        Tests that when a new stage is added to a Pipeline instance with
+        enable_stages=True, it is included in the explicit selection.
+        """
         stage_0 = stage_factory("Stage_0")
         pipeline = Pipeline(
             stages=[stage_0],
