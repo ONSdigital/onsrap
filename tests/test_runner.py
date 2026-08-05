@@ -11,9 +11,13 @@ from onsrap.runner import _log_config, print_config_diffs
 
 
 class TestLogConfig:
-    def test_writes_manifest_config_as_block_style_yaml(self, tmp_path: Path) -> None:
+    def test_writes_manifest_config_as_block_style_yaml(
+            self, 
+            tmp_path: Path
+            ) -> None:
         """
-        Tests that the ``_log_config`` function correctly writes the manifest configuration to a YAML file in block style format.
+        Tests that the ``_log_config`` function correctly writes the manifest 
+        configuration to a YAML file in block style format.
         """
         run_dir = tmp_path / "runs" / "synthetic_run"
         run_dir.mkdir(parents=True)
@@ -70,7 +74,8 @@ class TestLogConfig:
 
         expected_file = run_dir / (
             "configuration_for_"
-            f"{context.pipeline_name}_{context.started_at.date()}_{context.run_id[-8:]}.yaml"
+            f"{context.pipeline_name}_{context.started_at.date()}_"
+            f"{context.run_id[-8:]}.yaml"
         )
 
         assert expected_file.exists()
@@ -90,6 +95,12 @@ class TestLogConfig:
 class TestPrintConfigDiffs:
     @staticmethod
     def _write_yaml(path: Path, content: str) -> None:
+        """
+        Helper function that writes a YAML file to the specified path with 
+        the provided content. The content is dedented and stripped of 
+        leading/trailing whitespace before being written to the file. A newline is 
+        added at the end of the file.
+        """
         path.write_text(dedent(content).strip() + "\n", encoding="utf-8")
 
     def test_returns_and_prints_differences(
@@ -98,10 +109,10 @@ class TestPrintConfigDiffs:
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         """
-        Tests that two configuration files are correctly compared and the differences are
-        both returned in a computer-readable format and printed to the console. One change
-        for each category (changed, added, removed) is included in the test to ensure that
-        all cases are handled correctly.
+        Tests that two configuration files are correctly compared and the differences
+        are both returned in a computer-readable format and printed to the console.
+        One change for each category (changed, added, removed) is included in the test
+        to ensure that all cases are handled correctly.
         """
         test_file_a = tmp_path / "config_a.yaml"
         test_file_b = tmp_path / "config_b.yaml"
