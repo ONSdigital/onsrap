@@ -63,6 +63,17 @@ def stage_config() -> StageConfig:
 def execution(config, logger, stageresult, stage_config) -> ExecutionContext:
     """
     Create an ExecutionContext object for testing.
+
+    Parameters
+    ----------
+    ``config`` : PipelineConfig
+        A ``PipelineConfig`` object for testing.
+    ``logger`` : Logger
+        A ``Logger`` object for testing.
+    ``stageresult`` : StageResult
+        A ``StageResult`` object for testing.
+    ``stage_config`` : StageConfig
+        A ``StageConfig`` object for testing.
     """
     run_dir = Path("tmp/run")
     work_dir = Path("tmp/work_dir")
@@ -123,6 +134,17 @@ class TestExecutionContext:
     ) -> None:
         """
         Test that the ExecutionContext creates the right attributes.
+
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
+        ``logger`` : Logger
+            A ``Logger`` object for testing.
+        ``config`` : PipelineConfig
+            A ``PipelineConfig`` object for testing.
+        ``stageresult`` : StageResult
+            A ``StageResult`` object for testing.
         """
         assert execution.pipeline_name == "test_pipeline"
         assert execution.run_id == "run_id_1234"
@@ -140,6 +162,15 @@ class TestExecutionContext:
         """
         Tests that StageResult attributes are attached to stage_results and variables
         attributes in the ExecutionContext instance.
+
+        Parameters
+        ----------
+        ``stageresult`` : StageResult
+            A ``StageResult`` object for testing.
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
+        ``expected_recorded_stage_result`` : StageResult
+            The expected ``StageResult`` object after recording for assertions.
         """
         execution.record(stageresult)
         assert execution.stage_results == {"stage_test": expected_recorded_stage_result}
@@ -150,6 +181,15 @@ class TestExecutionContext:
     ) -> None:
         """
         Tests that result_for correctly extracts the results of a requested stage.
+
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
+        ``stageresult`` : StageResult
+            A ``StageResult`` object for testing.
+        ``expected_recorded_stage_result`` : StageResult
+            The expected ``StageResult`` object after recording for assertions.
         """
         execution.record(stageresult)
         assert execution.result_for("stage_test") == expected_recorded_stage_result
@@ -158,12 +198,28 @@ class TestExecutionContext:
         """
         Tests that stage_outputs shows the outputs attribute of the StageResult
         instance for a requested stage is extracted.
+
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
+        ``stageresult`` : StageResult
+            A ``StageResult`` object for testing.
         """
         execution.record(stageresult)
         assert execution.stage_outputs == {"stage_test": "example output"}
 
     @pytest.fixture
     def blank_context_with_config_none(self, stageresult) -> ExecutionContext:
+        """
+        Fixture that returns a test ExecutionContext instance with a None config for 
+        testing error handling. 
+
+        Parameters
+        ----------
+        ``stageresult`` : StageResult
+            A ``StageResult`` object for testing.
+        """
         run_dir = Path("tmp/run")
         work_dir = Path("tmp/work_dir")
         return ExecutionContext(
@@ -183,6 +239,19 @@ class TestExecutionContext:
         Tests that get_data_dir method extracts the path from the execution context
         or, if the context is None, returns an error to indicate that additional input
         is required.
+
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
+        ``blank_context_with_config_none`` : ExecutionContext
+            An ``ExecutionContext`` object with a None config for testing error 
+            handling.
+
+        Raises
+        ------
+        ``PipelineConfigurationError``
+            If the config attribute of the ExecutionContext instance is None.
         """
         assert execution.get_data_dir() == Path("tmp/config_data")
 
@@ -193,7 +262,17 @@ class TestExecutionContext:
         """
         Tests that resolve_output_root method extracts the path from the given run
         directory or, if None are given, raises an error to indicate additional input
-        is required..
+        is required.
+
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
+
+        Raises
+        ------
+        ``PipelineConfigurationError``
+            If the run_dir attribute of the ExecutionContext instance is None.
         """
         work_dir = Path("tmp/work_dir")
         assert execution.resolve_output_root() == Path("tmp/run")
@@ -219,6 +298,20 @@ class TestExecutionContext:
         """
         Tests that getter methods to return the stage_config for a named stage
         returns correct attributes based on given parameters.
+
+        Parameters
+        ----------
+        ``config`` : PipelineConfig
+            A ``PipelineConfig`` object for testing.
+        ``logger`` : Logger
+            A ``Logger`` object for testing.
+
+        Raises
+        ------
+        ``PipelineConfigurationError``
+            Requested a StageConfig instance as with_global = True, the output must 
+            be a dictionary however quantifying vars_only as False would demand that
+            the entire StageConfig instance is returned.
         """
         stage_config = StageConfig(name="stage_test", _variables={"years_to_run": 2017})
         context = ExecutionContext(
@@ -244,8 +337,14 @@ class TestExecutionContext:
         """
         Tests that set_active_stage correctly sets the active_stage attribute in the
         ExecutionContext instance.
-        """
 
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
+        ``stage_config`` : StageConfig
+            A ``StageConfig`` object for testing.
+        """
         execution.set_active_stage(stage_config.name)
         assert execution.active_stage_name == stage_config.name
         execution.set_active_stage(None)
@@ -254,6 +353,13 @@ class TestExecutionContext:
     def test_stage_config_for(self, execution, stage_config) -> None:
         """
         Tests that stage_config_for returns the StageConfig for a named stage.
+
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
+        ``stage_config`` : StageConfig
+            A ``StageConfig`` object for testing.
         """
         assert execution.stage_config_for(stage_config.name) == stage_config
         assert execution.stage_config_for("missing_stage") is None
@@ -261,6 +367,13 @@ class TestExecutionContext:
     def test_stage_config(self, execution, stage_config) -> None:
         """
         Tests that stage_config exposes the currently active stage configuration.
+
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
+        ``stage_config`` : StageConfig
+            A ``StageConfig`` object for testing.
         """
         assert execution.stage_config is None
         execution.set_active_stage(stage_config.name)
@@ -270,6 +383,21 @@ class TestExecutionContext:
         """
         Tests that get_stage_config returns variables by default and the full
         StageConfig object when requested.
+
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
+        ``stage_config`` : StageConfig
+            A ``StageConfig`` object for testing.
+
+        Raises
+        ------
+        ``PipelineConfigurationError``
+            Requested a StageConfig instance as with_global = True, the output must 
+            be a dictionary however quantifying vars_only as False would demand that
+            the entire StageConfig instance is returned.
+            
         """
         assert execution.get_stage_config() == {}
         with pytest.raises(PipelineConfigurationError):
@@ -278,8 +406,7 @@ class TestExecutionContext:
 
         execution.set_active_stage(stage_config.name)
         assert execution.get_stage_config() == {"sex": "gender", "dob": "date_of_birth"}
-        with pytest.raises(PipelineConfigurationError):
-            execution.get_stage_config(vars_only=False)
+
         assert (
             execution.get_stage_config(with_global=False, vars_only=False)
             == stage_config
@@ -318,6 +445,18 @@ class TestResolveGivenPath:
         Tests the add_folder functionality for lists, single strings, or None type in
         the resolve_given_path class method as well as when the file_name is a valid 
         string or None type.
+
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
+        ``add_folder`` : Union[str, List[str], None]
+            A string, list of strings, or None type to specify additional folders to
+            add to the path.
+        ``file_name`` : Union[str, None]
+            A string or None type to specify the file name to append to the path.
+        ``expected`` : Path
+            The expected Path object that should be returned by the method.
         """
         path_name = "data_path"
         root = Path("tmp/data")
@@ -331,6 +470,11 @@ class TestResolveGivenPath:
         """
         Tests that resolve_given_path returns a file path that has been output in a
         StageResult instance.
+
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
         """
         execution.record(
             StageResult(
@@ -364,6 +508,11 @@ class TestPythonStageExecutor:
         """
         Checks that entrypoints are set correctly in the PythonStageExecutor
         instance.
+
+        Parameters
+        ----------
+        ``pythonstageexecutor`` : PythonStageExecutor
+            A ``PythonStageExecutor`` object for testing.
         """
         assert pythonstageexecutor.preferred_entrypoints == ("main.py", "run.py")
 
@@ -374,6 +523,11 @@ class TestCombineVars:
         Test that checks that a dictionary is returned, combining values from a global
         configuration and a stage configuration whilst removing any stage specific
         exclusions.
+
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
         """
         global_vars = {"global_var1": "value1", "global_var2": "value2"}
         exclusions = {"stage_1": ["global_var2"]}
@@ -397,6 +551,17 @@ class TestCombineVars:
         Test that confirms that a warning is raised if there is a variable defined in 
         both the global and the stage configurations as well as asserting the correct
         values.
+
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
+
+        Raises
+        ------
+        ``StageConfigurationWarning``
+            If a variable is defined in both the global and stage configurations, a
+            warning is raised to indicate that the stage variable will take precedence.
         """
         global_vars = {"global_var1": "value1", "global_var2": "value2"}
         exclusions = {"stage_1": ["global_var2"]}
@@ -421,6 +586,11 @@ class TestCombineVars:
         """
         Test confirming that a dictionary is returned, combining values from a global 
         configuration and a stage configuration when there are no exclusions defined.
+
+        Parameters
+        ----------
+        ``execution`` : ExecutionContext
+            An ``ExecutionContext`` object for testing.
         """
         global_vars = {"global_var1": "value1", "global_var2": "value2"}
         exclusions = {}

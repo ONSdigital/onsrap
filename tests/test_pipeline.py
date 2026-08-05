@@ -19,6 +19,16 @@ def stage_factory():
             Function that builds a Stage object with a given name, dependencies, and a
             source file path that's built out of the name if it is not provided. This 
             standardises the creation of Stage objects for testing. 
+
+            Parameters
+            ----------
+            ``name`` : str
+                The name of the stage to be created.
+            ``dependencies`` : tuple
+                A tuple of stage names that the created stage depends on.
+            ``source`` : Path | None   
+                A Path object representing the source file for the stage. If None, a default
+                source file path is created based on the stage name.
             """
         resolved_source = source if source is not None else Path(f"{name}.py")
         return Stage(name, source=resolved_source, dependencies=dependencies)
@@ -34,6 +44,13 @@ class TestPipelineNamingAndInit:
         if no name was given (shown in pipeline_config), or defaults to "pipeline" if
         no name is provided through Pipeline instance creation or through the
         PipelineConfig (shown through pipeline_no_name)
+
+        Raises
+        ------
+        'PipelineConfigurationWarning'
+            Expected and asserted as there is no stage run specification in the 
+            Pipeline configuration. This does not affect the test capability.
+
         """
         pipeline_config = PipelineConfig(name="test_pipeline_config")
 
@@ -52,6 +69,20 @@ class TestPipelineNamingAndInit:
         Pipeline creation and appropriately assigned to each stage within the
         Pipeline. Will also check for error raise if the dependencies are defined
         but there are no defined stages.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for testing.
+
+        Raises
+        ------
+        'PipelineConfigurationWarning'
+            Expected and asserted as there is no stage run specification in the 
+            Pipeline configuration. This does not affect the test capability.
+        'PipelineInitialisationError'
+            Expected and asserted as there are no stages defined in the Pipeline 
+            but there are dependencies.
         """
 
         def example_function():
@@ -104,6 +135,20 @@ class TestPipelineNamingAndInit:
         """
         Tests that a dictionary correctly assigns dependencies to
         individual stages and the Pipeline instance.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for testing.
+
+        Raises
+        ------
+        'PipelineConfigurationWarning'
+            Expected and asserted as there is no stage run specification in the 
+            Pipeline configuration. This does not affect the test capability.
+        'PipelineInitialisationError'
+            Expected and asserted as dependencies are specified for stages that do not
+            exist in the Pipeline instance.
         """
 
         path_1 = tmp_path / "Stage_1.py"
@@ -149,6 +194,17 @@ class TestPipelineStageConfigHandling:
         the stage and the stage_configurations are correctly added to the 
         Pipeline instance and the stage_configurations are correctly associated
         with the stage. 
+
+        Parameter
+        ----------
+        ``stage_factory`` : Callable
+            A factory function that creates Stage objects for testing.
+        
+        Raises
+        ------
+        'PipelineConfigurationWarning'
+            Expected and asserted as there is no stage run specification in the 
+            Pipeline configuration. This does not affect the test capability.
         """
         with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
             pipeline = Pipeline()
@@ -169,6 +225,17 @@ class TestPipelineStageConfigHandling:
         Tests that when a stage is added but there is not the correct number of 
         stage_configs provided, a warning is raised and the stage_configuration
         for that stage is added as a blank StageConfig object.
+
+        Parameters
+        ----------
+        ``stage_factory`` : Callable
+            A factory function that creates Stage objects for testing.
+
+        Raises
+        ------
+        'PipelineConfigurationWarning'
+            Expected and asserted as there is no stage run specification in the 
+            Pipeline configuration. This does not affect the test capability.
         """
         with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
             pipeline = Pipeline()
@@ -194,6 +261,17 @@ class TestPipelineStageConfigHandling:
         Tests that when a stage_configuration is added to a Pipeline instance, 
         the configuration is correctly associated with the named stage and that
         the configuration is coerced into a StageConfig object if it is provided.
+
+        Parameters
+        ----------
+        ``stage_factory`` : Callable
+            A factory function that creates Stage objects for testing.
+
+        Raises
+        ------
+        'PipelineConfigurationWarning'
+            Expected and asserted as there is no stage run specification in the 
+            Pipeline configuration. This does not affect the test capability.
         """
         with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
             pipeline = Pipeline(stages=[stage_factory("Stage_0")])
@@ -211,6 +289,11 @@ class TestPipelineStageSelectionAndGraph:
         Tests that when resolving stages_to_run, the Pipeline instance correctly
         includes all dependent stages required in the StageGraph even if these
         are not explicitly called out in the configuration.
+
+        Parameters
+        ----------
+        ``stage_factory`` : Callable
+            A factory function that creates Stage objects for testing.
         """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1", dependencies=("Stage_0",))
@@ -238,6 +321,16 @@ class TestPipelineStageSelectionAndGraph:
         """
         Checks that when resolving stages_to_run, the Pipeline init raises an
         error if a stage is enabled but one of its dependencies is disabled.
+
+        Parameters
+        ----------
+        ``stage_factory`` : Callable
+            A factory function that creates Stage objects for testing.
+
+        Raises
+        ------
+        ``PipelineConfigurationError``
+            Raised when a stage is enabled but one of its dependencies is disabled.
         """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1", dependencies=("Stage_0",))
@@ -254,6 +347,17 @@ class TestPipelineStageSelectionAndGraph:
         """
         Pipeline.stages always holds all stages; only graph.stages is the effective run
         set.
+
+        Parameters
+        ----------
+        ``stage_factory`` : Callable
+            A factory function that creates Stage objects for testing.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Expected and asserted as there is no stage run specification in the 
+            Pipeline configuration. This does not affect the test capability.
         """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1")
@@ -273,6 +377,17 @@ class TestPipelineStageSelectionAndGraph:
         """
         Tests that when a stage is manually disabled in a Pipeline instance, it
         is initialised in the stages_to_run configuration. 
+
+        Parameters
+        ----------
+        ``stage_factory`` : Callable
+            A factory function that creates Stage objects for testing.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Expected and asserted as there is no stage run specification in the 
+            Pipeline configuration. This does not affect the test capability.
         """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1")
@@ -288,6 +403,12 @@ class TestPipelineStageSelectionAndGraph:
         Tests that when a stage is manually enabled in a Pipeline instance, it
         is correctly reflected in the stages_to_run configuration and the stage
         is included in the execution graph.
+
+        Parameters
+        ----------
+        ``stage_factory`` : Callable
+            A factory function that creates Stage objects for testing.
+
         """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1")
@@ -307,6 +428,12 @@ class TestPipelineStageSelectionAndGraph:
         """
         Tests that when a new stage is added to a Pipeline instance, it is
         kept out of the explicit selection.
+
+        Parameters
+        ----------
+        ``stage_factory`` : Callable
+            A factory function that creates Stage objects for testing.
+        
         """
         stage_0 = stage_factory("Stage_0")
         pipeline = Pipeline(
@@ -330,6 +457,12 @@ class TestPipelineStageSelectionAndGraph:
         """
         Tests that when a new stage is added to a Pipeline instance with
         enable_stages=True, it is included in the explicit selection.
+
+        Parameters
+        ----------
+        ``stage_factory`` : Callable
+            A factory function that creates Stage objects for testing.
+
         """
         stage_0 = stage_factory("Stage_0")
         pipeline = Pipeline(
@@ -354,6 +487,11 @@ class TestPipelineValidationAndManifest:
         """
         Disabled stages' source files need not exist - validate() only checks the
         effective run set.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for creating test files.
         """
         enabled_file = tmp_path / "Stage_0.py"
         enabled_file.write_text("def run(ctx): pass\n", encoding="utf-8")
@@ -376,6 +514,11 @@ class TestPipelineValidationAndManifest:
         """
         Manifest inputs should list only the stages that are part of the execution
         graph.
+
+        Parameters
+        ---------- 
+        ``stage_factory`` : Callable
+            A factory function that creates Stage objects for testing.
         """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1", dependencies=("Stage_0",))
