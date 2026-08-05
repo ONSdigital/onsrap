@@ -281,6 +281,10 @@ class TestStageResult:
         assert stageresult.succeeded == expected_stage
 
     def test_duration_seconds(self, stageresult) -> None:
+        """
+        Tests that duration_seconds() method calculates the correct duration in seconds
+        between the started_at and finished_at attributes of the StageResult instance.
+        """
         stageresult.started_at = STARTED_AT
         stageresult.finished_at = FINISHED_AT
         seconds_value = (FINISHED_AT - STARTED_AT).total_seconds()
@@ -303,6 +307,10 @@ class TestPipelineRun:
     def test_pipelinerun_configuration(
         self, pipelinerun, runmanifest, stageresult
     ) -> None:
+        """
+        Checks that the PipelineRun instance is created successfully with the correct 
+        attributes and values.
+        """
         assert pipelinerun.manifest == runmanifest
         assert pipelinerun.status == PipelineStatus.SUCCEEDED
         assert pipelinerun.started_at == STARTED_AT
@@ -324,6 +332,10 @@ class TestPipelineRun:
         ],
     )
     def test_succeeded_pipeline(self, pipelinerun, status, expected) -> None:
+        """
+        Checks that the succeeded() method of the PipelineRun instance returns the
+        correct boolean value based on its status.
+        """
         pipelinerun.status = status
         assert pipelinerun.succeeded == expected
 
