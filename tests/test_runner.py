@@ -8,8 +8,8 @@ import yaml
 
 from onsrap.execution import ExecutionContext
 from onsrap.logger import Logger
-from onsrap.models import PipelineConfig, RunManifest
-from onsrap.runner import _log_config, print_config_diffs
+from onsrap.models import PipelineConfig, PipelineStatus, RunManifest, PipelineRun, StageResult, StageStatus, now
+from onsrap.runner import _log_config, print_config_diffs, _log_pipeline_attributes
 
 
 def test_log_config_writes_manifest_config_as_block_style_yaml(tmp_path: Path) -> None:
@@ -140,3 +140,86 @@ def test_print_config_diffs(tmp_path: Path, capsys: pytest.CaptureFixture[str]) 
     assert "ADDED in second configuration (1)" in captured.out
     assert "REMOVED in second configuration (1)" in captured.out
     assert "stage_configs.stage_a.target_variable" in captured.out
+
+class TestRunInfoWriteOut:
+    def test_log_pipeline_attributes_writes_YAML(self, tmp_path: Path) -> None:
+        """
+        Tests that the ``_log_pipeline_attributes`` function correctly writes the pipeline attributes to a YAML file.
+        """
+
+        run_dir = tmp_path / "runs" / "synthetic_run"
+        run_dir.mkdir(parents=True, exist_ok=True)
+
+        pipeline_config = PipelineConfig(
+            name="synthetic_pipeline",
+            stages_to_run={"stage_a": True},
+            backend="python",
+            work_dir=tmp_path / "work",
+            project_root=tmp_path,
+            output_dir=tmp_path / "outputs",
+            log_dir=tmp_path / "logs",
+            data_dir=tmp_path / "data",
+            allow_subprocess_fallback=True,
+            python_executable=None,
+            metadata={"reason": "unit test"},
+        )
+
+        context = ExecutionContext(
+                pipeline_name="synthetic_pipeline",
+                run_id="run_1234",
+                config=pipeline_config,
+                logger=Logger(),
+                run_dir=run_dir,
+                working_directory=tmp_path,
+                stage_configs={},
+                global_config=None,
+            )
+
+        stage_results = [
+                    StageResult(
+                        name="stage_a",
+                        status=StageStatus.SUCCEEDED,
+                        started_at=now(),
+                        finished_at= now(),
+                        error=None,
+                        source=None,
+                    )
+                ]
+        
+        run_manifest = RunManifest(
+            rap_name="synthetic_pipeline",
+            run_id="run_1234",
+            )
+
+        pipeline_run = PipelineRun(
+            manifest=run_manifest,
+            status=PipelineStatus.SUCCEEDED,
+            started_at=context.started_at,
+            completed_at=now(),
+            stage_results=stage_results,
+            stage_outputs={},
+        )
+
+        _log_pipeline_attributes(
+            pipeline_run=pipeline_run,
+            run_dir=run_dir,
+            context=context
+        )
+
+        expected_file = run_dir / (
+            "pipeline_attributes_for_"
+            f"{context.pipeline_name}_{context.run_id[-8:]}.yaml"
+        )
+
+        expected_contents = pipeline_run._pipeline_run_to_dict()
+
+        assert expected_file.exists()
+
+        file_text = expected_file.read_text(encoding="utf-8")
+        parsed_yaml = yaml.safe_load(file_text)
+        assert parsed_yaml == expected_contents
+
+        assert PipelineRun._pipeline_run_from_dict(parsed_yaml) == pipeline_run
+        
+
+        
