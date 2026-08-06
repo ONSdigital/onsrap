@@ -807,7 +807,7 @@ class StageResult:
     error: Optional[str] = None
     source: Optional[str] = None
 
-    def _stage_result_to_dict(self, name = True) -> dict[str, Any]:
+    def _stage_result_to_dict(self) -> dict[str, Any]:
         """
         Converts the StageResult instance into a dictionary representation. 
         This is needed to allow a StageResult instance to be serialized into a 
@@ -820,7 +820,7 @@ class StageResult:
             A dictionary representation of the StageResult instance.
         """
         return {
-            **({"name": self.name} if name else {}),
+            "name": self.name,
             "status": self.status.value,
             "started_at": self.started_at.isoformat(),
             "finished_at": self.finished_at.isoformat(),
@@ -833,6 +833,7 @@ class StageResult:
             "source": self.source,
         }
 
+    @classmethod
     def _stage_result_from_dict(cls, data: dict[str, Any]) -> StageResult:
         """
         Converts a dictionary representation of a StageResult instance back into a 
@@ -922,7 +923,7 @@ class PipelineRun:
                 return result
         return None
 
-    def pipeline_run_to_dict(self) -> dict[str, Any]:
+    def _pipeline_run_to_dict(self) -> dict[str, Any]:
         """
         Converts the PipelineRun instance into a dictionary representation. 
         This is needed to allow a PipelineRun instance to be serialized into a 
@@ -939,13 +940,13 @@ class PipelineRun:
             "status": self.status.value,
             "started_at": self.started_at.isoformat(),
             "completed_at": self.completed_at.isoformat(),
-            "stage_results": {result.name:result._stage_result_to_dict(name = False) 
+            "stage_results": {result.name:result._stage_result_to_dict() 
                               for result in self.stage_results},
             "stage_outputs": self.stage_outputs,
         }
 
     @classmethod
-    def pipeline_run_from_dict(cls, data: dict[str, Any]) -> PipelineRun:
+    def _pipeline_run_from_dict(cls, data: dict[str, Any]) -> PipelineRun:
         """
         Converts a dictionary representation of a PipelineRun instance back into a 
         PipelineRun instance. Allows for PipelineRun instances to be created from

@@ -1,4 +1,4 @@
-from onsrap.models import StageStatus, PipelineStatus, RuntimeID, RunManifest, PipelineRun, PipelineConfig
+from onsrap.models import StageResult, StageStatus, PipelineStatus, RuntimeID, RunManifest, PipelineRun, PipelineConfig
 import pytest
 import datetime
 from pathlib import Path
@@ -280,3 +280,187 @@ def test_succeeded_pipeline(pipelinerun, status, expected) -> None:
 
 
 #TODO: Test _extract_stages_run and all methods in StageConfig class
+
+class TestToFromDictMethods:
+    """
+    Class to store testing methods for to_dict and from_dict, specifically
+    for PipelineRun, RunManifest, and StageResult classes.
+    """
+    @pytest.fixture
+    def runmanifest(self) -> RunManifest:
+        return RunManifest("pipeline",
+                           "1",
+                           None,
+                           ["stage1","stage2"],
+                           {"uniqueID":"example"},
+                           {"input_path":"input/data/example.csv"},
+                           {"output_path":"output/data/example.csv"},
+                           "python",
+                           ["1.3.2"],
+                           "",
+                           None,
+                           None)
+    @pytest.fixture
+    def stageresult(self) -> StageResult:
+        return StageResult("stage_test",
+                           StageStatus.SUCCEEDED,
+                           datetime.datetime(2024,5,6,15,45,30),
+                           datetime.datetime(2024,5,7,15,45,30),
+                           "example output",
+                           "",
+                           "",
+                           None,
+                           {},
+                           None,
+                           None)
+
+    @pytest.fixture
+    def pipelinerun(self, runmanifest, stageresult) -> PipelineRun:
+        return PipelineRun(runmanifest,
+                           PipelineStatus.SUCCEEDED,
+                           datetime.datetime(2024,5,6,15,45,30),
+                           datetime.datetime(2024,5,7,15,45,30),
+                           [stageresult],
+                           {"stage_test":"example output"})
+
+    def test_runmanifest_to_dict(self, runmanifest) -> None:
+        """
+        Test that the to_dict method for RunManifest outputs the correct dictionary representation. 
+
+        Parameters
+        ----------
+        ``runmanifest`` : RunManifest
+            A RunManifest instance provided by the pytest fixture.
+        """
+        expected_dict = {
+            "rap_name": "pipeline",
+            "run_id": "1",
+            "git_commit": None,
+            "stages_run": ["stage1", "stage2"],
+            "parameters": {"uniqueID": "example"},
+            "inputs": {"input_path": "input/data/example.csv"},
+            "outputs": {"output_path": "output/data/example.csv"},
+            "backend": "python",
+            "package_versions": ["1.3.2"],
+            "timestamp": "",
+            "reason": None,
+            "user": None,
+            "config":None
+        }
+        assert runmanifest.runmanifest_to_dict() == expected_dict
+
+    def test_runmanifest_from_dict(self, runmanifest) -> None:
+        """
+        Test that the from_dict method for RunManifest correctly creates a RunManifest instance from a dictionary representation. 
+
+        Parameters
+        ----------
+        ``runmanifest`` : RunManifest
+            A RunManifest instance provided by the pytest fixture.
+        """
+        runmanifest_dict = {
+            "rap_name": "pipeline",
+            "run_id": "1",
+            "git_commit": None,
+            "stages_run": ["stage1", "stage2"],
+            "parameters": {"uniqueID": "example"},
+            "inputs": {"input_path": "input/data/example.csv"},
+            "outputs": {"output_path": "output/data/example.csv"},
+            "backend": "python",
+            "package_versions": ["1.3.2"],
+            "timestamp": "",
+            "reason": None,
+            "user": None,
+            "config":None
+        }
+        new_runmanifest = RunManifest.runmanifest_from_dict(runmanifest_dict)
+        assert new_runmanifest == runmanifest
+
+    def test_stageresult_to_dict(self, stageresult) -> None:
+        """
+        Test that the to_dict method for StageResult outputs the correct dictionary representation. 
+
+        Parameters
+        ----------
+        ``stageresult`` : StageResult
+            A StageResult instance provided by the pytest fixture.
+        """
+        expected_dict = {
+            "name": "stage_test",
+            "status": "succeeded",
+            "started_at": "2024-05-06T15:45:30",
+            "finished_at": "2024-05-07T15:45:30",
+            "outputs": "example output",
+            "stdout": "",
+            "stderr": "",
+            "return_code": None,
+            "metadata": {},
+            "error": None,
+            "source": None
+        }
+        assert stageresult._stage_result_to_dict() == expected_dict
+
+    def test_stageresult_from_dict(self, stageresult) -> None:
+        """
+        Test that the from_dict method for StageResult correctly creates a StageResult instance from a dictionary representation. 
+
+        Parameters
+        ----------
+        ``stageresult`` : StageResult
+            A StageResult instance provided by the pytest fixture.
+        """
+        stageresult_dict = {
+            "name": "stage_test",
+            "status": "succeeded",
+            "started_at": "2024-05-06T15:45:30",
+            "finished_at": "2024-05-07T15:45:30",
+            "outputs": "example output",
+            "stdout": "",
+            "stderr": "",
+            "return_code": None,
+            "metadata": {},
+            "error": None,
+            "source": None
+        }
+        new_stageresult = StageResult._stage_result_from_dict(stageresult_dict)
+        assert new_stageresult == stageresult
+
+    def test_pipelinerun_to_dict(self, pipelinerun) -> None:
+        """
+        Test that the to_dict method for PipelineRun outputs the correct dictionary representation. 
+
+        Parameters
+        ----------
+        ``pipelinerun`` : PipelineRun
+            A PipelineRun instance provided by the pytest fixture.
+        """
+        expected_dict = {
+            "manifest": pipelinerun.manifest.runmanifest_to_dict(),
+            "status": "succeeded",
+            "started_at": "2024-05-06T15:45:30",
+            "completed_at": "2024-05-07T15:45:30",
+            "stage_results": {result.name: result._stage_result_to_dict() for result in pipelinerun.stage_results},
+            "stage_outputs": {"stage_test": "example output"}
+        }
+        assert pipelinerun._pipeline_run_to_dict() == expected_dict
+
+    def test_pipelinerun_from_dict(self, pipelinerun) -> None:
+        """
+        Test that the from_dict method for PipelineRun correctly creates a PipelineRun instance from a dictionary representation. 
+
+        Parameters
+        ----------
+        ``pipelinerun`` : PipelineRun
+            A PipelineRun instance provided by the pytest fixture.
+        """
+        pipelinerun_dict = {
+            "manifest": pipelinerun.manifest.runmanifest_to_dict(),
+            "status": "succeeded",
+            "started_at": "2024-05-06T15:45:30",
+            "completed_at": "2024-05-07T15:45:30",
+            "stage_results": {result.name: result._stage_result_to_dict() for result in pipelinerun.stage_results},
+            "stage_outputs": {"stage_test": "example output"}
+        }
+        new_pipelinerun = PipelineRun._pipeline_run_from_dict(pipelinerun_dict)
+        assert new_pipelinerun == pipelinerun
+
