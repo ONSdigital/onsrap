@@ -8,6 +8,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+from onsrap.models import PipelineRun
+
 from .errors import StageConfigurationError, StageLoadError
 
 PREFERRED_ENTRYPOINTS = ("run", "main", "execute")
@@ -158,3 +160,36 @@ def load_python_module(path: Path) -> ModuleType:
         ) from exc
 
     return module
+
+def load_pipeline_run_for_historical_run(file_path: Path) -> PipelineRun:
+    """
+    Load a previously executed pipeline run from a YAML file.
+
+    This function is used to load the state of a pipeline run that has been
+    saved to a YAML file. It reads the file, parses the YAML content, and
+    reconstructs the PipelineRun object.
+
+    Parameters
+    ----------
+    ``file_path`` : Path
+        The path to the YAML file containing the saved pipeline run.
+
+    Returns
+    -------
+    ``PipelineRun``
+        The reconstructed PipelineRun object.
+
+    Raises
+    ------
+    ``FileNotFoundError``
+        If the specified file does not exist.
+    """
+    import yaml
+
+    if not file_path.exists():
+        raise FileNotFoundError(f"Pipeline run file does not exist: {file_path}")
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+
+    return PipelineRun._pipeline_run_from_dict(data)
