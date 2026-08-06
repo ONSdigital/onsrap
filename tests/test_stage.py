@@ -123,52 +123,6 @@ class TestStage:
         assert stage.backend == "python"
         assert stage_white_space.backend == "python"
 
-    def test_stage_from_files_error(self, tmp_path: Path) -> None:
-        """
-        Tests that if the file doesn't exist, a StageConfigurationError is raised.
-
-        Parameters
-        ----------
-        ``tmp_path`` : Path
-            A temporary path provided by pytest for testing file creation and 
-            manipulation.
-        
-        Raises
-        ------
-        ``StageConfigurationError``
-            If the source file doesn't exist when attempting to create a 
-            ``Stage`` instance
-        """
-        source_file = tmp_path / "not_an_actual_file.py"
-        with pytest.raises(StageConfigurationError):
-            Stage.from_file(source_file)
-
-    def test_stage_from_callable_name(self, example_function) -> None:
-        """
-        Tests that a stage name is extracted from a callable object stage.
-
-        Parameters
-        ----------
-        ``example_function`` : callable
-            A callable function to pass as a source for a ``Stage`` class instance.
-        """
-        test = Stage.from_callable(example_function)
-        assert test.name == "example_function"
-
-    def test_from_dict_norm(self, example_function) -> None:
-        """
-        Tests that a stage instance is created from a dictionary item.
-
-        Parameters
-        ----------
-        ``example_function`` : callable
-            A callable function to pass as a source for a ``Stage`` class instance.
-        """
-
-        data = {"name": "test_Stage", "callable": example_function}
-        stage = Stage.from_dict(data)
-        assert stage.source == example_function
-
     def test_with_dependencies_list(self, stage_test) -> None:
         """
         Tests adding different types of dependencies when the original dependency is
@@ -300,3 +254,49 @@ class TestStageFactories:
         assert Stage.from_file(test_stage, entrypoint="main") == Stage(
             "test_stage", test_stage.resolve(), (), {}, "main", "python"
         )
+
+    def test_stage_from_files_error(self, tmp_path: Path) -> None:
+            """
+            Tests that if the file doesn't exist, a StageConfigurationError is raised.
+    
+            Parameters
+            ----------
+            ``tmp_path`` : Path
+                A temporary path provided by pytest for testing file creation and 
+                manipulation.
+            
+            Raises
+            ------
+            ``StageConfigurationError``
+                If the source file doesn't exist when attempting to create a 
+                ``Stage`` instance
+            """
+            source_file = tmp_path / "not_an_actual_file.py"
+            with pytest.raises(StageConfigurationError):
+                Stage.from_file(source_file)
+    
+    def test_stage_from_callable_name(self, example_function) -> None:
+        """
+        Tests that a stage name is extracted from a callable object stage.
+
+        Parameters
+        ----------
+        ``example_function`` : callable
+            A callable function to pass as a source for a ``Stage`` class instance.
+        """
+        test = Stage.from_callable(example_function)
+        assert test.name == "example_function"
+
+    def test_from_dict_norm(self, example_function) -> None:
+        """
+        Tests that a stage instance is created from a dictionary item.
+
+        Parameters
+        ----------
+        ``example_function`` : callable
+            A callable function to pass as a source for a ``Stage`` class instance.
+        """
+
+        data = {"name": "test_Stage", "callable": example_function}
+        stage = Stage.from_dict(data)
+        assert stage.source == example_function
