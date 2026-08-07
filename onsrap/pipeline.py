@@ -110,6 +110,8 @@ class Pipeline:
         self.manifest: RunManifest | None = None
         self.last_run: PipelineRun | None = None
 
+        self.run_output = self._set_run_output()
+
         self.logger.event(
             "Pipeline initialized",
             name=self.name,
@@ -421,7 +423,31 @@ class Pipeline:
 
         self.logger.event("New dependencies added to Pipeline instance and respective Stage instances",dependencies = dependencies)    
 
+    def _set_run_output(self) -> Path:
+        """
+        Private method that sets the run output directory for the Pipeline.
 
+        Returns
+        -------
+        ``Path``
+            The path to the run output directory for the Pipeline. 
+
+        Raises
+        ------
+        ``StageConfigurationWarning``
+            If the output_dir is not specified in the PipelineConfig, a warning is
+            raised to show that the project root or work directory will be used as
+            the directory for the run outputs. 
+        """
+        if self.config.output_dir is not None:
+            run_output = Path(self.config.output_dir)
+        else:
+            warnings.warn(
+                "Output directory is not specified. Using project root or work directory as the run output.",
+                StageConfigurationWarning
+            )  # TODO: fill with warnings from Pipeline branch
+            run_output = Path(self.config.project_root or self.config.work_dir)
+        return run_output / "runs"
 
     def _assign_dependencies(self, 
                              dependencies:tuple[str]| dict[str, Sequence[str]] | None = None,
