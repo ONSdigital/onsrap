@@ -690,7 +690,7 @@ class RunManifest:
             f"timestamp={self.timestamp}, reason={self.reason}, user={self.user})"
         )
 
-    def runmanifest_to_dict(self) -> dict[str, Any]:
+    def _runmanifest_to_dict(self) -> dict[str, Any]:
         """
         Converts the RunManifest instance into a dictionary representation. 
         This is needed to allow a RunManifest instance to be serialized into a 
@@ -719,7 +719,7 @@ class RunManifest:
         }
 
     @classmethod
-    def runmanifest_from_dict(cls, data: dict[str, Any]) -> RunManifest:
+    def _runmanifest_from_dict(cls, data: dict[str, Any]) -> RunManifest:
         """
         Converts a dictionary representation of a RunManifest instance back into a 
         RunManifest instance. Allows for RunManifest instances to be created from
