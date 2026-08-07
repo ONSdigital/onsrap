@@ -87,15 +87,7 @@ class PipelineRunner:
         runtime_id = pipeline._create_runtime_id()
         pipeline.id = runtime_id
 
-        if pipeline.config.output_dir is not None:
-            run_output = Path(pipeline.config.output_dir)
-        else:
-            warnings.warn(
-                "Output directory is not specified. Using project root or work directory as the run output.",
-                StageConfigurationWarning
-            )  # TODO: fill with warnings from Pipeline branch
-            run_output = Path(pipeline.config.project_root or pipeline.config.work_dir)
-        run_dir = run_output / "runs" / runtime_id.get_id()
+        run_dir = pipeline.run_output / runtime_id.get_id()
         run_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialise the ExecutionContext which will be passed to each stage as it runs. This

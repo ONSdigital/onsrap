@@ -146,24 +146,31 @@ class Logger:
         else:
             self._logger.warning(message)
 
-    def extract_historical_run_ids(self, run_root: Path) -> list[str]:
+    def extract_historical_run_ids(self, run_root: Path) -> list[dict[str, Any]]:
         """
-        
+        Extracts historical run IDs from the log files.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            A list of dictionaries containing run_id, timestamp, and run_dir for each historical run.
         """
 
         #ensure that logger is writing to a file and extract filepath
-        if not self._logger.root.hasHandlers():
+        if not self._logger.hasHandlers():
             raise HistoricalPipelineLoadError("The logger does not write to a" \
             "filepath. Please ensure that your logger writes to a file path so that" \
             "we can extract the run_id for historical runs.")
 
-        logfile_path = self._logger.root.handlers[0].baseFilename
+        logfile_handler = next((h for h in self._logger.handlers if isinstance(h, logging.FileHandler)), None)
+        if logfile_handler is None:
+            raise HistoricalPipelineLoadError("The logger does not have a FileHandler. " \
+            "Please ensure that your logger writes to a file path so that we can extract the run_id "
+            "for historical runs.")
 
+        logfile_path = logfile_handler.baseFilename
         if not Path(logfile_path).exists():
-            raise HistoricalPipelineLoadError("The log file does not exist at this" \
-            " location.")
-        
-        print(logfile_path)
+            raise HistoricalPipelineLoadError("The log file does not exist at this location.")
 
         matches: list[dict[str, Any]] = []
 
@@ -190,6 +197,8 @@ class Logger:
             timestamp = f"{parts[0]} {parts[1]}"
 
             run_dir = run_root / run_id
+
+            #only returns run_ids for runs where a run_directory is still present.
             if run_dir.exists():
                 matches.append({
                     "run_id": run_id,
