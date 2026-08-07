@@ -347,7 +347,7 @@ class TestToFromDictMethods:
             "user": None,
             "config":None
         }
-        assert runmanifest.runmanifest_to_dict() == expected_dict
+        assert runmanifest._runmanifest_to_dict() == expected_dict
 
     def test_runmanifest_from_dict(self, runmanifest) -> None:
         """
@@ -373,7 +373,7 @@ class TestToFromDictMethods:
             "user": None,
             "config":None
         }
-        new_runmanifest = RunManifest.runmanifest_from_dict(runmanifest_dict)
+        new_runmanifest = RunManifest._runmanifest_from_dict(runmanifest_dict)
         assert new_runmanifest == runmanifest
 
     def test_stageresult_to_dict(self, stageresult) -> None:
