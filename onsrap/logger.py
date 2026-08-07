@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .errors import HistoricalPipelineLoadError
+
 
 @dataclass
 class LogConfig:
@@ -143,3 +145,60 @@ class Logger:
             self._logger.warning("%s | %s", message, json.dumps(kwargs, default=str, sort_keys=True))
         else:
             self._logger.warning(message)
+
+    def extract_historical_run_ids(self, run_root: Path) -> list[str]:
+        """
+        
+        """
+
+        #ensure that logger is writing to a file and extract filepath
+        if not self._logger.root.hasHandlers():
+            raise HistoricalPipelineLoadError("The logger does not write to a" \
+            "filepath. Please ensure that your logger writes to a file path so that" \
+            "we can extract the run_id for historical runs.")
+
+        logfile_path = self._logger.root.handlers[0].baseFilename
+
+        if not Path(logfile_path).exists():
+            raise HistoricalPipelineLoadError("The log file does not exist at this" \
+            " location.")
+        
+        print(logfile_path)
+
+        matches: list[dict[str, Any]] = []
+
+        for raw_line in reversed(Path(logfile_path).read_text(encoding="utf-8").splitlines()):
+            if "Pipeline started" not in raw_line or " | " not in raw_line:
+                continue
+
+            # left: timestamp + message, right: JSON context
+            left, right = raw_line.split(" | ", 1)
+
+            try:
+                payload = json.loads(right)
+            except json.JSONDecodeError:
+                continue
+
+            run_id = payload.get("run_id")
+            if not run_id:
+                continue
+
+            # timestamp is the first two space-separated tokens: YYYY-MM-DD HH:MM:SS,mmm
+            parts = left.split(" ", 2)
+            if len(parts) < 2:
+                continue
+            timestamp = f"{parts[0]} {parts[1]}"
+
+            run_dir = run_root / run_id
+            if run_dir.exists():
+                matches.append({
+                    "run_id": run_id,
+                    "timestamp": timestamp,
+                    "run_dir": run_dir,
+                })
+                
+        return matches
+
+
+
+        
