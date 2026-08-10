@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 import re
 
-from .errors import StageConfigurationError, PipelineInitialisationError, PipelineConfigurationError
+from .errors import HistoricalPipelineLoadError, StageConfigurationError, PipelineInitialisationError, PipelineConfigurationError
 from .warnings import StageConfigurationWarning, PipelineConfigurationWarning
 from .execution import PythonStageExecutor, StageExecutor
 from .graph import StageGraph
@@ -435,11 +435,20 @@ class Pipeline:
                 An instance of ``PipelineRun`` representing the most recent run of the 
                 Pipeline, or None if no previous runs are found.
             """
-            previous_run_logs = self.logger.extract_historical_run_ids(self.run_output)
+            try:
+                previous_run_logs = self.logger.extract_historical_run_ids(
+                    self.run_output
+                    )
+            except HistoricalPipelineLoadError:
+                warnings.warn("Unable to load previous runs for this Pipeline. Last_run" \
+                " attribute will be None.", PipelineConfigurationWarning)
+                return None
+            
             if previous_run_logs == []:
                 warnings.warn("No previous runs found for this Pipeline. Last_run attribute" \
                 " will be None.", PipelineConfigurationWarning)
                 return None
+            
             latest_run_log = previous_run_logs[0] 
             latest_run_id = latest_run_log["run_id"] 
             if latest_run_id is None:
