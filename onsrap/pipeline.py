@@ -440,13 +440,13 @@ class Pipeline:
             previous_run_logs = self.logger.extract_historical_run_ids(self.run_output)
             if previous_run_logs == []:
                 warnings.warn("No previous runs found for this Pipeline. Last_run attribute" \
-                "will be None.", PipelineConfigurationWarning)
+                " will be None.", PipelineConfigurationWarning)
                 return None
             latest_run_log = previous_run_logs[0] 
             latest_run_id = latest_run_log["run_id"] 
             if latest_run_id is None:
                 warnings.warn("No previous runs found for this Pipeline. Last_run attribute" \
-                "will be None.", PipelineConfigurationWarning)
+                " will be None.", PipelineConfigurationWarning)
                 return None
     
             return load_historical_run(run_dir=Path(self.run_output) / latest_run_id)   
