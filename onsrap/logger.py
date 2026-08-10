@@ -150,6 +150,11 @@ class Logger:
         """
         Extracts historical run IDs from the log files.
 
+        Parameters
+        ----------
+        ``run_root`` : Path
+            The root directory where the historical runs are stored.
+
         Returns
         -------
         list[dict[str, Any]]
