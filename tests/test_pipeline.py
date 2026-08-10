@@ -1,7 +1,12 @@
+from unittest import mock
+import warnings
+
 from onsrap.pipeline import Pipeline, PipelineConfig
 from onsrap.execution import PythonStageExecutor
 from onsrap.errors import PipelineInitialisationError, PipelineConfigurationError
 from onsrap.models import StageConfig
+from onsrap.errors import PipelineInitialisationError, PipelineConfigurationError, StageConfigurationError
+from onsrap.models import PipelineRun, StageConfig
 from onsrap.stage import Stage
 from onsrap.warnings import StageConfigurationWarning
 from pathlib import Path
@@ -332,3 +337,270 @@ def test_validate_stage_backends_errors() -> None:
                 ),
             ],
         )
+
+class TestLoadLatestRunIntegration:
+    @pytest.fixture
+    def pipeline_log_line(self):
+        def _make(run_id: str, timestamp: str) -> str:
+            """
+            Returns a false log file line to simulate a historical run in the log file.
+            The line is formatted to match the expected log output.
+
+            Parameters
+            ----------
+            ``run_id`` : str
+                The unique identifier for the historical run.
+            ``timestamp`` : str
+                The timestamp of when the historical run was initiated.
+            """
+            return f"{timestamp} Pipeline started | " \
+                f"{{\"run_id\": \"{run_id}\", \"run_dir\": \"/path/to/run\"}}"
+        return _make
+
+    @pytest.fixture
+    def minimal_pipeline_yaml(self):
+        def _make(run_id: str) -> str:
+            """
+            Returns a minimal YAML configuration for a historical run.
+
+            Parameters
+            ----------
+            ``run_id`` : str
+                The unique identifier for the historical run.
+            """
+            return f"""
+                    manifest:
+                        run_id: {run_id}
+                    status: succeeded
+                    started_at: '2026-08-06T17:03:30.000077'
+                    completed_at: '2026-08-06T17:03:30.031654'
+                    stage_results: []
+                    stage_outputs: {{}}
+                    """
+        return _make
+
+class TestLoadLatestRun(TestLoadLatestRunIntegration):
+    @pytest.fixture
+    def pipeline_no_history(self, tmp_path: Path) -> Pipeline:
+        """
+        Sets up a blank pipeline instance for testing that accounts for warnings
+        in init phase rather than dealing with these in the tests.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for creating test files 
+            and directories.
+        """
+        with pytest.warns(PipelineConfigurationWarning):
+            pipeline = Pipeline(config=PipelineConfig(
+                output_dir = tmp_path/"outputs",
+            ))
+        pipeline.run_output = tmp_path/"runs"
+        return pipeline
+    
+    def test_blank_historical_run_ids(self, 
+                                      pipeline_no_history: Pipeline, 
+                                      monkeypatch) -> None:
+        """
+        Tests that if extract_historical_run_ids returns a blank list, the
+        _load_latest_run method will return None and raise a warning. Assert
+        that it will also store None in the last_run attribute of the Pipeline
+        instance. 
+
+        Parameters
+        ----------
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes, 
+            methods, or classes during testing.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when no previous runs are found for the Pipeline, indicating 
+            that the last_run attribute will be None.
+        """
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids", 
+                            lambda x: [])
+        assert pipeline_no_history.logger.extract_historical_run_ids(
+            pipeline_no_history.run_output
+            ) == []
+        with pytest.warns(PipelineConfigurationWarning, match="No previous runs " \
+        "found for this Pipeline. Last_run attribute will be None."):
+            assert pipeline_no_history._load_latest_run() == None
+            assert pipeline_no_history.last_run == None
+
+    def test_blank_run_ids(self,
+                           pipeline_no_history: Pipeline,
+                           monkeypatch) -> None:
+        """
+        Tests that if the found log record does not have a run_id, _load_latest_run
+        will return None and raise a warning. Assert that it will also store None
+        in the last_run attribute of the Pipeline instance.
+
+        Parameters
+        ----------
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes, 
+            methods, or classes during testing.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when no previous runs are found for the Pipeline, indicating 
+            that the last_run attribute will be None.
+        """
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids", 
+                            lambda x: [{
+                                "run_id": None, 
+                                "timestamp": "2026-08-10 10:00:00,000", 
+                                "run_dir": Path("/")}]
+                                )
+        assert pipeline_no_history.logger.extract_historical_run_ids(
+            pipeline_no_history.run_output
+            ) == [{
+                "run_id": None, 
+                "timestamp": "2026-08-10 10:00:00,000", 
+                "run_dir": Path("/")
+                }]
+        with pytest.warns(PipelineConfigurationWarning, match="No previous runs " \
+        "found for this Pipeline. Last_run attribute will be None."):
+                    assert pipeline_no_history._load_latest_run() == None
+                    assert pipeline_no_history.last_run == None
+        
+    def test_load_latest_run_success(self,
+                                     monkeypatch,
+                                     pipeline_no_history: Pipeline) -> None:
+
+        """
+        Tests that load_latest_run works successfully with fully mocked data. 
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes, 
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+        """
+
+        expected_run = mock.MagicMock(spec=PipelineRun)
+        run_id = "2026-08-10_100000_abc12345"
+        monkeypatch.setattr(
+            pipeline_no_history.logger,
+            "extract_historical_run_ids", 
+            lambda _: [{
+                "run_id": run_id,
+                "timestamp": "2026-08-10 10:00:00,000",
+                "run_dir": Path("/path/to/run")
+            }]
+        )
+
+        mock_load_historical_run = mock.MagicMock(return_value=expected_run)
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", 
+                            mock_load_historical_run)
+
+        result = pipeline_no_history._load_latest_run()
+
+        assert result is expected_run
+
+        expected_path = pipeline_no_history.run_output / run_id
+        mock_load_historical_run.assert_called_once_with(run_dir = expected_path)
+
+    def test_which_run_is_selected_load_latest_run(self,
+                                                   monkeypatch,
+                                                   pipeline_no_history: Pipeline
+                                                   ) -> None:
+
+        """
+        Checks that the first item is selected from the list of historical runs 
+        returned by extract_historical_run_ids.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes, 
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+        """
+        expected_run = mock.MagicMock(spec=PipelineRun)
+        run_id_1 = "2026-08-10_100000_abc12345"
+        run_id_2 = "2026-08-10_100000_def67890"
+        monkeypatch.setattr(
+            pipeline_no_history.logger,
+            "extract_historical_run_ids", 
+            lambda _: [
+                {
+                "run_id": run_id_1,
+                "timestamp": "2026-08-10 10:00:00,000",
+                "run_dir": "run_A"
+            },
+            {
+            "run_id": run_id_2,
+            "timestamp": "2026-08-10 10:00:00,000",
+            "run_dir": "run_B"
+            }
+            ]
+        )
+
+        mock_load_historical_run = mock.MagicMock(return_value=expected_run)
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", 
+                            mock_load_historical_run)
+
+        pipeline_no_history._load_latest_run()
+
+        expected_path = pipeline_no_history.run_output / run_id_1
+        mock_load_historical_run.assert_called_once_with(run_dir = expected_path)
+
+        #does not refer to run_dir in the extract_historical_run_ids list but the 
+        #parameter required in load_historical_run.
+        assert mock_load_historical_run.call_args.kwargs["run_dir"].name == run_id_1
+
+    def test_no_errors_raised_success_load_latest_run(self,
+                                         monkeypatch,
+                                         pipeline_no_history: Pipeline) -> None:
+    
+        """
+        Tests that no errors are raised when load_latest_run is successful. 
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes, 
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+        """
+
+        expected_run = mock.MagicMock(spec=PipelineRun)
+        run_id = "2026-08-10_100000_abc12345"
+        monkeypatch.setattr(
+            pipeline_no_history.logger,
+            "extract_historical_run_ids", 
+            lambda _: [{
+                "run_id": run_id,
+                "timestamp": "2026-08-10 10:00:00,000",
+                "run_dir": Path("/path/to/run")
+            }]
+        )
+
+        mock_load_historical_run = mock.MagicMock(return_value=expected_run)
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", 
+                            mock_load_historical_run)
+
+        with warnings.catch_warnings(record=True) as w:
+            pipeline_no_history._load_latest_run()
+
+        assert not any(issubclass(warning.category, PipelineConfigurationWarning) 
+                       for warning in w)
+
+        
+    
+        
