@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+
 class OnsrapWarning(Warning):
     """Base warning for onsrap."""
+
 
 class StageConfigurationWarning(OnsrapWarning):
     """
@@ -9,11 +11,13 @@ class StageConfigurationWarning(OnsrapWarning):
     Child class with ``OnsrapWarning`` as the parent class.
     """
 
+
 class PipelineConfigurationWarning(OnsrapWarning):
     """
     Raised when the pipeline configuration is not optimal.
     Child class with ``OnsrapWarning`` as the parent class.
     """
+
 
 class ConfigurationInjectionWarning(OnsrapWarning):
     """

@@ -13,6 +13,7 @@ from .graph import StageGraph
 from .logger import LogConfig, Logger
 from .models import (
     Catalog,
+    GlobalConfig,
     PipelineConfig,
     PipelineRun,
     PipelineStatus,
@@ -22,7 +23,6 @@ from .models import (
     StageConfig,
     StageResult,
     StageStatus,
-    GlobalConfig,
 )
 from .pipeline import Pipeline
 from .runner import PipelineRunner

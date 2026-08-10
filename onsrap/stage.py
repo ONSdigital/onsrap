@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
@@ -13,7 +12,7 @@ if TYPE_CHECKING:
     from .models import StageResult
 
 
-def _normalize_dependencies(dependencies: list[str] | str | None) -> tuple[str, ...]:
+def _normalize_dependencies(dependencies: Iterable[str] | str | None) -> tuple[str, ...]:
     """
     Standardise the names of any stages dependant on other stages/processes.
 
@@ -36,6 +35,7 @@ def _normalize_dependencies(dependencies: list[str] | str | None) -> tuple[str, 
     if isinstance(dependencies, list) and dependencies == []:
         return ()
     if isinstance(dependencies, str):
+        candidate_items: Iterable[str]
         candidate_items = [dependencies]
 
     else:
@@ -227,7 +227,7 @@ class Stage:
             ``Stage class`` instance with collected Stage ``name``, normalised ``dependencies``
             and ``metadata``, and defined the source as the callable_object.
         """
-        stage_name = name or getattr(callable_object, "__name__", "stage")
+        stage_name = str(name or getattr(callable_object, "__name__", "stage"))
         return cls(
             name=stage_name,
             source=callable_object,
@@ -267,7 +267,13 @@ class Stage:
         metadata = payload.pop("metadata", {})
         entrypoint = payload.pop("entrypoint", None)
         backend = payload.pop("backend", "python")
-        name = payload.pop("name", None)
+        raw_name = payload.pop("name", None)
+        name = str(raw_name).strip() if raw_name is not None else None
+
+        if isinstance(metadata, Mapping):
+            metadata = dict(metadata)
+        else:
+            metadata = {"metadata": metadata}
 
         if callable(source):
             return cls.from_callable(
@@ -313,7 +319,7 @@ class Stage:
         ``Stage``  
             ``Stage`` class instance with normalised ``dependencies`` attribute.
         """
-        unpacked_deps: list = []
+        unpacked_deps: list[str] = []
         for dependency in dependencies:
             if isinstance(dependency, list):
                 unpacked_deps = unpacked_deps + dependency
