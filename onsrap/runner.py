@@ -6,10 +6,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .errors import StageExecutionError
-from .warnings import StageConfigurationWarning
 from .execution import ExecutionContext
 from .logger import Logger
-from .models import PipelineRun, PipelineStatus, RunManifest, now
+from .models import PipelineRun, PipelineStatus, RunManifest, StageResult, now
+from .warnings import StageConfigurationWarning
 
 if TYPE_CHECKING:
     from .pipeline import Pipeline
@@ -17,13 +17,14 @@ if TYPE_CHECKING:
 
 class PipelineRunner:
     """
-    Represents the information required to run the Pipeline. 
+    Represents the information required to run the Pipeline.
 
     Parameters
     ----------
     ``logger`` : Logger class type
-        Information used to log progress throughout the Pipeline. 
+        Information used to log progress throughout the Pipeline.
     """
+
     def __init__(self, logger: Logger | None = None):
         self.logger = logger or Logger()
 
@@ -44,42 +45,40 @@ class PipelineRunner:
 
         def __repr__(self) -> str:
             """
-            Representation method that returns a human readable representation of the ``PipelineRunner`` class. 
-            This method is structured to be more concise than the ``__str__`` method and is 
+            Representation method that returns a human readable representation of the ``PipelineRunner`` class.
+            This method is structured to be more concise than the ``__str__`` method and is
             intended for debugging purposes.
 
-            Returns 
+            Returns
             -------
             str
                 A string representation of the ``PipelineRunner`` class with its attributes.
             """
-            return (
-                f"PipelineRunner(logger={self.logger})"
-            )
+            return f"PipelineRunner(logger={self.logger})"
 
     def run(self, pipeline: Pipeline) -> PipelineRun:
         """
-        Method that runs a ``Pipeline`` instance. 
+        Method that runs a ``Pipeline`` instance.
 
-        This method validates the source information, establishes the directories and 
+        This method validates the source information, establishes the directories and
         the context to run the pipeline within, sets out the manifest for the run, attempts
         to run the stages in the order outlined by the ``StageGraph`` instance and logs all
         progress alongside relevant statuses. Before each stage executes, the runner binds
         the current stage name onto the ``ExecutionContext`` so ``context.stage_config``
         resolves to the correct stage-specific configuration.
 
-        It returns a PipelineRun instance containing metadata and logging information for the 
-        specific run of the whole Pipeline. 
+        It returns a PipelineRun instance containing metadata and logging information for the
+        specific run of the whole Pipeline.
 
         Parameters
         ----------
         ``pipeline`` : Pipeline
-            A Pipeline instance that this method will run. 
+            A Pipeline instance that this method will run.
 
         Raises
         ------
         ``StageExecutionError``
-            If the stage is unable to be run. Logs will be created to show a failed stage. 
+            If the stage is unable to be run. Logs will be created to show a failed stage.
         """
         # Initial Pipeline steps - validate, create run ID and any relevant directories.
         pipeline.validate()
@@ -92,7 +91,7 @@ class PipelineRunner:
         else:
             warnings.warn(
                 "Output directory is not specified. Using project root or work directory as the run output.",
-                StageConfigurationWarning
+                StageConfigurationWarning,
             )  # TODO: fill with warnings from Pipeline branch
             run_output = Path(pipeline.config.project_root or pipeline.config.work_dir)
         run_dir = run_output / "runs" / runtime_id.get_id()
@@ -131,10 +130,12 @@ class PipelineRunner:
         )
 
         # Execution of the stages in the dependency-driven order.
-        stage_results = []
+        stage_results: list[StageResult] = []
         try:
             for stage in ordered_stages:
-                self.logger.event("Executing stage", name=stage.name, source=stage.source_label)
+                self.logger.event(
+                    "Executing stage", name=stage.name, source=stage.source_label
+                )
                 context.set_active_stage(stage.name)
                 try:
                     result = stage.run(context, pipeline.executor)
@@ -198,34 +199,38 @@ class PipelineRunner:
 
 def build_parser() -> argparse.ArgumentParser:
     """
-    Determines what arguments are needed when running a Pipeline from the command line. 
+    Determines what arguments are needed when running a Pipeline from the command line.
 
-    Enables stages to be input, followed by a name if provided. 
+    Enables stages to be input, followed by a name if provided.
     """
-    parser = argparse.ArgumentParser(description="Run an onsrap pipeline from Python files.")
-    parser.add_argument("stages", nargs="+", help="One or more Python stage files to run.")
+    parser = argparse.ArgumentParser(
+        description="Run an onsrap pipeline from Python files."
+    )
+    parser.add_argument(
+        "stages", nargs="+", help="One or more Python stage files to run."
+    )
     parser.add_argument("--name", default=None, help="Optional pipeline name.")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     """
-    Entrypoint to the pipeline. 
+    Entrypoint to the pipeline.
 
     This function can be called from the command line. It builds a parser which enables
     the arguments to be held before using those arguments to build a Pipeline instance.
-    The pipeline.run() method is then run which runs the entire pipeline. If this runs 
-    successfully, a 0 is returned which is the success code. 
+    The pipeline.run() method is then run which runs the entire pipeline. If this runs
+    successfully, a 0 is returned which is the success code.
 
     Parameters
     ----------
     ``argv`` : list[str] or None
-        Command line arguments to parse. 
-    
+        Command line arguments to parse.
+
     Returns
     -------
-    int 
-        Success code for completion of the run. 
+    int
+        Success code for completion of the run.
     """
     from .pipeline import Pipeline
 
@@ -235,7 +240,9 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _log_config(run_dir: Path, context: ExecutionContext, manifest: RunManifest) -> None:
+def _log_config(
+    run_dir: Path, context: ExecutionContext, manifest: RunManifest
+) -> None:
     """
     Outputs the configurations used in an instance of a pipeline to a YAML file in the run directory.
 
@@ -252,17 +259,21 @@ def _log_config(run_dir: Path, context: ExecutionContext, manifest: RunManifest)
     """
     date = context.started_at.date()
 
-    config_file = run_dir / f"configuration_for_{context.pipeline_name}_{date}_{context.run_id[-8:]}.yaml"
+    config_file = (
+        run_dir
+        / f"configuration_for_{context.pipeline_name}_{date}_{context.run_id[-8:]}.yaml"
+    )
     import yaml
+
     with open(config_file, "w", encoding="utf-8") as f:
         yaml.safe_dump(manifest.config or {}, f, default_flow_style=False)
 
 
 def _flatten(obj: dict | list, prefix: str = "", sep: str = ".") -> dict:
     """
-    Converts nested dictionaries or lists into flat object using dot notation for keys. 
+    Converts nested dictionaries or lists into flat object using dot notation for keys.
     Each key in the resulting dictionary represents the nested branching to get to the value
-    in the original dictionary. 
+    in the original dictionary.
 
     Parameters
     ----------
@@ -273,7 +284,7 @@ def _flatten(obj: dict | list, prefix: str = "", sep: str = ".") -> dict:
     ``sep`` : str
         The separator to use between keys in the flattened dictionary. Defaults to a dot (".").
 
-    Returns 
+    Returns
     -------
     dict
         A flattened dictionary where each key represents the path to the value in the original object.
@@ -289,13 +300,14 @@ def _flatten(obj: dict | list, prefix: str = "", sep: str = ".") -> dict:
         items[prefix] = obj
     return items
 
+
 def _diff_yaml_files(path_a: Path, path_b: Path) -> dict:
     """
-    Calculates the differences between two YAML files and returns a programming oriented dictionary 
-    describing the changes. 
-    
+    Calculates the differences between two YAML files and returns a programming oriented dictionary
+    describing the changes.
+
     This function calls the  ``_flatten`` function to the loaded in dictionaries from the YAML files.
-    These are then differenced to account for whether a value has changed between the two files, 
+    These are then differenced to account for whether a value has changed between the two files,
     been added to the second file and was not present in the first, or removed from the second file
     and is only present in the first. This output is structured as {changed: {}, added: {}, removed: {}}.
 
@@ -309,7 +321,7 @@ def _diff_yaml_files(path_a: Path, path_b: Path) -> dict:
     Returns
     -------
     dict
-        A dictionary describing the differences between the two YAML files, structured as 
+        A dictionary describing the differences between the two YAML files, structured as
         {changed: {}, added: {}, removed: {}}.
     """
     import yaml
@@ -325,24 +337,23 @@ def _diff_yaml_files(path_a: Path, path_b: Path) -> dict:
 
     return {
         "changed": {
-            k: (flat_a[k], flat_b[k])
-            for k in keys_a & keys_b
-            if flat_a[k] != flat_b[k]
+            k: (flat_a[k], flat_b[k]) for k in keys_a & keys_b if flat_a[k] != flat_b[k]
         },
-        "added":   {k: flat_b[k] for k in keys_b - keys_a},
+        "added": {k: flat_b[k] for k in keys_b - keys_a},
         "removed": {k: flat_a[k] for k in keys_a - keys_b},
     }
 
+
 def _print_diff(diff: dict) -> dict:
     """
-    Prints the differences between two YAML files in a human-readable format and returns 
-    the computer-readable dictionary so that it could be used for logging processes if 
+    Prints the differences between two YAML files in a human-readable format and returns
+    the computer-readable dictionary so that it could be used for logging processes if
     required.
 
     Parameters
     ----------
     diff : dict
-        A dictionary describing the differences between two YAML files, structured as 
+        A dictionary describing the differences between two YAML files, structured as
         {changed: {}, added: {}, removed: {}}.
 
     Returns
@@ -351,7 +362,7 @@ def _print_diff(diff: dict) -> dict:
         The same dictionary that was passed in as the ``diff`` parameter.
     """
     changed = diff["changed"]
-    added   = diff["added"]
+    added = diff["added"]
     removed = diff["removed"]
 
     if changed:
@@ -374,13 +385,14 @@ def _print_diff(diff: dict) -> dict:
 
     return diff
 
+
 def print_config_diffs(file_1, file_2) -> dict:
     """
     A combining function that calculates the differences between two YAML files
     and then prints the outputs to the terminal as well as returning the computer-readable
-    dictionary of the differences. 
-    
-    This works by calling the ``_diff_yaml_files`` function to calculate the differences and 
+    dictionary of the differences.
+
+    This works by calling the ``_diff_yaml_files`` function to calculate the differences and
     then calling the ``_print_diff`` function to print the differences.
 
     Parameters
@@ -390,10 +402,10 @@ def print_config_diffs(file_1, file_2) -> dict:
     ``file_2`` : Path
         The path to the second YAML file to compare.
 
-    Returns 
+    Returns
     -------
     dict
-        A dictionary describing the differences between the two YAML files, structured as 
+        A dictionary describing the differences between the two YAML files, structured as
         {changed: {}, added: {}, removed: {}}.
     """
     diff_dict = _diff_yaml_files(file_1, file_2)

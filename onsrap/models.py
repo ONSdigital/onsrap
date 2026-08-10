@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-from textwrap import indent
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any, Iterable, Literal, Mapping, Optional, overload
 
-from .errors import StageConfigurationError, PipelineConfigurationError
+from .errors import PipelineConfigurationError, StageConfigurationError
 
 
 class StageStatus(str, Enum):
     """
     Class to hold information on how the Stage has run.
     """
+
     PENDING = "pending"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
@@ -26,6 +26,7 @@ class PipelineStatus(str, Enum):
     """
     Class to hold information on how the Pipeline has run.
     """
+
     PENDING = "pending"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
@@ -49,7 +50,7 @@ def utcnow() -> datetime:
 @dataclass
 class RuntimeID:
     """
-    Holds information regarding individual runs. 
+    Holds information regarding individual runs.
 
     Parameters
     ----------
@@ -61,9 +62,10 @@ class RuntimeID:
         A hashed identifier created with the combined ID and
         timestamp to create a unique identifier for the run.
     ``short_hash`` : str
-        A shortened version of the ``hash`` attribute to be used 
-        in file names for the runs. 
+        A shortened version of the ``hash`` attribute to be used
+        in file names for the runs.
     """
+
     id: str
     timestamp: datetime
     hash: str
@@ -97,25 +99,25 @@ class RuntimeID:
 @dataclass
 class PipelineConfig:
     """
-    Holds information required to run the whole pipeline. 
+    Holds information required to run the whole pipeline.
 
     Parameters
     ----------
     ``name`` : str, optional
         The name of the pipeline.
-    ``stages_to_run`` : dict[str, bool], optional   
-        A dictionary of all stage names alongside a boolean value that indicates 
+    ``stages_to_run`` : dict[str, bool], optional
+        A dictionary of all stage names alongside a boolean value that indicates
         whether the stage should be run or not.
     ``backend`` : str, default = "python"
-        The system that the pipeline is run on. 
-    ``work_dir`` : Path 
-        The directory to run the Pipeline in. 
+        The system that the pipeline is run on.
+    ``work_dir`` : Path
+        The directory to run the Pipeline in.
     ``project_root`` : Path
-        The top level directory for the whole project. 
+        The top level directory for the whole project.
     ``log_dir`` : Path
-        The directory to store the logs in. 
+        The directory to store the logs in.
     ``data_dir`` : Path
-        The directory where the data is stored. 
+        The directory where the data is stored.
     ``output_dir`` : Path, optional
         The directory where pipeline outputs should be written. Not used internally
         by the runner; exposed for stage code to read via ``context.config.output_dir``.
@@ -123,13 +125,14 @@ class PipelineConfig:
         Indicates whether the subprocess system (running the whole file
         rather than an entrypoint function) should be allowed.
     ``python_executable`` : str, optional
-        The name of the executable function for the entrypoint of the 
-        pipeline. 
+        The name of the executable function for the entrypoint of the
+        pipeline.
     ``metadata`` : dict[str, Any]
-        Any additional information on the pipeline. 
+        Any additional information on the pipeline.
     ``overwrite`` : bool, default = False
-        Indicates whether the pipeline should overwrite previous outputs. 
+        Indicates whether the pipeline should overwrite previous outputs.
     """
+
     name: Optional[str] = None
     stages_to_run: Optional[dict[str, bool]] = None
     backend: str = "python"
@@ -146,7 +149,7 @@ class PipelineConfig:
     def __post_init__(self) -> None:
         """
         Post-initialization method to ensure that the ``work_dir`` and ``project_root``
-        attributes are set correctly. 
+        attributes are set correctly.
         """
         if self.stages_to_run is None:
             self.stages_to_run = {}
@@ -172,11 +175,11 @@ class PipelineConfig:
 
     def __repr__(self) -> str:
         """
-        Representation method that returns a human readable representation of the ``PipelineConfig`` class. 
-        This method is structured to be more concise than the ``__str__`` method and is 
+        Representation method that returns a human readable representation of the ``PipelineConfig`` class.
+        This method is structured to be more concise than the ``__str__`` method and is
         intended for debugging purposes.
 
-        Returns 
+        Returns
         -------
         str
             A string representation of the ``PipelineConfig`` class with its attributes.
@@ -197,19 +200,19 @@ class PipelineConfig:
         value: PipelineConfig | Mapping[str, Any] | str | Path | None,
     ) -> PipelineConfig:
         """
-        Converts one of several datatypes into a PipelineConfig class instance. 
+        Converts one of several datatypes into a PipelineConfig class instance.
 
         Parameters
         ----------
         ``value`` : PipelineConfig, Mapping[str, Any], str, Path, or None
-            The object holding metadata on how the Pipeline should run to be converted 
-            into a PipelineConfig class instance. 
-        
+            The object holding metadata on how the Pipeline should run to be converted
+            into a PipelineConfig class instance.
+
         Raises
         ------
         ``TypeError``
             If the datatype for the object holding information on how the pipeline is run
-            is not a datatype that can be converted to a PipelineConfig. 
+            is not a datatype that can be converted to a PipelineConfig.
         """
         if value is None:
             return cls()
@@ -228,14 +231,14 @@ class PipelineConfig:
     @classmethod
     def from_mapping(cls, data: Mapping[str, Any]) -> PipelineConfig:
         """
-        Extracts information from a mapping datatype and returns a PipelineConfig 
-        instance. 
+        Extracts information from a mapping datatype and returns a PipelineConfig
+        instance.
 
         Parameters
         ----------
         ``data`` : Mapping[str, Any]
             The information to be converted into a ``PipelineConfig`` instance.
-        
+
         Returns
         -------
         ``PipelineConfig`` class instance
@@ -249,13 +252,15 @@ class PipelineConfig:
             metadata = {"metadata": metadata}
 
         name = payload.pop("name", None)
-        
+
         backend = payload.pop("backend", "python")
         stages_to_run = PipelineConfig._extract_stages_run(payload)
         work_dir = Path(payload.pop("work_dir", Path.cwd()))
         project_root_value = payload.pop("project_root", None)
         output_dir_value = payload.pop("output_dir", None)
-        project_root = Path(project_root_value) if project_root_value is not None else work_dir
+        project_root = (
+            Path(project_root_value) if project_root_value is not None else work_dir
+        )
         log_dir = Path(payload.pop("log_dir", "logs"))
         data_dir = Path(payload.pop("data_dir", "data"))
         raw_subprocess_fallback = payload.pop("allow_subprocess_fallback", True)
@@ -267,7 +272,12 @@ class PipelineConfig:
                 UserWarning,
                 stacklevel=2,
             )
-            allow_subprocess_fallback = raw_subprocess_fallback.strip().lower() not in ("false", "0", "no", "off")
+            allow_subprocess_fallback = raw_subprocess_fallback.strip().lower() not in (
+                "false",
+                "0",
+                "no",
+                "off",
+            )
         else:
             allow_subprocess_fallback = bool(raw_subprocess_fallback)
         python_executable = payload.pop("python_executable", None)
@@ -276,7 +286,7 @@ class PipelineConfig:
 
         return cls(
             name=name,
-            stages_to_run = stages_to_run, 
+            stages_to_run=stages_to_run,
             backend=backend,
             work_dir=work_dir,
             project_root=project_root,
@@ -288,36 +298,38 @@ class PipelineConfig:
             python_executable=python_executable,
             metadata=metadata,
         )
-    
+
     @classmethod
     def from_file(cls, path: Path) -> PipelineConfig:
         """
-        Extracts a mapping item from a file containing information about how the 
-        pipeline should run. 
+        Extracts a mapping item from a file containing information about how the
+        pipeline should run.
 
-        Then calls the from_mapping() method to extract the information. 
+        Then calls the from_mapping() method to extract the information.
 
         Parameters
         ----------
         ``path`` : Path
-            The file path containing information to be converted into a PipelineConfig 
-            instance. 
-        
+            The file path containing information to be converted into a PipelineConfig
+            instance.
+
         Returns
         -------
         ``PipelineConfig`` class instance.
 
-        Raises 
+        Raises
         ------
         ``FileNotFoundError``
             If the file path does not exist.
-        ``TypeError`` 
-            If the file containing information about how the Pipeline runs does not 
+        ``TypeError``
+            If the file containing information about how the Pipeline runs does not
             contain a mapping type.
         """
         config_path = Path(path).expanduser()
         if not config_path.exists():
-            raise FileNotFoundError("Config file does not exist: {0}".format(config_path))
+            raise FileNotFoundError(
+                "Config file does not exist: {0}".format(config_path)
+            )
 
         import yaml
 
@@ -326,20 +338,24 @@ class PipelineConfig:
             return cls()
 
         if not isinstance(raw_config, Mapping):
-            raise TypeError("Pipeline config file must contain a mapping at the top level.")
+            raise TypeError(
+                "Pipeline config file must contain a mapping at the top level."
+            )
 
         return cls.from_mapping(raw_config)
 
     def to_dict(self) -> dict[str, Any]:
         """
         Returns a prescriptive expression of the attributes within the PipelineConfig instance
-        that allows for easier processing by the user. 
+        that allows for easier processing by the user.
         """
         data = {
             "name": self.name,
             "backend": self.backend,
             "work_dir": str(self.work_dir),
-            "project_root": str(self.project_root) if self.project_root is not None else None,
+            "project_root": str(self.project_root)
+            if self.project_root is not None
+            else None,
             "output_dir": str(self.output_dir) if self.output_dir is not None else None,
             "log_dir": str(self.log_dir),
             "data_dir": str(self.data_dir),
@@ -349,60 +365,59 @@ class PipelineConfig:
         }
         data.update(self.metadata)
         return data
-    
+
     @staticmethod
-    def _extract_stages_run(payload: Mapping[str, Any]
-                            ) -> dict[str, bool] | None:
+    def _extract_stages_run(payload: dict[str, Any]) -> dict[str, bool] | None:
         """
-        Method to extract stages_to_run configuration and convert all values to boolean values. 
+        Method to extract stages_to_run configuration and convert all values to boolean values.
 
         Parameters
         ----------
         ``payload`` : Mapping[str, Any]
             The dictionary where the stages_to_run configuration is being extracted from.
 
-        Returns 
+        Returns
         -------
         ``boolean_dict``
-            A dictionary of stage_name:bool to indicate whether a stage is being run. 
-        
-        None 
+            A dictionary of stage_name:bool to indicate whether a stage is being run.
+
+        None
             If stages_to_run does not exist within the configuration.
         """
         stages_to_run = payload.pop("stages_to_run", None)
-        if stages_to_run is None: 
+        if stages_to_run is None:
             return None
-        
+
         boolean_dict = {
-            stage_name: PipelineConfig._to_bool(value) 
+            stage_name: PipelineConfig._to_bool(value)
             for stage_name, value in stages_to_run.items()
-            }
-        
+        }
+
         return boolean_dict
 
     @staticmethod
-    def _to_bool(value):
+    def _to_bool(value: bool | int | str) -> bool:
         """
-        Method to convert values to boolean True/False values. 
+        Method to convert values to boolean True/False values.
 
         Integers convert to boolean where 0 = False and 1 = True. A certain subset of strings are
-        accepted for conversion. Any other strings will. raise an error.  
+        accepted for conversion. Any other strings will. raise an error.
 
         Parameters
         ----------
         ``value`` : bool | int | str
 
-        Returns 
+        Returns
         -------
         ``value``
-            The value input but converted to a boolean value. 
+            The value input but converted to a boolean value.
 
-        Raises 
+        Raises
         ------
-        ``ValueError`` 
-            When the value has not been able to be converted to a boolean. 
+        ``ValueError``
+            When the value has not been able to be converted to a boolean.
         """
-     
+
         if isinstance(value, bool):
             return value
 
@@ -417,12 +432,10 @@ class PipelineConfig:
 
             if value in {"false", "no", "n", "0"}:
                 return False
-            
+
             raise ValueError(f"Cannot convert {value!r} to bool")
 
         raise ValueError(f"Cannot convert {value!r} to bool")
-
-
 
 
 @dataclass
@@ -439,6 +452,7 @@ class StageConfig:
     ``metadata`` : dict[str, Any]
         Additional supporting metadata for the stage configuration.
     """
+
     # TODO: output location for stages potentially problematic for output overwrites!
     name: str
     _variables: dict[str, Any] = field(default_factory=dict)
@@ -538,6 +552,7 @@ class StageConfig:
             data["metadata"] = dict(self.metadata)
         return data
 
+
 @dataclass
 class GlobalConfig:
     """
@@ -548,6 +563,7 @@ class GlobalConfig:
     ``_variables`` : dict[str, Any]
         Variables that should be parsed to all stages throughout the pipeline.
     """
+
     _variables: dict[str, Any] = field(default_factory=dict)
     exclusion: dict[str, Any] = field(default_factory=dict)
 
@@ -561,7 +577,7 @@ class GlobalConfig:
         ``data`` : Mapping[str, Any] | None
             Raw configuration payload for the global configuration.
         ``exclusions`` : dict[str, Any] or None
-            A lookup of which global variables should be excluded from each stage. 
+            A lookup of which global variables should be excluded from each stage.
 
         Returns
         -------
@@ -570,13 +586,26 @@ class GlobalConfig:
         """
         if data is None:
             return cls()
-        
+
         payload = dict(data or {})
 
-        exclusions = payload.pop("exclusions", None)
-        
-        return cls(_variables=payload, 
-                   exclusion=exclusions)
+        exclusions = payload.pop("exclusions", {})
+        if exclusions is None:
+            exclusions = {}
+        elif not isinstance(exclusions, Mapping):
+            raise PipelineConfigurationError("Global exclusions must be a mapping.")
+        else:
+            exclusions = dict(exclusions)
+
+        return cls(_variables=payload, exclusion=exclusions)
+
+    @overload
+    def get_attributes(
+        self, keep_exclusion: Literal[True] = True
+    ) -> tuple[dict[str, Any], dict[str, Any]]: ...
+
+    @overload
+    def get_attributes(self, keep_exclusion: Literal[False]) -> dict[str, Any]: ...
 
     def get_attributes(self, keep_exclusion: bool = True) -> dict[str, Any]:
         """
@@ -594,30 +623,29 @@ class GlobalConfig:
         ``self._variables`` : dict[str, Any]
             All global variables for the pipeline.
         ``self.exclusion`` : dict[str, Any]
-            The exclusion list of global variables for each stage. Only returned 
+            The exclusion list of global variables for each stage. Only returned
             if ``keep_exclusion`` is True.
         """
-        if keep_exclusion: 
-            return self._variables, self.exclusion
-        else:
-            return self._variables
+        if keep_exclusion:
+            return dict(self._variables), dict(self.exclusion or {})
+        return dict(self._variables)
 
 
 @dataclass
 class RunManifest:
     """
-    Holds metadata information about the run. 
+    Holds metadata information about the run.
 
     Parameters
     ----------
     ``rap_name`` : str, default = ""
         The name of the Pipeline.
     ``run_id`` : str, default = ""
-        The unique ID of the run. 
+        The unique ID of the run.
     ``git_commit`` : str, default = None
         The git commit number for the run, indicating the exact state of the code.
     ``stages_run`` : list[str]
-        List of the names of stages that were included in this run. 
+        List of the names of stages that were included in this run.
     ``parameters`` : dict[str, Any]
 
     ``inputs`` : dict[str, Any]
@@ -625,16 +653,17 @@ class RunManifest:
     ``outputs`` : dict[str, Any]
 
     ``backend`` : str, default = "python"
-        The system that the Pipeline will run in. 
+        The system that the Pipeline will run in.
     ``package_versions``: list[str] or str
-        The package versions that are used in this run. 
+        The package versions that are used in this run.
     ``timestamp`` : str, default = ""
         The time that this run started.
     ``reason`` : str, optional, default = None
-        The reason that this run took place. 
+        The reason that this run took place.
     ``user`` : str, optional, default = None
-        The person running this specific run. 
+        The person running this specific run.
     """
+
     rap_name: str = ""
     run_id: str = ""
     git_commit: Optional[str] = None
@@ -665,18 +694,18 @@ class RunManifest:
             f"Git Commit: {self.git_commit}\nStages Run: {self.stages_run} \n"
             f"Parameters: \n{_format_dict(self.parameters, indent=4)} \n"
             f"Inputs: \n{_format_dict(self.inputs, indent=4)} \n"
-            f"Outputs: \n{_format_dict(self.outputs, indent = 4)} \nBackend: {self.backend} \n"
+            f"Outputs: \n{_format_dict(self.outputs, indent=4)} \nBackend: {self.backend} \n"
             f"Package Versions: {self.package_versions} \nTimestamp: {self.timestamp}\n"
             f"Reason: {self.reason} \nUser: {self.user}\n"
         )
 
     def __repr__(self) -> str:
         """
-        Representation method that returns a human readable representation of the 
-        ``RunManifest`` class. This method is structured to be more concise than 
+        Representation method that returns a human readable representation of the
+        ``RunManifest`` class. This method is structured to be more concise than
         the ``__str__`` method and is intended for debugging purposes.
 
-        Returns 
+        Returns
         -------
         str
             A string representation of the ``RunManifest`` class with its attributes.
@@ -711,29 +740,30 @@ class StageResult:
     Parameters
     ----------
     ``name`` : str
-        The name of the Stage run. 
+        The name of the Stage run.
     ``status`` : StageStatus
-        The status of the run at completion. 
+        The status of the run at completion.
     ``started_at`` : datetime
-        The date and time that the Stage started. 
+        The date and time that the Stage started.
     ``finished_at`` : datetime
-        The date and time that the Stage finished. 
+        The date and time that the Stage finished.
     ``outputs`` : Any, default = None
         Captures outputs of the stage being run.
     ``stdout`` : str, default = ""
         Captures outputs of the stage being run.
     ``stderr`` : str, default = ""
-        Captures any errors produced during the run. 
+        Captures any errors produced during the run.
     ``return_code`` : int, optional, default = None
         Indicates whether the stage has run successfully or if there
-        was an error. 
+        was an error.
     ``metadata``: dict[str, Any]
-        Holds information about the Stage such as file directories. 
+        Holds information about the Stage such as file directories.
     ``error`` : str, optional, default = None
-        Any errors produced during the run. 
+        Any errors produced during the run.
     ``source`` : str, optional, default = None
-        The name/location of the code for that Stage run. 
+        The name/location of the code for that Stage run.
     """
+
     name: str
     status: StageStatus
     started_at: datetime
@@ -749,9 +779,9 @@ class StageResult:
     @property
     def succeeded(self) -> bool:
         """
-        Creates a new attribute in the ``StageResult`` class called ``succeeded`` that 
-        contains a boolean value indicating if the run was a success or not. 
-        Updates the ``status`` attribute to record that the Stage ran successfully. 
+        Creates a new attribute in the ``StageResult`` class called ``succeeded`` that
+        contains a boolean value indicating if the run was a success or not.
+        Updates the ``status`` attribute to record that the Stage ran successfully.
         """
         return self.status == StageStatus.SUCCEEDED
 
@@ -759,7 +789,7 @@ class StageResult:
     def duration_seconds(self) -> float:
         """
         Creates a new attribute in the ``StageResult`` class called ``duration_seconds``
-        that holds the exact duration of the stage in seconds. 
+        that holds the exact duration of the stage in seconds.
         """
         return max((self.finished_at - self.started_at).total_seconds(), 0.0)
 
@@ -767,7 +797,7 @@ class StageResult:
 @dataclass
 class PipelineRun:
     """
-    Holds information about how the whole Pipeline ran. 
+    Holds information about how the whole Pipeline ran.
 
     Parameters
     ----------
@@ -776,14 +806,15 @@ class PipelineRun:
     ``status`` : PipelineStatus class instance
         Whether the Pipeline ran successfully or if there were errors.
     ``started_at`` : datetime
-        The date and time the Pipeline started. 
+        The date and time the Pipeline started.
     ``completed_at`` : datetime
-        The date and time the Pipeline ended. 
+        The date and time the Pipeline ended.
     ``stage_results`` : list[StageResult]
-        Holds the results for every stage run as part of the Pipeline. 
+        Holds the results for every stage run as part of the Pipeline.
     ``stage_outputs`` : dict[str, Any]
-        Holds the outputs from all stages run as part of the Pipeline. 
+        Holds the outputs from all stages run as part of the Pipeline.
     """
+
     manifest: RunManifest
     status: PipelineStatus
     started_at: datetime
@@ -793,12 +824,12 @@ class PipelineRun:
 
     def result_for(self, stage_name: str) -> Optional[StageResult]:
         """
-        Extracts the results for a specific stage. 
-        
+        Extracts the results for a specific stage.
+
         Parameters
         ----------
         ``stage_name`` : str
-            The name of the Stage that you are requesting the results for. 
+            The name of the Stage that you are requesting the results for.
         """
         for result in self.stage_results:
             if result.name == stage_name:
@@ -808,18 +839,19 @@ class PipelineRun:
     @property
     def succeeded(self) -> bool:
         """
-        Creates a new attribute in the ``PipelineRun`` class called ``succeeded`` that 
-        contains a boolean value indicating if the Pipeline was a success or not. 
-        Updates the ``status`` attribute to record that the Pipeline ran successfully. 
+        Creates a new attribute in the ``PipelineRun`` class called ``succeeded`` that
+        contains a boolean value indicating if the Pipeline was a success or not.
+        Updates the ``status`` attribute to record that the Pipeline ran successfully.
         """
         return self.status == PipelineStatus.SUCCEEDED
 
+
 def _format_dict(d, indent=0):
-            lines = []
-            for key, value in d.items():
-                if isinstance(value, dict):
-                    lines.append(f"{' ' * indent}{key}:")
-                    lines.append(_format_dict(value, indent + 4))
-                else:
-                    lines.append(f"{' ' * indent}{key}: {value}")
-            return "\n".join(lines)
+    lines = []
+    for key, value in d.items():
+        if isinstance(value, dict):
+            lines.append(f"{' ' * indent}{key}:")
+            lines.append(_format_dict(value, indent + 4))
+        else:
+            lines.append(f"{' ' * indent}{key}: {value}")
+    return "\n".join(lines)
