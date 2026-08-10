@@ -42,7 +42,7 @@ select = [
     # isort
     "I",
     ]
-ignore = ["D203", "E203"]
+ignore = ["B028", "D203", "E203", "E501"]
 
 [tool.ruff]
 line-length = 88
@@ -50,3 +50,11 @@ exclude = []
 
 [tool.ruff.format]
 line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.10"
+files = ["onsrap"]
+show_error_codes = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_unused_ignores = true
