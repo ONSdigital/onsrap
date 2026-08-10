@@ -302,9 +302,33 @@ def test_validate_stage_backends_errors() -> None:
     """
 
     with pytest.raises(PipelineInitialisationError):
-        Pipeline(backend="python",
-                 stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=(), backend="nonexistent_backend")])
-        with pytest.raises(PipelineInitialisationError):
-                Pipeline(backend="python",
-                         stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=(), backend="nonexistent_backend"),
-                                 Stage("Stage_1", source=Path("Stage_1.py"), dependencies=(), backend="python")])
+        Pipeline(
+            backend="python",
+            stages=[
+                Stage(
+                    "Stage_0",
+                    source=Path("Stage_0.py"),
+                    dependencies=(),
+                    backend="nonexistent_backend",
+                )
+            ],
+        )
+
+    with pytest.raises(PipelineInitialisationError):
+        Pipeline(
+            backend="python",
+            stages=[
+                Stage(
+                    "Stage_0",
+                    source=Path("Stage_0.py"),
+                    dependencies=(),
+                    backend="nonexistent_backend",
+                ),
+                Stage(
+                    "Stage_1",
+                    source=Path("Stage_1.py"),
+                    dependencies=(),
+                    backend="python",
+                ),
+            ],
+        )

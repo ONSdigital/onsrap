@@ -1027,17 +1027,18 @@ class Pipeline:
         # Check all stages have the same backend as Pipeline
         self._validate_stage_backends()
 
-        execution_class_name = f"{self.backend.capitalize()}StageExecutor"
+        backend_key = str(self.backend).strip().lower()
+        execution_class_name = f"{backend_key.capitalize()}StageExecutor"
 
         if (executor_class := globals().get(execution_class_name)) is not None:
             self.executor = executor_class()
         else:
             raise PipelineInitialisationError(
-                f"Requested backend {self.backend} does not have a compatible executor. "
+                f"Requested backend {backend_key} does not have a compatible executor. "
                 f"Available executors are: {', '.join(AVAILABLE_EXECUTORS)}."
             )
 
-    def _validate_stage_backends(self) -> str:  
+    def _validate_stage_backends(self) -> None:
         """
         Checks the backends that have been assigned to each stage.
 
