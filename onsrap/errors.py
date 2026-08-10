@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .models import StageResult
+
 
 class OnsrapError(Exception):
     """Base exception for onsrap."""
@@ -52,7 +57,7 @@ class StageExecutionError(OnsrapError):
         stage_name: str | None = None,
         source: str | None = None,
         original_exception: Exception | None = None,
-        result: object | None = None,
+        result: StageResult | None = None,
     ):
         super().__init__(message)
         self.stage_name = stage_name
@@ -67,20 +72,23 @@ class StageLoadError(StageExecutionError):
     Child class with ``StageExecutionError`` as the parent class.
     """
 
+
 class StageDependencyError(OnsrapError):
     """
     Raised when incorrect inputs are provided to the dependency
     attribute of a Stage.
     """
 
+
 class PipelineInitialisationError(OnsrapError):
     """
-    Raised when there is an error in definition of the Pipeline 
+    Raised when there is an error in definition of the Pipeline
     instance
     """
+
 
 class PipelineConfigurationError(OnsrapError):
     """
     Raised when there has been an issue with the PipelineConfig
-    instance. 
+    instance.
     """

@@ -12,12 +12,13 @@ class StageGraph:
     """
     Represents an order to run stages.
 
-    Holds an order that stages need to run in based on dependencies and logic. 
+    Holds an order that stages need to run in based on dependencies and logic.
 
     Parameters
     ----------
     ``stages`` : list of ``Stage`` class items
     """
+
     stages: list[Stage] = field(default_factory=list)
 
     @classmethod
@@ -42,7 +43,7 @@ class StageGraph:
         Raises
         ------
         ``DuplicateStageError``
-            If the stage name appears multiple times in the stage list. 
+            If the stage name appears multiple times in the stage list.
         ``MissingDependencyError``
             If there are unknown dependencies.
         """
@@ -94,10 +95,10 @@ class StageGraph:
         stages that depend on it. That may free up more stages, which are then
         added to the ready list.
 
-        Returns 
+        Returns
         -------
-        A list of stages ordered in the way that they need to be run through the 
-        pipeline. 
+        A list of stages ordered in the way that they need to be run through the
+        pipeline.
 
         Raises
         ------
@@ -106,8 +107,10 @@ class StageGraph:
             cycle or a dependency that could not be resolved.
         """
         stage_by_name = {stage.name: stage for stage in self.stages}
-        incoming = {stage.name: set(stage.dependencies) for stage in self.stages}
-        dependents = {stage.name: set() for stage in self.stages}
+        incoming: dict[str, set[str]] = {
+            stage.name: set(stage.dependencies) for stage in self.stages
+        }
+        dependents: dict[str, set[str]] = {stage.name: set() for stage in self.stages}
 
         for stage in self.stages:
             for dependency in stage.dependencies:
@@ -119,7 +122,7 @@ class StageGraph:
 
         original_order = [stage.name for stage in self.stages]
         ready = [name for name in original_order if not incoming[name]]
-        ordered = []
+        ordered: list[str] = []
 
         while ready:
             current = ready.pop(0)

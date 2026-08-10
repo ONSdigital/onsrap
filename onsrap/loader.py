@@ -26,12 +26,12 @@ def discover_python_entrypoint(path: Path) -> str | None:
 
     Parameters
     ----------
-    ``path`` : Path 
-        File path for the stage being run. 
+    ``path`` : Path
+        File path for the stage being run.
 
     Returns
     -------
-    String item containing the name of the ``PREFERRED_ENTRYPOINTS`` item relevant 
+    String item containing the name of the ``PREFERRED_ENTRYPOINTS`` item relevant
     for the stages.
     ``None`` when the file exists but does not define a preferred
     callable, which signals to the executor that it should treat the file as a
@@ -42,10 +42,12 @@ def discover_python_entrypoint(path: Path) -> str | None:
     ``StageConfigurationError``
         If the file path requested for the ``Stage`` does not exist.
     """
-    
+
     file_path = Path(path)
     if not file_path.exists():
-        raise StageConfigurationError("Stage source file does not exist: {0}".format(file_path))
+        raise StageConfigurationError(
+            "Stage source file does not exist: {0}".format(file_path)
+        )
 
     try:
         tree = ast.parse(file_path.read_text(encoding="utf-8"), filename=str(file_path))
@@ -79,19 +81,19 @@ def load_python_callable(path: Path, entrypoint: str) -> Any:
     Parameters
     ----------
     ``path`` : Path
-        The file path for the stage being run. 
+        The file path for the stage being run.
     ``entrypoint`` : str
         The name of the entrypoint function defined in the stage script.
 
     Raises
     ------
-    ``StageConfigurationError`` 
-    If the chosen entrypoint does not exist or is not callable, because that means 
+    ``StageConfigurationError``
+    If the chosen entrypoint does not exist or is not callable, because that means
     the stage definition and the executable surface no longer agree.
 
     Returns
     -------
-    ``target`` 
+    ``target``
         The ``entrypoint`` attribute of the module called to run the stage.
     """
     module = load_python_module(path)
@@ -116,21 +118,21 @@ def load_python_module(path: Path) -> ModuleType:
 
     The generated name is derived from the file path so repeated loads of the
     same stage remain stable during a run, while still avoiding collisions with
-    other Python modules. 
-    
+    other Python modules.
+
     Parameters
     ----------
-    ``path`` : Path 
-        The path for the stage. 
+    ``path`` : Path
+        The path for the stage.
 
     Returns
     -------
     ``module``
-        The set of code being run for the stage. 
-    
+        The set of code being run for the stage.
+
     Raises
     ------
-    ``StageLoadError`` 
+    ``StageLoadError``
         If the file is unable to be imported so callers can report a stage-specific
         problem rather than a raw import exception.
     """
@@ -140,7 +142,7 @@ def load_python_module(path: Path) -> ModuleType:
 
     module_name = "onsrap_stage_{0}_{1}".format(
         file_path.stem,
-        hashlib.sha1(str(file_path.resolve()).encode("utf-8")).hexdigest()[:12],
+        hashlib.sha256(str(file_path.resolve()).encode("utf-8")).hexdigest()[:12],
     )
     spec = importlib.util.spec_from_file_location(module_name, str(file_path))
     if spec is None or spec.loader is None:
