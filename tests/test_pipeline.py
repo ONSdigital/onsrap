@@ -396,7 +396,8 @@ class TestLoadLatestRun(TestLoadLatestRunIntegration):
         with pytest.warns(PipelineConfigurationWarning):
             pipeline = Pipeline(config=PipelineConfig(
                 output_dir = tmp_path/"outputs",
-            ))
+            ),
+            stages = [Stage("Stage_0", source=tmp_path/"Stage_0.py", dependencies=())])
         pipeline.run_output = tmp_path/"runs"
         return pipeline
     
