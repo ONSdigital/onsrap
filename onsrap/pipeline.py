@@ -60,7 +60,7 @@ class Pipeline:
         stages: Sequence[Stage | Mapping[str, Any] | str | Path | Callable[..., Any]] | None = None,
         dependencies: tuple[str]| dict[str, Sequence[str]] | None = None,
         logger: Logger | None = None,
-        executor: StageExecutor | None = None,
+        executor: StageExecutor | PythonStageExecutor | None = None,
     ):
         resolved_config, resolved_stage_configs, configured_stages, resolved_global_config = self._resolve_config(config)
 
@@ -74,14 +74,7 @@ class Pipeline:
             self.config.name = self.name
         
         self.logger = logger or Logger(log_dir=self.config.log_dir)
-        if executor is not None:
-            self.executor = executor
-        else:
-            if self.backend == "python":
-                self.executor = PythonStageExecutor()
-            else:
-                raise PipelineInitialisationError(f"Requested backend does not have a compatible executor. Available executors are: {', '.join(AVAILABLE_EXECUTORS)}.")
-            
+
         if stages is not None and configured_stages:
             raise PipelineInitialisationError(
                 "Stages parsed through both Pipeline construction and configuration file. Either provide stages through the constructor or the configuration file, not both."
@@ -91,6 +84,11 @@ class Pipeline:
             if stages is None
             else [self._coerce_stage(stage) for stage in stages]
         )
+
+        if executor is not None:
+            self.executor = executor
+        else:
+            self._generate_context()
 
         self.dependencies = dependencies
         if dependencies is not None and stages is None:
@@ -1011,6 +1009,66 @@ class Pipeline:
             add_stage_with_dependencies(stage_name)
 
         return [stage for stage in self.stages if stage.name in resolved_stage_names]
+
+    def _generate_context(self) -> None:
+        """
+        Generates the execution context for the Pipeline based on values parsed. 
+
+        Validates stage backends and then uses the pipeline backend to generate
+        the expected StageExecutor class. If this class does not exist within 
+        the orchestration tool, an error is raised. If the class does exist, 
+        it is assigned to the executor attribute of the Pipeline instance. 
+
+        Raises
+        ------
+        ``PipelineInitialisationError``
+            If the backend for the Pipeline does not have a compatible executor class
+        """
+        # Check all stages have the same backend as Pipeline
+        self._validate_stage_backends()
+
+        backend_key = str(self.backend).strip().lower()
+        execution_class_name = f"{backend_key.capitalize()}StageExecutor"
+
+        if (executor_class := globals().get(execution_class_name)) is not None:
+            self.executor = executor_class()
+        else:
+            raise PipelineInitialisationError(
+                f"Requested backend {backend_key} does not have a compatible executor. "
+                f"Available executors are: {', '.join(AVAILABLE_EXECUTORS)}."
+            )
+
+    def _validate_stage_backends(self) -> None:
+        """
+        Checks the backends that have been assigned to each stage.
+
+        Raise an error if the backends for a stage do not match the Pipeline
+        backend or if there are multiple backends across the stages. This 
+        ensures that the ExecutionContext will run correctly on all stages.
+
+        Raises
+        ------
+        ``PipelineInitialisationError``
+            If there are multiple backends across the stages or if the stage 
+            backend does not match the Pipeline backend.
+        """
+        backends = []
+        for stage in self.stages:
+            backends.append(stage.backend)
+
+        backends = [backend.lower() for backend in backends]
+
+        if len(set(backends)) > 1:
+            raise PipelineInitialisationError(
+                f"Not all stages have the same backend. Found backends: {', '.join(set(backends))}. This means "
+                "that the execution context will not work on all stages."
+            )
+
+        if set(backends) != {self.backend}:
+            raise PipelineInitialisationError(
+                f"Stages have backends '{', '.join(set(backends))}' which do not match pipeline backend '{self.backend}'."
+            )
+
 
     @classmethod
     def from_files(
