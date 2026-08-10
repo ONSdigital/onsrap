@@ -123,30 +123,6 @@ class Pipeline:
             enabled_stages=[stage.name for stage in self.graph.stages],
         )
 
-    def _load_latest_run(self) -> PipelineRun | None: 
-        """
-        Load the most recent run of the Pipeline as a PipelineRun instance.
-
-        Returns
-        -------
-        ``PipelineRun`` or None
-            An instance of ``PipelineRun`` representing the most recent run of the 
-            Pipeline, or None if no previous runs are found.
-        """
-        previous_run_logs = self.logger.extract_historical_run_ids(self.run_output)
-        if previous_run_logs == []:
-            warnings.warn("No previous runs found for this Pipeline. Last_run attribute" \
-            "will be None.", PipelineConfigurationWarning)
-            return None
-        latest_run_log = previous_run_logs[0] 
-        latest_run_id = latest_run_log["run_id"] 
-        if latest_run_id is None:
-            warnings.warn("No previous runs found for this Pipeline. Last_run attribute" \
-            "will be None.", PipelineConfigurationWarning)
-            return None
-
-        return load_historical_run(run_dir=Path(self.run_output) / latest_run_id)
-
 
     def __str__(self) -> str:
         """
@@ -449,7 +425,31 @@ class Pipeline:
         self.graph = StageGraph.from_stages(self.stages)
         self.graph.validate()
 
-        self.logger.event("New dependencies added to Pipeline instance and respective Stage instances",dependencies = dependencies)    
+        self.logger.event("New dependencies added to Pipeline instance and respective Stage instances",dependencies = dependencies) 
+
+    def _load_latest_run(self) -> PipelineRun | None: 
+            """
+            Load the most recent run of the Pipeline as a PipelineRun instance.
+    
+            Returns
+            -------
+            ``PipelineRun`` or None
+                An instance of ``PipelineRun`` representing the most recent run of the 
+                Pipeline, or None if no previous runs are found.
+            """
+            previous_run_logs = self.logger.extract_historical_run_ids(self.run_output)
+            if previous_run_logs == []:
+                warnings.warn("No previous runs found for this Pipeline. Last_run attribute" \
+                "will be None.", PipelineConfigurationWarning)
+                return None
+            latest_run_log = previous_run_logs[0] 
+            latest_run_id = latest_run_log["run_id"] 
+            if latest_run_id is None:
+                warnings.warn("No previous runs found for this Pipeline. Last_run attribute" \
+                "will be None.", PipelineConfigurationWarning)
+                return None
+    
+            return load_historical_run(run_dir=Path(self.run_output) / latest_run_id)   
 
     def _set_run_output(self) -> Path:
         """
