@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 import json
 import logging
 from dataclasses import dataclass
@@ -188,6 +189,17 @@ class Logger:
 
             # left: timestamp + message, right: JSON context
             left, right = raw_line.split(" | ", 1)
+
+            #catches where Pipeline started is not recorded in the correct place.
+            if not left.endswith(" Pipeline started"): 
+                continue
+
+            #checks that datetime is valid
+            timestamp = left[:-len(" Pipeline started")].strip()
+            try:
+                datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S,%f")
+            except ValueError:
+                continue
 
             try:
                 payload = json.loads(right)
