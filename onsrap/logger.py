@@ -179,6 +179,9 @@ class Logger:
 
         matches: list[dict[str, Any]] = []
 
+        #TODO: This method works if the logs are recorded in chronological order. Would there
+        #ever be a case where a record would appear below another and not be chronological?
+        #If so, we may need to sort based on the timestamp rather than the ordering.
         for raw_line in reversed(Path(logfile_path).read_text(encoding="utf-8").splitlines()):
             if "Pipeline started" not in raw_line or " | " not in raw_line:
                 continue
