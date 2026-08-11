@@ -968,4 +968,32 @@ class TestLoadHistoricalRun(TestLoadLatestRunIntegration):
         result = load_historical_run(run_dir=run_dir)
         assert isinstance(result, PipelineRun)
 
-        
+class TestLoadLatestIntegrationInPipeline(TestLoadLatestRunIntegration):
+    @pytest.fixture
+    def pipeline_with_history(self, tmp_path: Path, minimal_pipeline_yaml) -> Pipeline:
+        """
+        Sets up a Pipeline instance with a historical run for testing.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for creating test files 
+            and directories.
+        ``minimal_pipeline_yaml`` : callable
+            A fixture that returns a minimal YAML configuration for a historical run.
+        """
+        with pytest.warns(PipelineConfigurationWarning):
+            pipeline = Pipeline(
+                config=PipelineConfig(output_dir=tmp_path / "outputs"),
+                stages=[Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())],
+            )
+        pipeline.run_output = tmp_path / "runs"
+
+        # Create a historical run directory and YAML file
+        historical_run_dir = pipeline.run_output / "2026-08-10_100000_abc12345"
+        historical_run_dir.mkdir(parents=True, exist_ok=True)
+        (historical_run_dir / "pipeline_attributes_for_test.yaml").write_text(
+            minimal_pipeline_yaml(run_id="2026-08-10_100000_abc12345"), encoding="utf-8"
+        )
+
+        return pipeline
