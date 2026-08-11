@@ -963,7 +963,7 @@ class PipelineRun:
             A PipelineRun instance created from the dictionary representation. 
         """
         return cls(
-            manifest=RunManifest.runmanifest_from_dict(data["manifest"]),
+            manifest=RunManifest._runmanifest_from_dict(data["manifest"]),
             status=PipelineStatus(data["status"]),
             started_at=datetime.fromisoformat(data["started_at"]),
             completed_at=datetime.fromisoformat(data["completed_at"]),
