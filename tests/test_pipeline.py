@@ -663,7 +663,6 @@ class TestLoadLatestRunIntegration:
                     """
         return _make
 
-class TestLoadLatestRun(TestLoadLatestRunIntegration):
     @pytest.fixture
     def pipeline_no_history(self, tmp_path: Path) -> Pipeline:
         """
@@ -683,7 +682,9 @@ class TestLoadLatestRun(TestLoadLatestRunIntegration):
             stages = [Stage("Stage_0", source=tmp_path/"Stage_0.py", dependencies=())])
         pipeline.run_output = tmp_path/"runs"
         return pipeline
-    
+        
+
+class TestLoadLatestRun(TestLoadLatestRunIntegration):
     def test_blank_historical_run_ids(self, 
                                       pipeline_no_history: Pipeline, 
                                       monkeypatch) -> None:
@@ -1066,3 +1067,280 @@ class TestLoadLatestIntegrationInPipeline(TestLoadLatestRunIntegration):
 
         assert pipeline.last_run is not None
         assert pipeline.last_run.manifest.run_id == "run_older"
+
+class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
+    def test_returns_none_when_error_in_extract_historical_runs(self,
+                                                                monkeypatch,
+                                                                pipeline_no_history
+                                                                ) -> None:
+        """
+        Checks that all_runs attribute is None when extract_historical_run_ids
+        raises an error. This is to ensure that the Pipeline instance does not break
+        when there is an issue with extracting historical runs.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there is an issue with extracting historical runs, indicating 
+            that the all_runs attribute will be None.
+        """
+
+        monkeypatch.setattr(pipeline_no_history.logger,
+                            "extract_historical_run_ids",
+                            mock.Mock(side_effect=HistoricalPipelineLoadError("test")))
+
+        with pytest.warns(PipelineConfigurationWarning):
+            assert pipeline_no_history._load_all_runs() is None
+            assert pipeline_no_history.all_runs is None
+
+    def test_returns_none_when_blank_extract_historical_runs(self,
+                                                             monkeypatch,
+                                                             pipeline_no_history
+                                                             ) -> None:
+        """
+        Checks that all_runs attribute is None when extract_historical_run_ids
+        returns a blank list. This ensures that the Pipeline instance does not
+        break when there are no historical runs.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there are no historical runs found, indicating that the 
+            all_runs attribute will be None.
+        """
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids", 
+                            lambda x: [])
+        
+        assert pipeline_no_history.logger.extract_historical_run_ids(
+            pipeline_no_history.run_output
+            ) == []
+        with pytest.warns(PipelineConfigurationWarning):
+            assert pipeline_no_history._load_all_runs() is None
+            assert pipeline_no_history.all_runs is None
+
+    def test_single_entry_dict_single_run(self,
+                                 monkeypatch,
+                                 pipeline_no_history: Pipeline) -> None:
+        """
+        Checks that all_runs attribute is a dictionary with a single entry when
+        extract_historical_run_ids returns a list with one historical run. This
+        ensures that the Pipeline instance correctly loads a single historical run.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there is one historical run found, indicating that the 
+            all_runs attribute will contain a single entry.
+        """
+
+        mock_loader = mock.MagicMock(return_value = mock.sentinel)
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", mock_loader)
+
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids",
+                            lambda x: [{"run_id": "run_A",
+                                        "timestamp": "2026-08-10 10:00:00,000",
+                                        "run_dir": Path("/path/to/run_A")}])
+
+        result = pipeline_no_history._load_all_runs()
+        assert isinstance(result, dict)
+        assert len(result) == 1
+        assert "run_A" in result
+        mock_loader.assert_called_once_with(run_dir = pipeline_no_history.run_output / "run_A")
+                            
+    def test_multiple_entries_dict_multiple_runs(self,
+                                                 monkeypatch,
+                                                 pipeline_no_history: Pipeline) -> None:
+        """
+        Checks that all_runs attribute is a dictionary with multiple entries when
+        extract_historical_run_ids returns a list with multiple historical runs. 
+        This ensures that the Pipeline instance correctly loads multiple historical runs.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there are multiple historical runs found, indicating that the 
+            all_runs attribute will contain multiple entries.
+        """
+
+        mock_loader = mock.MagicMock(side_effect=[mock.sentinel.run_A, mock.sentinel.run_B])
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", mock_loader)
+
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids",
+                            lambda x: [
+                                {"run_id": "run_A",
+                                 "timestamp": "2026-08-10 10:00:00,000",
+                                 "run_dir": Path("/path/to/run_A")},
+                                {"run_id": "run_B",
+                                 "timestamp": "2026-08-10 10:01:00,000",
+                                 "run_dir": Path("/path/to/run_B")}
+                            ])
+
+        result = pipeline_no_history._load_all_runs()
+        assert isinstance(result, dict)
+        assert len(result) == 2
+        assert "run_A" in result and "run_B" in result
+        mock_loader.assert_any_call(run_dir = pipeline_no_history.run_output / "run_A")
+        mock_loader.assert_any_call(run_dir = pipeline_no_history.run_output / "run_B")
+
+    def test_warning_if_no_run_id(self,
+                            monkeypatch,
+                            pipeline_no_history: Pipeline) -> None:
+        """
+        Checks that a warning is raised if extract_historical_run_ids returns a
+        historical run without a run_id. This ensures that the Pipeline instance
+        correctly handles cases where historical runs are missing identifiers.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+        """
+        mock_loader = mock.MagicMock(return_value=mock.sentinel)
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", mock_loader)
+
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids",
+                            lambda x: [
+                                {"run_id": "",
+                                 "timestamp": "2026-08-10 10:00:00,000",
+                                 "run_dir": Path("/path/to/run_A")},
+                                {"run_id": "run_B",
+                                 "timestamp": "2026-08-10 10:01:00,000",
+                                 "run_dir": Path("/path/to/run_B")},
+                                {"run_id": None,
+                                 "timestamp": "2026-08-10 10:00:00,000",
+                                 "run_dir": Path("/path/to/run_A")}
+                            ])
+
+        with pytest.warns(PipelineConfigurationWarning):
+            result = pipeline_no_history._load_all_runs()
+        assert isinstance(result, dict)
+        assert len(result) == 1
+        assert "run_A" not in result and "run_B" in result
+        mock_loader.assert_called_once_with(run_dir = pipeline_no_history.run_output / "run_B")
+
+    def test_None_with_stageloaderror(self,
+                                      monkeypatch,
+                            pipeline_no_history: Pipeline) -> None:
+        """
+        Checks that all_runs attribute is None when load_historical_run raises a
+        StageLoadError. This ensures that the Pipeline instance correctly handles
+        cases where historical runs cannot be loaded due to errors.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there is an issue loading a historical run, indicating that 
+            the all_runs attribute will be None.
+        """
+
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids",
+                            lambda x: [
+                                {"run_id": "good_run",
+                                 "timestamp": "2026-08-10 10:00:00,000",
+                                 "run_dir": Path("/path/to/run_A")},
+                                {"run_id": "bad_run",
+                                 "timestamp": "2026-08-10 10:00:00,000",
+                                 "run_dir": Path("/path/to/run_B")}
+                            ])
+
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", 
+                            mock.Mock(side_effect=[mock.sentinel.good_run,
+                                                   StageLoadError("test")]))
+
+        with pytest.warns(PipelineConfigurationWarning):
+            result = pipeline_no_history._load_all_runs()
+            assert isinstance(result,dict)
+            assert len(result) == 1
+            assert "good_run" in result and "bad_run" not in result
+
+    def test_none_if_all_stageloaderrors(self,
+                                         monkeypatch,
+                                         pipeline_no_history: Pipeline
+                                         ) -> None:
+        """
+        Asserts that all_runs attribute is None when load_historical_run raises a
+        StageLoadError for all historical runs. This ensures that the Pipeline instance
+        correctly handles cases where all historical runs cannot be loaded due to errors.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there is an issue loading all historical runs, indicating that
+            the all_runs attribute will be None.
+        """
+        
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids",
+                            lambda x: [
+                                {"run_id": "bad_run1",
+                                    "timestamp": "2026-08-10 10:00:00,000",
+                                    "run_dir": Path("/path/to/run_A")},
+                                {"run_id": "bad_run2",
+                                    "timestamp": "2026-08-10 10:00:00,000",
+                                    "run_dir": Path("/path/to/run_B")}
+                            ])
+
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", 
+                            mock.Mock(side_effect=[StageLoadError("test"),
+                                                    StageLoadError("test")]))
+
+        with pytest.warns(PipelineConfigurationWarning):
+            result = pipeline_no_history._load_all_runs()
+
+        assert result is None

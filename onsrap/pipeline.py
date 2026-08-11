@@ -494,7 +494,7 @@ class Pipeline:
         all_runs = {}
         for run_log in previous_run_logs:
             run_id = run_log["run_id"]
-            if run_id is None:
+            if run_id is None or run_id == "":
                 warnings.warn(
                     f"No run_id found in log for run_dir {run_log.get('run_dir')}. Skipping this run.",
                     PipelineConfigurationWarning
