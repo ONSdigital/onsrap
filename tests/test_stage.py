@@ -91,7 +91,7 @@ def stage_test(example_function) -> Stage:
 
 
 class TestStage:
-    def test_stage_creation_callable(self, stage_test) -> None:
+    def test_stage_creation_callable(self, stage_test, example_function) -> None:
         """
         Tests that attributes have been appropriately assigned to Stage class.
 
