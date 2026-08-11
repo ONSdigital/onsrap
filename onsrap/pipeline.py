@@ -1024,8 +1024,16 @@ class Pipeline:
         ``PipelineInitialisationError``
             If the backend for the Pipeline does not have a compatible executor class
         """
-        # Check all stages have the same backend as Pipeline
-        self._validate_stage_backends()
+
+        if len(self.stages) == 0:
+            warnings.warn(
+                "No stages have been defined in the Pipeline. The Pipeline will not run any stages.",
+                PipelineConfigurationWarning,
+            )
+
+        else:
+            # Check all stages have the same backend as Pipeline
+            self._validate_stage_backends()
 
         backend_key = str(self.backend).strip().lower()
         execution_class_name = f"{backend_key.capitalize()}StageExecutor"
