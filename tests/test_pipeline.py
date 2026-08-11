@@ -969,10 +969,38 @@ class TestLoadHistoricalRun(TestLoadLatestRunIntegration):
         assert isinstance(result, PipelineRun)
 
 class TestLoadLatestIntegrationInPipeline(TestLoadLatestRunIntegration):
-    @pytest.fixture
-    def pipeline_with_history(self, tmp_path: Path, minimal_pipeline_yaml) -> Pipeline:
+    def test_no_previous_runs_pipeline(self, tmp_path: Path) -> None:
         """
-        Sets up a Pipeline instance with a historical run for testing.
+        Tests that if a Pipeline instance has no previous runs, the _load_latest_run
+        method will return None and raise a warning. Assert that it will also store 
+        None in the last_run attribute of the Pipeline instance.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for creating test files 
+            and directories.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when no previous runs are found for the Pipeline, indicating 
+            that the last_run attribute will be None.
+        """
+        with pytest.warns(PipelineConfigurationWarning):
+            pipeline = Pipeline(
+                config=PipelineConfig(output_dir=tmp_path / "outputs"),
+                stages=[Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())],
+            )
+        pipeline.run_output = tmp_path / "runs"
+        assert pipeline.last_run is None
+
+    def test_last_run_populated_one_run(self,
+                                        tmp_path: Path,
+                                        minimal_pipeline_yaml) -> None:
+        """
+        Tests that if a Pipeline instance has one previous run, this is loaded in 
+        last_run attribute at Pipeline creation. 
 
         Parameters
         ----------
@@ -981,19 +1009,34 @@ class TestLoadLatestIntegrationInPipeline(TestLoadLatestRunIntegration):
             and directories.
         ``minimal_pipeline_yaml`` : callable
             A fixture that returns a minimal YAML configuration for a historical run.
-        """
-        with pytest.warns(PipelineConfigurationWarning):
-            pipeline = Pipeline(
-                config=PipelineConfig(output_dir=tmp_path / "outputs"),
-                stages=[Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())],
-            )
-        pipeline.run_output = tmp_path / "runs"
 
-        # Create a historical run directory and YAML file
-        historical_run_dir = pipeline.run_output / "2026-08-10_100000_abc12345"
-        historical_run_dir.mkdir(parents=True, exist_ok=True)
-        (historical_run_dir / "pipeline_attributes_for_test.yaml").write_text(
-            minimal_pipeline_yaml(run_id="2026-08-10_100000_abc12345"), encoding="utf-8"
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there is no stages_to_run parameters to warn the user that 
+            all stages will be run by default.
+        """
+        logs = tmp_path / "logs"
+        logs.mkdir(parents=True, exist_ok=True)
+        (logs / "onsrap.log").write_text(
+            "2026-08-11 10:00:00,000 Pipeline started | "
+            "{\"run_id\": \"2026-08-11_100000_abc12345\", "
+            " \"run_dir\": \"/path/to/run\"}\n"
         )
 
-        return pipeline
+        temp_attributes = (tmp_path / "outputs" / "runs" / "2026-08-11_100000_abc12345"
+                            / "pipeline_attributes_for_test.yaml")
+        temp_attributes.parent.mkdir(parents=True, exist_ok=True)
+        temp_attributes.write_text(minimal_pipeline_yaml(
+            run_id = "2026-08-11_100000_abc12345"
+            ), encoding="utf-8")
+
+        with pytest.warns(PipelineConfigurationWarning):
+            pipeline = Pipeline(
+                config=PipelineConfig(output_dir=tmp_path / "outputs",
+                                        log_dir=logs),
+                stages=[Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())],
+            )
+
+        assert pipeline.last_run is not None
+        assert pipeline.last_run.manifest.run_id == "2026-08-11_100000_abc12345"
