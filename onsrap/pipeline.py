@@ -113,6 +113,9 @@ class Pipeline:
         self.last_run: PipelineRun | None = None
         self.last_run = self._load_latest_run()
 
+        self.all_runs: dict[str, PipelineRun] | None = None
+        self.all_runs = self._load_all_runs()
+
         self.logger.event(
             "Pipeline initialized",
             name=self.name,
@@ -462,6 +465,47 @@ class Pipeline:
                 warnings.warn("Historical run file does not exist. Last_run attribute " \
                               "will be None.", PipelineConfigurationWarning)
                 return None
+
+    def _load_all_runs(self) -> dict[str, PipelineRun] | None:
+        """
+        Loads all previous runs of a Pipeline as a dictionary of PipelineRun instances,
+        keyed by run_id. 
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            If there are any errors in loading previous runs, this warning is raised to
+            indicate a None value will be stored in this attribute. 
+        """
+        try:
+            previous_run_logs = self.logger.extract_historical_run_ids(
+                self.run_output
+                )
+        except HistoricalPipelineLoadError:
+            warnings.warn("Unable to load previous runs for this Pipeline. All_run" \
+            " attribute will be None.", PipelineConfigurationWarning)
+            return None
+        
+        if previous_run_logs == []:
+            warnings.warn("No previous runs found for this Pipeline. All_run attribute" \
+            " will be None.", PipelineConfigurationWarning)
+            return None
+
+        all_runs = {}
+        for run_log in previous_run_logs:
+            run_id = run_log["run_id"]
+            if run_id is None:
+                warnings.warn(
+                    f"No run_id found in log for run_dir {run_log.get('run_dir')}. Skipping this run.",
+                    PipelineConfigurationWarning
+                )
+                continue
+            try:
+                all_runs[run_id] = load_historical_run(run_dir=Path(self.run_output) / run_id)
+            except StageLoadError:
+                warnings.warn(f"Historical run file for run_id {run_id} does not exist. Skipping.",
+                               PipelineConfigurationWarning)
+        return all_runs if all_runs else None
 
     def _set_run_output(self) -> Path:
         """
