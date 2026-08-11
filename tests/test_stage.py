@@ -354,7 +354,8 @@ class TestStage:
         assert stage_test.source_label is None
 
         class NoName:
-            def __call__(self): pass
+            def __call__(self):
+                pass
         
         stage_test.source = NoName()
         assert stage_test.source_label == f"tests.test_stage.{stage_test.name}"
@@ -545,15 +546,11 @@ class TestWithDependencies:
         ``stage_test`` : Stage
             A ``Stage`` object created with a callable source for testing.
         """ 
-        print(f"before: {stage_test.dependencies}")
-        new_stage = stage_test.with_dependencies(["stage_1"],)
-        print(f"after: {new_stage.dependencies}")
+        new_stage = stage_test.with_dependencies(["stage_1"])
         assert new_stage.dependencies == ("stage_1",)
 
 
-"""
-TEST NOT CODED FOR RUN() AS ASSUMED THIS IS COVERED IN PIPELINE_ARCHITECTURE TEST
-"""
+# TEST NOT CODED FOR RUN() AS ASSUMED THIS IS COVERED IN PIPELINE_ARCHITECTURE TEST
 
 @pytest.fixture
 def temp_script(tmp_path):

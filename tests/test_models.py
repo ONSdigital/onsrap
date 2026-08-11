@@ -228,20 +228,10 @@ class TestPipelineConfig:
                                      "log_dir":"tmp/logs",
                                      "data_dir":"tmp/data",
                                      "allow_subprocess_fallback":True,
-                                     "python_executable": ,
+                                     "python_executable": null,
                                      "metadata":{"variables":["name","age"],
                                                  "num_stages":6}
                                                  }
-                    """
-                ).strip()
-                + "\n",
-                encoding="utf-8",
-            )
-            no_map_pipeline_config = tmp_path / "not_valid.py"
-            no_map_pipeline_config.write_text(
-                dedent(
-                    """
-                    variable = "Hello world"
                     """
                 ).strip()
                 + "\n",
@@ -265,11 +255,11 @@ class TestPipelineConfig:
         assert pipelineconfig.to_dict() == {
             "name": "test_rap",
             "backend": "python",
-            "work_dir": "tmp\\work",
+            "work_dir": str(Path("tmp/work")),
             "project_root": "project",
             "output_dir": None,
-            "log_dir": "tmp\\logs",
-            "data_dir": "tmp\\data",
+            "log_dir": str(Path("tmp/logs")),
+            "data_dir": str(Path("tmp/data")),
             "allow_subprocess_fallback": True,
             "python_executable": None,
             "variables": ["name", "age"],
