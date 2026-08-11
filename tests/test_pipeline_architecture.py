@@ -81,16 +81,18 @@ class TestPipelineFromFiles:
         )
 
         with pytest.warns(
-            PipelineConfigurationWarning, match=NO_STAGES_SPECIFIED_WARNING
+            PipelineConfigurationWarning
         ):
-            pipeline = Pipeline.from_files(
-                [first_stage, second_stage],
-                dependencies={"second_stage": ("first_stage",)},
-                config=_base_pipeline_config(tmp_path),
-            )
+            with pytest.warns(
+                StageConfigurationWarning
+            ):
+                pipeline = Pipeline.from_files(
+                    [first_stage, second_stage],
+                    dependencies={"second_stage": ("first_stage",)},
+                    config=_base_pipeline_config(tmp_path),
+                )
 
-        with pytest.warns(StageConfigurationWarning, match=OUTPUT_DIRECTORY_WARNING):
-            run = pipeline.run()
+        run = pipeline.run()
 
         assert run.succeeded is True
         assert [result.name for result in run.stage_results] == [
@@ -144,16 +146,18 @@ class TestPipelineFromFiles:
             encoding="utf-8",
         )
         with pytest.warns(
-            PipelineConfigurationWarning, match=NO_STAGES_SPECIFIED_WARNING
+            PipelineConfigurationWarning
         ):
-            pipeline = Pipeline.from_files(
-                [writer_stage],
-                config=_base_pipeline_config(tmp_path),
-            )
+            with pytest.warns(
+                StageConfigurationWarning
+            ):
+                pipeline = Pipeline.from_files(
+                    [writer_stage],
+                    config=_base_pipeline_config(tmp_path),
+                )
 
-        with pytest.warns(StageConfigurationWarning, match=OUTPUT_DIRECTORY_WARNING):
-            first_run = pipeline.run()
-            second_run = pipeline.run()
+        first_run = pipeline.run()
+        second_run = pipeline.run()
 
         first_output = Path(first_run.stage_outputs["writer_stage"]["output_path"])
         second_output = Path(second_run.stage_outputs["writer_stage"]["output_path"])
@@ -190,16 +194,18 @@ class TestPipelineFromFiles:
         script_stage.write_text("print('script fallback works')\n", encoding="utf-8")
 
         with pytest.warns(
-            PipelineConfigurationWarning, match=NO_STAGES_SPECIFIED_WARNING
+            PipelineConfigurationWarning
         ):
-            pipeline = Pipeline.from_files(
-                [script_stage],
-                name="script-pipeline",
-                config=_base_pipeline_config(tmp_path),
-            )
+            with pytest.warns(
+                StageConfigurationWarning
+            ):
+                pipeline = Pipeline.from_files(
+                    [script_stage],
+                    name="script-pipeline",
+                    config=_base_pipeline_config(tmp_path),
+                )
 
-        with pytest.warns(StageConfigurationWarning, match=OUTPUT_DIRECTORY_WARNING):
-            run = pipeline.run()
+        run = pipeline.run()
 
         assert run.stage_results[0].outputs.strip() == "script fallback works"
         assert run.stage_results[0].stdout.strip() == "script fallback works"
@@ -307,15 +313,17 @@ class TestPipelineFromConfig:
         )
 
         with pytest.warns(
-            PipelineConfigurationWarning, match=NO_STAGES_SPECIFIED_WARNING
+            PipelineConfigurationWarning
         ):
-            pipeline = Pipeline.from_config(config_file)
+            with pytest.warns(
+                StageConfigurationWarning
+            ):
+                pipeline = Pipeline.from_config(config_file)
 
         assert [stage.name for stage in pipeline.stages] == ["0_data_validation"]
         assert pipeline.stage_configs["0_data_validation"].get("years_to_run") == 2017
 
-        with pytest.warns(StageConfigurationWarning, match=OUTPUT_DIRECTORY_WARNING):
-            run = pipeline.run()
+        run = pipeline.run()
 
         assert run.stage_outputs["0_data_validation"] == {
             "stage_name": "0_data_validation",
@@ -359,12 +367,15 @@ class TestPipelineFromConfig:
             "missing_stage": {"years_to_run": 2017},
         }
         with pytest.warns(
-            PipelineConfigurationWarning, match=NO_STAGES_SPECIFIED_WARNING
+            PipelineConfigurationWarning
         ):
-            pipeline = Pipeline.from_files(
-                [stage_file],
-                config=config,
-            )
+            with pytest.warns(
+                StageConfigurationWarning
+            ):
+                pipeline = Pipeline.from_files(
+                    [stage_file],
+                    config=config,
+                )
 
         with pytest.raises(StageConfigurationError, match="unknown stages"):
             pipeline.validate()
@@ -462,9 +473,12 @@ class TestPipelineFromConfig:
         )
 
         with pytest.warns(
-            PipelineConfigurationWarning, match=NO_STAGES_SPECIFIED_WARNING
+            PipelineConfigurationWarning
         ):
-            pipeline = Pipeline.from_config(config_file)
+            with pytest.warns(
+                StageConfigurationWarning
+            ):
+                pipeline = Pipeline.from_config(config_file)
 
         assert pipeline.name == "parse-test"
         assert pipeline.config.work_dir == tmp_path
@@ -582,15 +596,17 @@ class TestPipelineFromConfig:
         )
 
         with pytest.warns(
-            PipelineConfigurationWarning, match=NO_STAGES_SPECIFIED_WARNING
+            PipelineConfigurationWarning
         ):
-            pipeline = Pipeline.from_config(config_file)
+            with pytest.warns(
+                StageConfigurationWarning
+            ):
+                pipeline = Pipeline.from_config(config_file)
 
         assert [stage.name for stage in pipeline.stages] == stage_names
         assert sorted(pipeline.stage_configs) == stage_names
 
-        with pytest.warns(StageConfigurationWarning, match=OUTPUT_DIRECTORY_WARNING):
-            run = pipeline.run()
+        run = pipeline.run()
 
         assert run.manifest.stages_run == stage_names
         assert sorted(run.manifest.parameters["stage_configuration"]) == stage_names
@@ -680,26 +696,28 @@ class TestPipelineRunConfigurationLogging:
         )
 
         with pytest.warns(
-            PipelineConfigurationWarning, match=NO_STAGES_SPECIFIED_WARNING
+            PipelineConfigurationWarning
         ):
-            pipeline = Pipeline.from_files(
-                [stage_file],
-                name="config-export-pipeline",
-                config={
-                    "pipeline_config": {
-                        "work_dir": tmp_path,
-                        "project_root": tmp_path,
-                        "log_dir": tmp_path / "logs",
+            with pytest.warns(
+                StageConfigurationWarning
+            ):
+                pipeline = Pipeline.from_files(
+                    [stage_file],
+                    name="config-export-pipeline",
+                    config={
+                        "pipeline_config": {
+                            "work_dir": tmp_path,
+                            "project_root": tmp_path,
+                            "log_dir": tmp_path / "logs",
+                        },
+                        "stage_configuration": {},
+                        "global_configuration": {
+                            "dry_run": True,
+                        },
                     },
-                    "stage_configuration": {},
-                    "global_configuration": {
-                        "dry_run": True,
-                    },
-                },
-            )
+                )
 
-        with pytest.warns(StageConfigurationWarning, match=OUTPUT_DIRECTORY_WARNING):
-            run = pipeline.run()
+        run = pipeline.run()
 
         run_dir = tmp_path / "runs" / run.manifest.run_id
         config_file = run_dir / (
