@@ -936,7 +936,7 @@ class PipelineRun:
             A dictionary representation of the PipelineRun instance.
         """
         return {
-            "manifest": self.manifest.runmanifest_to_dict(),
+            "manifest": self.manifest._runmanifest_to_dict(),
             "status": self.status.value,
             "started_at": self.started_at.isoformat(),
             "completed_at": self.completed_at.isoformat(),

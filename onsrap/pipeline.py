@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 import re
 
-from .errors import HistoricalPipelineLoadError, StageConfigurationError, PipelineInitialisationError, PipelineConfigurationError
+from .errors import HistoricalPipelineLoadError, StageConfigurationError, PipelineInitialisationError, PipelineConfigurationError, StageLoadError
 from .warnings import StageConfigurationWarning, PipelineConfigurationWarning
 from .execution import PythonStageExecutor, StageExecutor
 from .graph import StageGraph
@@ -455,8 +455,13 @@ class Pipeline:
                 warnings.warn("No previous runs found for this Pipeline. Last_run attribute" \
                 " will be None.", PipelineConfigurationWarning)
                 return None
-    
-            return load_historical_run(run_dir=Path(self.run_output) / latest_run_id)   
+
+            try:
+                return load_historical_run(run_dir=Path(self.run_output) / latest_run_id)
+            except StageLoadError:
+                warnings.warn("Historical run file does not exist. Last_run attribute " \
+                              "will be None.", PipelineConfigurationWarning)
+                return None
 
     def _set_run_output(self) -> Path:
         """
