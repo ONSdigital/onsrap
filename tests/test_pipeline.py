@@ -55,9 +55,11 @@ class TestPipelineNamingAndInit:
         pipeline_config = PipelineConfig(name="test_pipeline_config")
 
         with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline_named = Pipeline(name="test_pipeline_name")
-            pipeline_config = Pipeline(name=None, config=pipeline_config)
-            pipeline_no_name = Pipeline()
+            pipeline_named = Pipeline(name="test_pipeline_name",
+                                      stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+            pipeline_config = Pipeline(name=None, config=pipeline_config,
+                                       stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+            pipeline_no_name = Pipeline(stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
 
         assert pipeline_named.name == "test_pipeline_name"
         assert pipeline_config.name == "test_pipeline_config"
@@ -207,7 +209,7 @@ class TestPipelineStageConfigHandling:
             Pipeline configuration. This does not affect the test capability.
         """
         with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline = Pipeline()
+            pipeline = Pipeline(stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
             stage = stage_factory("Stage_1")
             stage_config = StageConfig(
                 name="Stage_1", _variables={"years_to_run": 2017}
@@ -238,7 +240,7 @@ class TestPipelineStageConfigHandling:
             Pipeline configuration. This does not affect the test capability.
         """
         with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline = Pipeline()
+            pipeline = Pipeline(stages = [Stage("Stage_0_5", source=Path("Stage_0_5.py"), dependencies=())])
             stage_0 = stage_factory("Stage_0")
             stage_1 = stage_factory("Stage_1")
 
@@ -532,7 +534,7 @@ class TestPipelineValidationAndManifest:
 
         assert list(manifest.inputs.keys()) == ["Stage_0"]
 
-    def test_generate_context_correctly_assigns_executor() -> None: 
+    def test_generate_context_correctly_assigns_executor(self,) -> None: 
         """
         Test that the correct executor class is assigned to the Pipeline instance
         based on the backend specified. If the backend does not have a compatible 
@@ -549,7 +551,7 @@ class TestPipelineValidationAndManifest:
             Pipeline(backend="nonexistent_backend",
                     stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
 
-    def test_validate_stage_backends_errors() -> None: 
+    def test_validate_stage_backends_errors(self) -> None: 
         """
         Test that the _validate_stage_backends method correctly raises an error if 
         the backends for a stage do not match the Pipeline backend or if there are 
