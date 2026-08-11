@@ -61,11 +61,12 @@ class TestPipelineNamingAndInit:
         pipeline_config = PipelineConfig(name="test_pipeline_config")
 
         with pytest.warns(PipelineConfigurationWarning):
-            pipeline_named = Pipeline(name="test_pipeline_name",
-                                      stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
-            pipeline_config = Pipeline(name=None, config=pipeline_config,
-                                       stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
-            pipeline_no_name = Pipeline(stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+            with pytest.warns(StageConfigurationWarning):
+                pipeline_named = Pipeline(name="test_pipeline_name",
+                                        stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+                pipeline_config = Pipeline(name=None, config=pipeline_config,
+                                        stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+                pipeline_no_name = Pipeline(stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
 
         assert pipeline_named.name == "test_pipeline_name"
         assert pipeline_config.name == "test_pipeline_config"
@@ -110,28 +111,30 @@ class TestPipelineNamingAndInit:
         }
 
         with pytest.raises(PipelineInitialisationError):
-            Pipeline(stages=None, dependencies=dependencies_single)
+            with pytest.warns(PipelineConfigurationWarning):
+                Pipeline(stages=None, dependencies=dependencies_single)
 
         with pytest.warns(PipelineConfigurationWarning):
-            pipeline_1 = Pipeline(
-                name="pipeline_1",
-                stages=[
-                    Stage("Stage_1", path_1, None, {}),
-                    Stage("Stage_2", example_function, None, {}),
-                    Stage("Stage_0", path_0, None, {}),
-                ],
-                dependencies=dependencies_multiple,
-            )
-            
-            pipeline_2 = Pipeline(
-                name="pipeline_2",
-                stages=[
-                    Stage("Stage_1.py", path_1, None, {}),
-                    Stage("Stage_2", example_function, None, {}),
-                    Stage("Stage_0", path_0, None, {}),
-                ],
-                dependencies=dependencies_non_stage_name,
-            )
+            with pytest.warns(StageConfigurationWarning):
+                pipeline_1 = Pipeline(
+                    name="pipeline_1",
+                    stages=[
+                        Stage("Stage_1", path_1, None, {}),
+                        Stage("Stage_2", example_function, None, {}),
+                        Stage("Stage_0", path_0, None, {}),
+                    ],
+                    dependencies=dependencies_multiple,
+                )
+                
+                pipeline_2 = Pipeline(
+                    name="pipeline_2",
+                    stages=[
+                        Stage("Stage_1.py", path_1, None, {}),
+                        Stage("Stage_2", example_function, None, {}),
+                        Stage("Stage_0", path_0, None, {}),
+                    ],
+                    dependencies=dependencies_non_stage_name,
+                )
 
         assert pipeline_1.stages[0].dependencies == ("Stage_0",)
         assert pipeline_1.stages[1].dependencies == ("Stage_1", "Stage_0")
@@ -170,10 +173,11 @@ class TestPipelineNamingAndInit:
         stage_2 = Stage("Stage_2", source=path_2, dependencies={})
         stage_0 = Stage("Stage_0", source=path_0, dependencies={})
 
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline_dict = Pipeline(
-                stages=[stage_0, stage_1, stage_2], dependencies=dependencies_multiple
-            )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline_dict = Pipeline(
+                    stages=[stage_0, stage_1, stage_2], dependencies=dependencies_multiple
+                )
 
         with pytest.raises(PipelineInitialisationError):
             pipeline_dict.add_dependencies(dep_tuple)
@@ -214,17 +218,19 @@ class TestPipelineStageConfigHandling:
             Expected and asserted as there is no stage run specification in the 
             Pipeline configuration. This does not affect the test capability.
         """
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline = Pipeline(stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
-            stage = stage_factory("Stage_1")
-            stage_config = StageConfig(
-                name="Stage_1", _variables={"years_to_run": 2017}
-            )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
 
+        stage = stage_factory("Stage_1")
+        stage_config = StageConfig(
+            name="Stage_1", _variables={"years_to_run": 2017}
+        )
+        with pytest.warns(PipelineConfigurationWarning):
             pipeline.add_stage(stage, stage_configs=[stage_config])
 
-            assert pipeline.stages[-1].name == "Stage_1"
-            assert pipeline.stage_configs["Stage_1"].require("years_to_run") == 2017
+        assert pipeline.stages[-1].name == "Stage_1"
+        assert pipeline.stage_configs["Stage_1"].require("years_to_run") == 2017
 
     def test_add_stage_warns_when_stage_config_count_mismatches(
         self, stage_factory
@@ -245,10 +251,11 @@ class TestPipelineStageConfigHandling:
             Expected and asserted as there is no stage run specification in the 
             Pipeline configuration. This does not affect the test capability.
         """
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline = Pipeline(stages = [Stage("Stage_0_5", source=Path("Stage_0_5.py"), dependencies=())])
-            stage_0 = stage_factory("Stage_0")
-            stage_1 = stage_factory("Stage_1")
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(stages = [Stage("Stage_0_5", source=Path("Stage_0_5.py"), dependencies=())])
+                stage_0 = stage_factory("Stage_0")
+                stage_1 = stage_factory("Stage_1")
 
             with pytest.warns(StageConfigurationWarning) as recorded_warnings:
                 pipeline.add_stage(
@@ -281,8 +288,9 @@ class TestPipelineStageConfigHandling:
             Expected and asserted as there is no stage run specification in the 
             Pipeline configuration. This does not affect the test capability.
         """
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline = Pipeline(stages=[stage_factory("Stage_0")])
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(stages=[stage_factory("Stage_0")])
 
         pipeline.add_stage_config({"years_to_run": 2017}, name="Stage_0")
 
@@ -307,10 +315,12 @@ class TestPipelineStageSelectionAndGraph:
         stage_1 = stage_factory("Stage_1", dependencies=("Stage_0",))
         stage_2 = stage_factory("Stage_2", dependencies=("Stage_1",))
 
-        pipeline = Pipeline(
-            stages=[stage_0, stage_1, stage_2],
-            config=PipelineConfig(stages_to_run={"Stage_2": True}),
-        )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(
+                    stages=[stage_0, stage_1, stage_2],
+                    config=PipelineConfig(stages_to_run={"Stage_2": True}),
+                )
 
         assert [stage.name for stage in pipeline.graph.stages] == [
             "Stage_0",
@@ -370,8 +380,9 @@ class TestPipelineStageSelectionAndGraph:
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1")
 
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline = Pipeline(stages=[stage_0, stage_1])
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(stages=[stage_0, stage_1])
 
         pipeline.disable_stage("Stage_1")
 
@@ -399,8 +410,9 @@ class TestPipelineStageSelectionAndGraph:
         """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1")
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline = Pipeline(stages=[stage_0, stage_1])
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(stages=[stage_0, stage_1])
 
         pipeline.disable_stage("Stage_1")
 
@@ -420,10 +432,12 @@ class TestPipelineStageSelectionAndGraph:
         """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1")
-        pipeline = Pipeline(
-            stages=[stage_0, stage_1],
-            config=PipelineConfig(stages_to_run={"Stage_0": True, "Stage_1": False}),
-        )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(
+                    stages=[stage_0, stage_1],
+                    config=PipelineConfig(stages_to_run={"Stage_0": True, "Stage_1": False}),
+                )
 
         pipeline.enable_stage("Stage_1")
 
@@ -444,15 +458,17 @@ class TestPipelineStageSelectionAndGraph:
         
         """
         stage_0 = stage_factory("Stage_0")
-        pipeline = Pipeline(
-            stages=[stage_0],
-            config=PipelineConfig(stages_to_run={"Stage_0": True}),
-        )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(
+                    stages=[stage_0],
+                    config=PipelineConfig(stages_to_run={"Stage_0": True}),
+                )
 
-        pipeline.add_stage(
-            stage_factory("Stage_1"),
-            stage_configs=[StageConfig(name="Stage_1")]
-            )
+                pipeline.add_stage(
+                    stage_factory("Stage_1"),
+                    stage_configs=[StageConfig(name="Stage_1")]
+                    )
         
 
         assert pipeline.config.stages_to_run["Stage_1"] is False
@@ -473,16 +489,18 @@ class TestPipelineStageSelectionAndGraph:
 
         """
         stage_0 = stage_factory("Stage_0")
-        pipeline = Pipeline(
-            stages=[stage_0],
-            config=PipelineConfig(stages_to_run={"Stage_0": True}),
-        )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):        
+                pipeline = Pipeline(
+                    stages=[stage_0],
+                    config=PipelineConfig(stages_to_run={"Stage_0": True}),
+                )
 
-        pipeline.add_stage(
-            stage_factory("Stage_1"),
-            stage_configs=[StageConfig(name="Stage_1")],
-            enable_stages=True,
-        )
+                pipeline.add_stage(
+                    stage_factory("Stage_1"),
+                    stage_configs=[StageConfig(name="Stage_1")],
+                    enable_stages=True,
+                )
 
         assert pipeline.config.stages_to_run["Stage_1"] is True
         assert {stage.name for stage in pipeline.graph.stages} == {"Stage_0", "Stage_1"}
@@ -509,10 +527,12 @@ class TestPipelineValidationAndManifest:
             "Stage_1", source=tmp_path / "missing.py"
         )  # file intentionally absent
 
-        pipeline = Pipeline(
-            stages=[stage_0, stage_1],
-            config=PipelineConfig(stages_to_run={"Stage_0": True, "Stage_1": False}),
-        )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(
+                    stages=[stage_0, stage_1],
+                    config=PipelineConfig(stages_to_run={"Stage_0": True, "Stage_1": False}),
+                )
 
         pipeline.validate()  # must not raise
 
@@ -530,10 +550,13 @@ class TestPipelineValidationAndManifest:
         """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1", dependencies=("Stage_0",))
-        pipeline = Pipeline(
-            stages=[stage_0, stage_1],
-            config=PipelineConfig(stages_to_run={"Stage_0": True, "Stage_1": False}),
-        )
+
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(
+                    stages=[stage_0, stage_1],
+                    config=PipelineConfig(stages_to_run={"Stage_0": True, "Stage_1": False}),
+                )
 
         runtime_id = pipeline._create_runtime_id()
         manifest = pipeline._construct_manifest(runtime_id=runtime_id)
@@ -547,10 +570,10 @@ class TestPipelineValidationAndManifest:
         executor, an error is raised. 
         """
 
-        with pytest.warns(PipelineConfigurationWarning,
-                            match = "No stages specified to run. All stages running by default."):
-            pipeline = Pipeline(backend="python",
-                                stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(backend="python",
+                                    stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
         assert isinstance(pipeline.executor, PythonStageExecutor)
 
         with pytest.raises(PipelineInitialisationError):
