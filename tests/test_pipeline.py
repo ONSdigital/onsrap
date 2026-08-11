@@ -532,61 +532,61 @@ class TestPipelineValidationAndManifest:
 
         assert list(manifest.inputs.keys()) == ["Stage_0"]
 
-def test_generate_context_correctly_assigns_executor() -> None: 
-    """
-    Test that the correct executor class is assigned to the Pipeline instance
-    based on the backend specified. If the backend does not have a compatible 
-    executor, an error is raised. 
-    """
+    def test_generate_context_correctly_assigns_executor() -> None: 
+        """
+        Test that the correct executor class is assigned to the Pipeline instance
+        based on the backend specified. If the backend does not have a compatible 
+        executor, an error is raised. 
+        """
 
-    with pytest.warns(PipelineConfigurationWarning,
-                          match = "No stages specified to run. All stages running by default."):
-        pipeline = Pipeline(backend="python",
-                            stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
-    assert isinstance(pipeline.executor, PythonStageExecutor)
+        with pytest.warns(PipelineConfigurationWarning,
+                            match = "No stages specified to run. All stages running by default."):
+            pipeline = Pipeline(backend="python",
+                                stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+        assert isinstance(pipeline.executor, PythonStageExecutor)
 
-    with pytest.raises(PipelineInitialisationError):
-        Pipeline(backend="nonexistent_backend",
-                 stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+        with pytest.raises(PipelineInitialisationError):
+            Pipeline(backend="nonexistent_backend",
+                    stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
 
-def test_validate_stage_backends_errors() -> None: 
-    """
-    Test that the _validate_stage_backends method correctly raises an error if 
-    the backends for a stage do not match the Pipeline backend or if there are 
-    multiple backends across the stages. 
+    def test_validate_stage_backends_errors() -> None: 
+        """
+        Test that the _validate_stage_backends method correctly raises an error if 
+        the backends for a stage do not match the Pipeline backend or if there are 
+        multiple backends across the stages. 
 
-    Successful runs not tested here as they are covered in test_generate_context_
-    correctly_assigns_executor(). 
-    """
+        Successful runs not tested here as they are covered in test_generate_context_
+        correctly_assigns_executor(). 
+        """
 
-    with pytest.raises(PipelineInitialisationError):
-        Pipeline(
-            backend="python",
-            stages=[
-                Stage(
-                    "Stage_0",
-                    source=Path("Stage_0.py"),
-                    dependencies=(),
-                    backend="nonexistent_backend",
-                )
-            ],
-        )
+        with pytest.raises(PipelineInitialisationError):
+            Pipeline(
+                backend="python",
+                stages=[
+                    Stage(
+                        "Stage_0",
+                        source=Path("Stage_0.py"),
+                        dependencies=(),
+                        backend="nonexistent_backend",
+                    )
+                ],
+            )
 
-    with pytest.raises(PipelineInitialisationError):
-        Pipeline(
-            backend="python",
-            stages=[
-                Stage(
-                    "Stage_0",
-                    source=Path("Stage_0.py"),
-                    dependencies=(),
-                    backend="nonexistent_backend",
-                ),
-                Stage(
-                    "Stage_1",
-                    source=Path("Stage_1.py"),
-                    dependencies=(),
-                    backend="python",
-                ),
-            ],
-        )
+        with pytest.raises(PipelineInitialisationError):
+            Pipeline(
+                backend="python",
+                stages=[
+                    Stage(
+                        "Stage_0",
+                        source=Path("Stage_0.py"),
+                        dependencies=(),
+                        backend="nonexistent_backend",
+                    ),
+                    Stage(
+                        "Stage_1",
+                        source=Path("Stage_1.py"),
+                        dependencies=(),
+                        backend="python",
+                    ),
+                ],
+            )
