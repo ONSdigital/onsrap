@@ -142,6 +142,54 @@ class TestPipelineNamingAndInit:
         assert pipeline_2.stages[0].dependencies == ("Stage_0",)
         assert pipeline_2.stages[1].dependencies == ("Stage_1.py",)
 
+    def test_assign_dependencies_with_config_defined_stages(self, tmp_path):
+        """
+        Test to ensure dependencies can be assigned when stages are loaded from
+        the pipeline configuration rather than passed directly to the constructor.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for testing.
+        """
+
+        first_stage = tmp_path / "first_stage.py"
+        first_stage.write_text("def run(context):\n    return 'alpha'\n", encoding="utf-8")
+
+        second_stage = tmp_path / "second_stage.py"
+        second_stage.write_text("def run(context):\n    return 'beta'\n", encoding="utf-8")
+
+        config_file = tmp_path / "conf.yaml"
+        config_file.write_text(
+            "\n".join(
+                [
+                    "pipeline_variables:",
+                    f"  work_dir: \"{tmp_path.as_posix()}\"",
+                    f"  project_root: \"{tmp_path.as_posix()}\"",
+                    f"  log_dir: \"{(tmp_path / 'logs').as_posix()}\"",
+                    "  stages:",
+                    "    - first_stage:",
+                    f"        location: \"{first_stage.as_posix()}\"",
+                    "    - second_stage:",
+                    f"        location: \"{second_stage.as_posix()}\"",
+                    "stage_configuration: {}",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(
+                    config=config_file,
+                    dependencies={"second_stage": ("first_stage",)},
+                )
+
+        assert [stage.name for stage in pipeline.stages] == ["first_stage", "second_stage"]
+        assert pipeline.stages[1].dependencies == ("first_stage",)
+        assert pipeline.dependencies == {"second_stage": ("first_stage",)}
+
     def test_add_dependencies_single_dict(self, tmp_path):
         """
         Tests that a dictionary correctly assigns dependencies to

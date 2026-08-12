@@ -115,15 +115,9 @@ class Pipeline:
         else:
             self._generate_context()
 
-        self.dependencies = self._normalize_dependency_mapping(dependencies)
-        if dependencies is not None and stages is None:
-            raise PipelineInitialisationError(
-                "Stages need to be defined before you can parse your dependencies "
-                "for those stages. Try the from_files() method, or create your Stage objects and "
-                "parse them to the Pipeline Constructor."
-            )
-        if self.dependencies is not None:
-            self._assign_dependencies(self.dependencies, self.stages)
+        self.dependencies = None
+        if dependencies is not None:
+            self.dependencies = self._assign_dependencies(dependencies, self.stages)
 
         self.stage_configs = dict(resolved_stage_configs)
         self.global_config = resolved_global_config
@@ -462,80 +456,129 @@ class Pipeline:
 
     def add_dependencies(
         self,
-        *dependencies: Mapping[str, Sequence[str]] | tuple[str, ...],
+        *dependencies: Mapping[str, Sequence[str]],
     ) -> None:
         """
-        Adds a set of ``dependencies`` for the Pipeline after the Pipeline initialisation.
+        Add dependency mappings to stages already registered on the Pipeline.
 
-        This method takes any number of positional arguments and imputes them as
-        ``dependencies``. It looks at each argument parsed, checks the data type against
-        the existing ``Pipeline`` ``dependencies`` and if they are the same data type, it
-        will take every stage within the ``Pipeline`` instance. It will then run the
-        ``_dependencies_for_stage()`` class method and normalize any ``dependencies`` before
-        adding them to the individual ``Stage`` instances. It will then append these
-        ``dependencies`` directly to the ``dependencies`` in the ``Pipeline`` instance before
-        rerunning the ``StageGraph`` creation to ensure the new ``dependencies`` are considered.
-        A logging entry will be created to track that these ``dependencies`` are added.
+        Each positional argument must be a mapping whose keys identify target
+        stages by stage name, source-path filename, full source path, or callable
+        name. Values are normalized, appended to the matching stage's existing
+        dependencies, de-duplicated in first-seen order, and merged into
+        ``Pipeline.dependencies`` before the execution graph is rebuilt.
 
         Parameters
         ----------
-        ``*dependencies`` : tuple[str]| dict[str, Sequence[str]]
-            Any number of dependencies that you would like to add to the Pipeline.
+        ``*dependencies`` : Mapping[str, Sequence[str]]
+            One or more dependency mappings to merge into the Pipeline.
 
         Raises
         ------
-        ``PipelineInitializationError``
-            If the dependency you are attempting to add to the Pipeline doesn't match
-            the datatype for dependencies currently in the Pipeline.
+        ``PipelineInitialisationError``
+            If a dependency payload is not provided as a mapping.
         """
+
+        if not dependencies:
+            return
+
+        if self.dependencies is None:
+            self.dependencies = {}
 
         for dependency in dependencies:
             if not isinstance(dependency, Mapping):
                 raise PipelineInitialisationError(
-                    "Existing dependencies are not the same type as new dependencies"
+                    "Dependencies added to an existing Pipeline must be provided as a mapping of stage identifiers to dependency names."
                 )
 
-            normalized_dependency = self._normalize_dependency_mapping(dependency)
-            if normalized_dependency is None:
-                continue
-
-            for stage in self.stages:
-                new_dependencies = self._dependencies_for_stage(
-                    stage.name, stage.source, normalized_dependency
-                )
-                existing = stage.dependencies or ()
-                new = existing + new_dependencies
-
-                stage.dependencies = tuple(dict.fromkeys(new))
-
-            if self.dependencies is None:
-                self.dependencies = {}
-
+            normalized_dependency = self._assign_dependencies(dependency, self.stages)
             for stage_name, deps in normalized_dependency.items():
                 existing = self.dependencies.get(stage_name, ())
                 combined = existing + deps
                 self.dependencies[stage_name] = tuple(dict.fromkeys(combined))
 
-        self.graph = StageGraph.from_stages(self.stages)
-        self.graph.validate()
-
-        self.logger.event(
-            "New dependencies added to Pipeline instance and respective Stage instances",
-            dependencies=dependencies,
-        )
+        self._rebuild_graph()
 
     def _assign_dependencies(
         self,
-        dependencies: Mapping[str, Sequence[str]] | None = None,
-        stages: Sequence[Stage] | None = None,
-    ) -> Sequence[Stage]:
-        if stages is None:
-            return ()
+        dependencies: tuple[str, ...] | Mapping[str, Sequence[str]],
+        stages: Stage | Sequence[Stage],
+    ) -> dict[str, tuple[str, ...]]:
+        """
+        Attach dependencies to one stage or a sequence of stages.
 
-        self.logger.event(
-            "New dependencies added to Pipeline instance and respective Stage instances",
-            dependencies=dependencies,
-        )
+        For a single ``Stage``, ``dependencies`` may be either a dependency tuple
+        for that stage or a mapping keyed by any identifier accepted by
+        ``_dependencies_for_stage()``. For multiple stages, ``dependencies`` must
+        be a mapping keyed by stage identifiers.
+
+        The target ``Stage`` objects are mutated in place: new dependency names are
+        appended to each stage's existing dependencies and de-duplicated while
+        preserving order. The method returns the normalized dependency mapping that
+        was applied so callers can keep ``Pipeline.dependencies`` in sync with the
+        stage objects.
+
+        Parameters
+        ----------
+        ``dependencies`` : tuple[str, ...] | Mapping[str, Sequence[str]]
+            Dependency names for a single stage or a mapping of stage identifiers
+            to dependency names.
+        ``stages`` : Stage | Sequence[Stage]
+            The stage or stages to mutate.
+
+        Returns
+        -------
+        dict[str, tuple[str, ...]]
+            The normalized dependency mapping that was applied.
+
+        Raises
+        ------
+        ``PipelineInitialisationError``
+            If dependencies are provided before any stages exist, or if a
+            non-mapping payload is used for multiple stages.
+        """
+
+        if isinstance(stages, Stage):
+            target_stages = [stages]
+            if isinstance(dependencies, Mapping):
+                normalized_dependencies = (
+                    self._normalize_dependency_mapping(dependencies) or {}
+                )
+            else:
+                normalized_dependencies = {
+                    stages.name: self._normalize_dependency_values(dependencies)
+                }
+        else:
+            target_stages = list(stages)
+            if not isinstance(dependencies, Mapping):
+                raise PipelineInitialisationError(
+                    "When assigning dependencies to multiple Stage instances, provide a mapping of stage identifiers to dependency names."
+                )
+            normalized_dependencies = self._normalize_dependency_mapping(dependencies) or {}
+
+        if normalized_dependencies and not target_stages:
+            raise PipelineInitialisationError(
+                "Stages need to be defined before you can parse your dependencies "
+                "for those stages. Try the from_files() method, or create your Stage objects and "
+                "parse them to the Pipeline Constructor."
+            )
+
+        for stage in target_stages:
+            new_dependencies = self._dependencies_for_stage(
+                stage.name, stage.source, normalized_dependencies
+            )
+            existing = stage.dependencies or ()
+            combined = existing + new_dependencies
+            stage.dependencies = tuple(dict.fromkeys(combined))
+
+        if normalized_dependencies:
+            self.logger.event(
+                "Dependencies assigned to Pipeline stages",
+                dependencies=normalized_dependencies,
+                stages=[stage.name for stage in target_stages],
+            )
+
+        return normalized_dependencies
+
 
     def _load_latest_run(self) -> PipelineRun | None:
         """
@@ -659,18 +702,6 @@ class Pipeline:
             run_output = Path(self.config.project_root or self.config.work_dir)
         return run_output / "runs"
 
-    def _assign_dependencies(
-        self,
-        dependencies: tuple[str] | dict[str, Sequence[str]] | None = None,
-        stages: Stage | Sequence[Stage] | None = None,
-    ) -> Stage | Sequence[Stage]:
-        for stage in stages:
-            new_dependencies = self._dependencies_for_stage(
-                stage.name, stage.source, dependencies
-            )
-            stage.dependencies = new_dependencies
-
-        return stages
 
     def _coerce_stage(
         self,
@@ -1002,6 +1033,30 @@ class Pipeline:
         return pipeline_config, stage_configs, configured_stages, global_config
 
     @staticmethod
+    def _normalize_dependency_values(
+        dependencies: Sequence[str] | str | None,
+    ) -> tuple[str, ...]:
+        """
+        Normalize dependency names into a de-duplicated tuple.
+        """
+        if dependencies is None:
+            return ()
+
+        candidate_dependencies: Sequence[str] | tuple[str, ...]
+        if isinstance(dependencies, str):
+            candidate_dependencies = (dependencies,)
+        else:
+            candidate_dependencies = dependencies
+
+        normalized_dependencies: list[str] = []
+        for dependency in candidate_dependencies:
+            dependency_name = str(dependency).strip()
+            if dependency_name and dependency_name not in normalized_dependencies:
+                normalized_dependencies.append(dependency_name)
+
+        return tuple(normalized_dependencies)
+
+    @staticmethod
     def _normalize_dependency_mapping(
         dependencies: Mapping[str, Sequence[str]] | None,
     ) -> dict[str, tuple[str, ...]] | None:
@@ -1009,7 +1064,7 @@ class Pipeline:
             return None
 
         return {
-            str(stage_name): tuple(str(dependency) for dependency in stage_dependencies)
+            str(stage_name): Pipeline._normalize_dependency_values(stage_dependencies)
             for stage_name, stage_dependencies in dependencies.items()
         }
 
@@ -1884,7 +1939,7 @@ class Pipeline:
             candidates = (stage_name,)
         for candidate in candidates:
             if candidate in dependencies:
-                return tuple(str(dependency) for dependency in dependencies[candidate])
+                return Pipeline._normalize_dependency_values(dependencies[candidate])
 
         return ()
 

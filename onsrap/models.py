@@ -608,7 +608,7 @@ class GlobalConfig:
     @overload
     def get_attributes(self, keep_exclusion: Literal[False]) -> dict[str, Any]: ...
 
-    def get_attributes(self, keep_exclusion: bool = True) -> dict[str, Any]:
+    def get_attributes(self, keep_exclusion: bool = True) -> tuple[dict[str, Any], dict[str, Any]] | dict[str, Any]:
         """
         Return a copy of the global variables, optionally excluding any variables
         specified in the exclusion list.
@@ -1052,7 +1052,7 @@ class PipelineRun:
         return self.status == PipelineStatus.SUCCEEDED
 
 
-def _format_dict(d: dict[str, Any], indent: int = 0) -> str:
+def _format_dict(d: dict[str, Any] | dict[str, bool] | None, indent: int = 0) -> str:
     """
     Helper function to format dictionaries for __str__ methods.
 
@@ -1068,6 +1068,9 @@ def _format_dict(d: dict[str, Any], indent: int = 0) -> str:
     str
         A formatted string representation of the dictionary.
     """
+    if d is None:
+        return ""
+    
     lines = []
     for key, value in d.items():
         if isinstance(value, dict):
