@@ -1,10 +1,15 @@
 name: Python CI
 
 on:
+  # Keep push validation narrow to the main integration branches.
   push:
     branches: [ "main", "development" ]
+
+  # Run CI for every pull request regardless of target branch so branch-to-branch
+  # work still gets the same quality and test coverage before merge.
   pull_request:
-    branches: [ "main", "development" ]
+    types: [opened, synchronize, reopened, ready_for_review]
+
   workflow_dispatch:
 
 jobs:
