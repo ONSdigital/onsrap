@@ -719,6 +719,67 @@ class RunManifest:
             f"timestamp={self.timestamp}, reason={self.reason}, user={self.user})"
         )
 
+    def _runmanifest_to_dict(self) -> dict[str, Any]:
+        """
+        Converts the RunManifest instance into a dictionary representation. 
+        This is needed to allow a RunManifest instance to be serialized into a 
+        JSON format for later methods on RunManifest instances not saved in 
+        memory.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary representation of the RunManifest instance.
+        """
+        return {
+            "rap_name": self.rap_name,
+            "run_id": self.run_id,
+            "git_commit": self.git_commit,
+            "stages_run": self.stages_run,
+            "parameters": self.parameters,
+            "inputs": self.inputs,
+            "outputs": self.outputs,
+            "backend": self.backend,
+            "package_versions": self.package_versions,
+            "timestamp": self.timestamp,
+            "reason": self.reason,
+            "user": self.user,
+            "config": self.config
+        }
+
+    @classmethod
+    def _runmanifest_from_dict(cls, data: dict[str, Any]) -> RunManifest:
+        """
+        Converts a dictionary representation of a RunManifest instance back into a 
+        RunManifest instance. Allows for RunManifest instances to be created from
+        a JSON representation of a RunManifest instance.
+
+        Parameters
+        ----------
+        ``data`` : dict[str, Any]
+            A dictionary representation of a RunManifest instance. 
+
+        Returns
+        -------
+        ``RunManifest`` class instance
+            A RunManifest instance created from the dictionary representation. 
+        """
+        return cls(
+            rap_name=data.get("rap_name", ""),
+            run_id=data.get("run_id", ""),
+            git_commit=data.get("git_commit"),
+            stages_run=data.get("stages_run", []),
+            parameters=data.get("parameters", {}),
+            inputs=data.get("inputs", {}),
+            outputs=data.get("outputs", {}),
+            backend=data.get("backend", "python"),
+            package_versions=data.get("package_versions", []),
+            timestamp=data.get("timestamp", ""),
+            reason=data.get("reason"),
+            user=data.get("user"),
+            config=data.get("config")
+        )
+
 
 class RAPDataset:
     def __init__(self):
@@ -775,6 +836,63 @@ class StageResult:
     metadata: dict[str, Any] = field(default_factory=dict)
     error: Optional[str] = None
     source: Optional[str] = None
+
+    def _stage_result_to_dict(self) -> dict[str, Any]:
+        """
+        Converts the StageResult instance into a dictionary representation. 
+        This is needed to allow a StageResult instance to be serialized into a 
+        JSON format for later methods on StageResult instances not saved in 
+        memory.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary representation of the StageResult instance.
+        """
+        return {
+            "name": self.name,
+            "status": self.status.value,
+            "started_at": self.started_at.isoformat(),
+            "finished_at": self.finished_at.isoformat(),
+            "outputs": self.outputs,
+            "stdout": self.stdout,
+            "stderr": self.stderr,
+            "return_code": self.return_code,
+            "metadata": self.metadata,
+            "error": self.error,
+            "source": self.source,
+        }
+
+    @classmethod
+    def _stage_result_from_dict(cls, data: dict[str, Any]) -> StageResult:
+        """
+        Converts a dictionary representation of a StageResult instance back into a 
+        StageResult instance. Allows for StageResult instances to be created from
+        a JSON representation of a StageResult instance.
+
+        Parameters
+        ----------
+        ``data`` : dict[str, Any]
+            A dictionary representation of a StageResult instance. 
+
+        Returns
+        -------
+        ``StageResult`` class instance
+            A StageResult instance created from the dictionary representation. 
+        """
+        return cls(
+            name=data["name"],
+            status=StageStatus(data["status"]),
+            started_at=datetime.fromisoformat(data["started_at"]),
+            finished_at=datetime.fromisoformat(data["finished_at"]),
+            outputs=data.get("outputs"),
+            stdout=data.get("stdout", ""),
+            stderr=data.get("stderr", ""),
+            return_code=data.get("return_code"),
+            metadata=data.get("metadata", {}),
+            error=data.get("error"),
+            source=data.get("source"),
+        )
 
     @property
     def succeeded(self) -> bool:
@@ -836,6 +954,89 @@ class PipelineRun:
                 return result
         return None
 
+    def _pipeline_run_to_dict(self) -> dict[str, Any]:
+        """
+        Converts the PipelineRun instance into a dictionary representation. 
+        This is needed to allow a PipelineRun instance to be serialized into a 
+        JSON format for later methods on PipelineRun instances not saved in 
+        memory.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary representation of the PipelineRun instance.
+        """
+        return {
+            "manifest": self.manifest._runmanifest_to_dict(),
+            "status": self.status.value,
+            "started_at": self.started_at.isoformat(),
+            "completed_at": self.completed_at.isoformat(),
+            "stage_results": {result.name:result._stage_result_to_dict() 
+                              for result in self.stage_results},
+            "stage_outputs": self.stage_outputs,
+        }
+
+    @classmethod
+    def _pipeline_run_from_dict(cls, data: dict[str, Any]) -> PipelineRun:
+        """
+        Converts a dictionary representation of a PipelineRun instance back into a 
+        PipelineRun instance. Allows for PipelineRun instances to be created from
+        a JSON representation of a PipelineRun instance.
+
+        Parameters
+        ----------
+        ``data`` : dict[str, Any]
+            A dictionary representation of a PipelineRun instance. 
+
+        Returns
+        -------
+        ``PipelineRun`` class instance
+            A PipelineRun instance created from the dictionary representation. 
+        """
+        return cls(
+            manifest=RunManifest._runmanifest_from_dict(data["manifest"]),
+            status=PipelineStatus(data["status"]),
+            started_at=datetime.fromisoformat(data["started_at"]),
+            completed_at=datetime.fromisoformat(data["completed_at"]),
+            stage_results=[StageResult._stage_result_from_dict(result) 
+                           for result in data.get("stage_results", {}).values()],
+            stage_outputs=data.get("stage_outputs", {}),
+        )
+
+    @classmethod
+    def load_pipeline_run_for_historical_run(cls, file_path: Path) -> PipelineRun:
+        """
+        Load a previously executed pipeline run from a YAML file.
+
+        This function is used to load the state of a pipeline run that has been
+        saved to a YAML file. It reads the file, parses the YAML content, and
+        reconstructs the PipelineRun object.
+
+        Parameters
+        ----------
+        ``file_path`` : Path
+            The path to the YAML file containing the saved pipeline run.
+
+        Returns
+        -------
+        ``PipelineRun``
+            The reconstructed PipelineRun object.
+
+        Raises
+        ------
+        ``FileNotFoundError``
+            If the specified file does not exist.
+        """
+        import yaml
+
+        if not file_path.exists():
+            raise FileNotFoundError(f"Pipeline run file does not exist: {file_path}")
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        return cls._pipeline_run_from_dict(data)
+
     @property
     def succeeded(self) -> bool:
         """
@@ -846,7 +1047,22 @@ class PipelineRun:
         return self.status == PipelineStatus.SUCCEEDED
 
 
-def _format_dict(d, indent=0):
+def _format_dict(d: dict[str, Any], indent: int = 0) -> str:
+    """
+    Helper function to format dictionaries for __str__ methods.
+
+    Parameters
+    ----------
+    ``d`` : dict
+        The dictionary to format.
+    ``indent`` : int, default = 0
+        The number of spaces to indent the dictionary representation.
+
+    Returns
+    -------
+    str
+        A formatted string representation of the dictionary.
+    """
     lines = []
     for key, value in d.items():
         if isinstance(value, dict):

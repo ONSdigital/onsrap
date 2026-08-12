@@ -90,5 +90,11 @@ class PipelineInitialisationError(OnsrapError):
 class PipelineConfigurationError(OnsrapError):
     """
     Raised when there has been an issue with the PipelineConfig
+    instance. 
+    """
+
+class HistoricalPipelineLoadError(OnsrapError):
+    """
+    Raised when there is an issue loading a previous PipelineRun
     instance.
     """

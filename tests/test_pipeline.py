@@ -1,13 +1,19 @@
+import logging
+from unittest import mock
+import warnings
+
+from onsrap.loader import load_historical_run
+from onsrap.pipeline import Pipeline, PipelineConfig
+from onsrap.execution import PythonStageExecutor
+from onsrap.errors import HistoricalPipelineLoadError, PipelineInitialisationError, PipelineConfigurationError, StageConfigurationError, StageLoadError
+from onsrap.models import PipelineRun, StageConfig
+from onsrap.stage import Stage
+from onsrap.warnings import StageConfigurationWarning, PipelineConfigurationWarning
+from onsrap.logger import Logger
+
 from pathlib import Path
 
 import pytest
-
-from onsrap.errors import PipelineConfigurationError, PipelineInitialisationError
-from onsrap.models import StageConfig
-from onsrap.pipeline import Pipeline, PipelineConfig
-from onsrap.stage import Stage
-from onsrap.warnings import PipelineConfigurationWarning, StageConfigurationWarning
-from onsrap.execution import PythonStageExecutor
 
 NO_STAGES_WARNING = "No stages specified to run. All stages running by default."
 
@@ -54,12 +60,13 @@ class TestPipelineNamingAndInit:
         """
         pipeline_config = PipelineConfig(name="test_pipeline_config")
 
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline_named = Pipeline(name="test_pipeline_name",
-                                      stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
-            pipeline_config = Pipeline(name=None, config=pipeline_config,
-                                       stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
-            pipeline_no_name = Pipeline(stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline_named = Pipeline(name="test_pipeline_name",
+                                        stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+                pipeline_config = Pipeline(name=None, config=pipeline_config,
+                                        stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+                pipeline_no_name = Pipeline(stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
 
         assert pipeline_named.name == "test_pipeline_name"
         assert pipeline_config.name == "test_pipeline_config"
@@ -104,28 +111,30 @@ class TestPipelineNamingAndInit:
         }
 
         with pytest.raises(PipelineInitialisationError):
-            Pipeline(stages=None, dependencies=dependencies_single)
+            with pytest.warns(PipelineConfigurationWarning):
+                Pipeline(stages=None, dependencies=dependencies_single)
 
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline_1 = Pipeline(
-                name="pipeline_1",
-                stages=[
-                    Stage("Stage_1", path_1, None, {}),
-                    Stage("Stage_2", example_function, None, {}),
-                    Stage("Stage_0", path_0, None, {}),
-                ],
-                dependencies=dependencies_multiple,
-            )
-
-            pipeline_2 = Pipeline(
-                name="pipeline_2",
-                stages=[
-                    Stage("Stage_1.py", path_1, None, {}),
-                    Stage("Stage_2", example_function, None, {}),
-                    Stage("Stage_0", path_0, None, {}),
-                ],
-                dependencies=dependencies_non_stage_name,
-            )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline_1 = Pipeline(
+                    name="pipeline_1",
+                    stages=[
+                        Stage("Stage_1", path_1, None, {}),
+                        Stage("Stage_2", example_function, None, {}),
+                        Stage("Stage_0", path_0, None, {}),
+                    ],
+                    dependencies=dependencies_multiple,
+                )
+                
+                pipeline_2 = Pipeline(
+                    name="pipeline_2",
+                    stages=[
+                        Stage("Stage_1.py", path_1, None, {}),
+                        Stage("Stage_2", example_function, None, {}),
+                        Stage("Stage_0", path_0, None, {}),
+                    ],
+                    dependencies=dependencies_non_stage_name,
+                )
 
         assert pipeline_1.stages[0].dependencies == ("Stage_0",)
         assert pipeline_1.stages[1].dependencies == ("Stage_1", "Stage_0")
@@ -164,10 +173,11 @@ class TestPipelineNamingAndInit:
         stage_2 = Stage("Stage_2", source=path_2, dependencies={})
         stage_0 = Stage("Stage_0", source=path_0, dependencies={})
 
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline_dict = Pipeline(
-                stages=[stage_0, stage_1, stage_2], dependencies=dependencies_multiple
-            )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline_dict = Pipeline(
+                    stages=[stage_0, stage_1, stage_2], dependencies=dependencies_multiple
+                )
 
         with pytest.raises(PipelineInitialisationError):
             pipeline_dict.add_dependencies(dep_tuple)
@@ -208,17 +218,19 @@ class TestPipelineStageConfigHandling:
             Expected and asserted as there is no stage run specification in the 
             Pipeline configuration. This does not affect the test capability.
         """
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline = Pipeline(stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
-            stage = stage_factory("Stage_1")
-            stage_config = StageConfig(
-                name="Stage_1", _variables={"years_to_run": 2017}
-            )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(stages = [Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
 
+        stage = stage_factory("Stage_1")
+        stage_config = StageConfig(
+            name="Stage_1", _variables={"years_to_run": 2017}
+        )
+        with pytest.warns(PipelineConfigurationWarning):
             pipeline.add_stage(stage, stage_configs=[stage_config])
 
-            assert pipeline.stages[-1].name == "Stage_1"
-            assert pipeline.stage_configs["Stage_1"].require("years_to_run") == 2017
+        assert pipeline.stages[-1].name == "Stage_1"
+        assert pipeline.stage_configs["Stage_1"].require("years_to_run") == 2017
 
     def test_add_stage_warns_when_stage_config_count_mismatches(
         self, stage_factory
@@ -239,10 +251,11 @@ class TestPipelineStageConfigHandling:
             Expected and asserted as there is no stage run specification in the 
             Pipeline configuration. This does not affect the test capability.
         """
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline = Pipeline(stages = [Stage("Stage_0_5", source=Path("Stage_0_5.py"), dependencies=())])
-            stage_0 = stage_factory("Stage_0")
-            stage_1 = stage_factory("Stage_1")
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(stages = [Stage("Stage_0_5", source=Path("Stage_0_5.py"), dependencies=())])
+                stage_0 = stage_factory("Stage_0")
+                stage_1 = stage_factory("Stage_1")
 
             with pytest.warns(StageConfigurationWarning) as recorded_warnings:
                 pipeline.add_stage(
@@ -275,8 +288,9 @@ class TestPipelineStageConfigHandling:
             Expected and asserted as there is no stage run specification in the 
             Pipeline configuration. This does not affect the test capability.
         """
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline = Pipeline(stages=[stage_factory("Stage_0")])
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(stages=[stage_factory("Stage_0")])
 
         pipeline.add_stage_config({"years_to_run": 2017}, name="Stage_0")
 
@@ -301,10 +315,12 @@ class TestPipelineStageSelectionAndGraph:
         stage_1 = stage_factory("Stage_1", dependencies=("Stage_0",))
         stage_2 = stage_factory("Stage_2", dependencies=("Stage_1",))
 
-        pipeline = Pipeline(
-            stages=[stage_0, stage_1, stage_2],
-            config=PipelineConfig(stages_to_run={"Stage_2": True}),
-        )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(
+                    stages=[stage_0, stage_1, stage_2],
+                    config=PipelineConfig(stages_to_run={"Stage_2": True}),
+                )
 
         assert [stage.name for stage in pipeline.graph.stages] == [
             "Stage_0",
@@ -342,8 +358,8 @@ class TestPipelineStageSelectionAndGraph:
                 stages=[stage_0, stage_1],
                 config=PipelineConfig(
                     stages_to_run={"Stage_0": False, "Stage_1": True}
-                ),
-            )
+                )
+                )
 
     def test_self_stages_is_full_registry_after_disable(self, stage_factory) -> None:
         """
@@ -364,8 +380,9 @@ class TestPipelineStageSelectionAndGraph:
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1")
 
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline = Pipeline(stages=[stage_0, stage_1])
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(stages=[stage_0, stage_1])
 
         pipeline.disable_stage("Stage_1")
 
@@ -393,8 +410,9 @@ class TestPipelineStageSelectionAndGraph:
         """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1")
-        with pytest.warns(PipelineConfigurationWarning, match=NO_STAGES_WARNING):
-            pipeline = Pipeline(stages=[stage_0, stage_1])
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(stages=[stage_0, stage_1])
 
         pipeline.disable_stage("Stage_1")
 
@@ -414,10 +432,12 @@ class TestPipelineStageSelectionAndGraph:
         """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1")
-        pipeline = Pipeline(
-            stages=[stage_0, stage_1],
-            config=PipelineConfig(stages_to_run={"Stage_0": True, "Stage_1": False}),
-        )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(
+                    stages=[stage_0, stage_1],
+                    config=PipelineConfig(stages_to_run={"Stage_0": True, "Stage_1": False}),
+                )
 
         pipeline.enable_stage("Stage_1")
 
@@ -438,15 +458,17 @@ class TestPipelineStageSelectionAndGraph:
         
         """
         stage_0 = stage_factory("Stage_0")
-        pipeline = Pipeline(
-            stages=[stage_0],
-            config=PipelineConfig(stages_to_run={"Stage_0": True}),
-        )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(
+                    stages=[stage_0],
+                    config=PipelineConfig(stages_to_run={"Stage_0": True}),
+                )
 
-        pipeline.add_stage(
-            stage_factory("Stage_1"),
-            stage_configs=[StageConfig(name="Stage_1")]
-            )
+                pipeline.add_stage(
+                    stage_factory("Stage_1"),
+                    stage_configs=[StageConfig(name="Stage_1")]
+                    )
         
 
         assert pipeline.config.stages_to_run["Stage_1"] is False
@@ -467,16 +489,18 @@ class TestPipelineStageSelectionAndGraph:
 
         """
         stage_0 = stage_factory("Stage_0")
-        pipeline = Pipeline(
-            stages=[stage_0],
-            config=PipelineConfig(stages_to_run={"Stage_0": True}),
-        )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):        
+                pipeline = Pipeline(
+                    stages=[stage_0],
+                    config=PipelineConfig(stages_to_run={"Stage_0": True}),
+                )
 
-        pipeline.add_stage(
-            stage_factory("Stage_1"),
-            stage_configs=[StageConfig(name="Stage_1")],
-            enable_stages=True,
-        )
+                pipeline.add_stage(
+                    stage_factory("Stage_1"),
+                    stage_configs=[StageConfig(name="Stage_1")],
+                    enable_stages=True,
+                )
 
         assert pipeline.config.stages_to_run["Stage_1"] is True
         assert {stage.name for stage in pipeline.graph.stages} == {"Stage_0", "Stage_1"}
@@ -503,10 +527,12 @@ class TestPipelineValidationAndManifest:
             "Stage_1", source=tmp_path / "missing.py"
         )  # file intentionally absent
 
-        pipeline = Pipeline(
-            stages=[stage_0, stage_1],
-            config=PipelineConfig(stages_to_run={"Stage_0": True, "Stage_1": False}),
-        )
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(
+                    stages=[stage_0, stage_1],
+                    config=PipelineConfig(stages_to_run={"Stage_0": True, "Stage_1": False}),
+                )
 
         pipeline.validate()  # must not raise
 
@@ -524,10 +550,13 @@ class TestPipelineValidationAndManifest:
         """
         stage_0 = stage_factory("Stage_0")
         stage_1 = stage_factory("Stage_1", dependencies=("Stage_0",))
-        pipeline = Pipeline(
-            stages=[stage_0, stage_1],
-            config=PipelineConfig(stages_to_run={"Stage_0": True, "Stage_1": False}),
-        )
+
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(
+                    stages=[stage_0, stage_1],
+                    config=PipelineConfig(stages_to_run={"Stage_0": True, "Stage_1": False}),
+                )
 
         runtime_id = pipeline._create_runtime_id()
         manifest = pipeline._construct_manifest(runtime_id=runtime_id)
@@ -541,10 +570,10 @@ class TestPipelineValidationAndManifest:
         executor, an error is raised. 
         """
 
-        with pytest.warns(PipelineConfigurationWarning,
-                            match = "No stages specified to run. All stages running by default."):
-            pipeline = Pipeline(backend="python",
-                                stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
+        with pytest.warns(PipelineConfigurationWarning):
+            with pytest.warns(StageConfigurationWarning):
+                pipeline = Pipeline(backend="python",
+                                    stages=[Stage("Stage_0", source=Path("Stage_0.py"), dependencies=())])
         assert isinstance(pipeline.executor, PythonStageExecutor)
 
         with pytest.raises(PipelineInitialisationError):
@@ -592,3 +621,726 @@ class TestPipelineValidationAndManifest:
                     ),
                 ],
             )
+
+class TestLoadLatestRunIntegration:
+    @pytest.fixture
+    def pipeline_log_line(self):
+        def _make(run_id: str, timestamp: str) -> str:
+            """
+            Returns a false log file line to simulate a historical run in the log file.
+            The line is formatted to match the expected log output.
+
+            Parameters
+            ----------
+            ``run_id`` : str
+                The unique identifier for the historical run.
+            ``timestamp`` : str
+                The timestamp of when the historical run was initiated.
+            """
+            return f"{timestamp} Pipeline started | " \
+                f"{{\"run_id\": \"{run_id}\", \"run_dir\": \"/path/to/run\"}}"
+        return _make
+
+    @pytest.fixture
+    def minimal_pipeline_yaml(self):
+        def _make(run_id: str) -> str:
+            """
+            Returns a minimal YAML configuration for a historical run.
+
+            Parameters
+            ----------
+            ``run_id`` : str
+                The unique identifier for the historical run.
+            """
+            return f"""
+                    manifest:
+                        run_id: {run_id}
+                    status: succeeded
+                    started_at: '2026-08-06T17:03:30.000077'
+                    completed_at: '2026-08-06T17:03:30.031654'
+                    stage_results: {{}}
+                    stage_outputs: {{}}
+                    """
+        return _make
+
+    @pytest.fixture
+    def pipeline_no_history(self, tmp_path: Path) -> Pipeline:
+        """
+        Sets up a blank pipeline instance for testing that accounts for warnings
+        in init phase rather than dealing with these in the tests.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for creating test files 
+            and directories.
+        """
+        with pytest.warns(PipelineConfigurationWarning):
+            pipeline = Pipeline(config=PipelineConfig(
+                output_dir = tmp_path/"outputs",
+            ),
+            stages = [Stage("Stage_0", source=tmp_path/"Stage_0.py", dependencies=())])
+        pipeline.run_output = tmp_path/"runs"
+        return pipeline
+        
+
+class TestLoadLatestRun(TestLoadLatestRunIntegration):
+    def test_blank_historical_run_ids(self, 
+                                      pipeline_no_history: Pipeline, 
+                                      monkeypatch) -> None:
+        """
+        Tests that if extract_historical_run_ids returns a blank list, the
+        _load_latest_run method will return None and raise a warning. Assert
+        that it will also store None in the last_run attribute of the Pipeline
+        instance. 
+
+        Parameters
+        ----------
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes, 
+            methods, or classes during testing.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when no previous runs are found for the Pipeline, indicating 
+            that the last_run attribute will be None.
+        """
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids", 
+                            lambda x: [])
+        assert pipeline_no_history.logger.extract_historical_run_ids(
+            pipeline_no_history.run_output
+            ) == []
+        with pytest.warns(PipelineConfigurationWarning, match="No previous runs " \
+        "found for this Pipeline. Last_run attribute will be None."):
+            assert pipeline_no_history._load_latest_run() == None
+            assert pipeline_no_history.last_run == None
+
+    def test_blank_run_ids(self,
+                           pipeline_no_history: Pipeline,
+                           monkeypatch) -> None:
+        """
+        Tests that if the found log record does not have a run_id, _load_latest_run
+        will return None and raise a warning. Assert that it will also store None
+        in the last_run attribute of the Pipeline instance.
+
+        Parameters
+        ----------
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes, 
+            methods, or classes during testing.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when no previous runs are found for the Pipeline, indicating 
+            that the last_run attribute will be None.
+        """
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids", 
+                            lambda x: [{
+                                "run_id": None, 
+                                "timestamp": "2026-08-10 10:00:00,000", 
+                                "run_dir": Path("/")}]
+                                )
+        assert pipeline_no_history.logger.extract_historical_run_ids(
+            pipeline_no_history.run_output
+            ) == [{
+                "run_id": None, 
+                "timestamp": "2026-08-10 10:00:00,000", 
+                "run_dir": Path("/")
+                }]
+        with pytest.warns(PipelineConfigurationWarning, match="No previous runs " \
+        "found for this Pipeline. Last_run attribute will be None."):
+                    assert pipeline_no_history._load_latest_run() == None
+                    assert pipeline_no_history.last_run == None
+        
+    def test_load_latest_run_success(self,
+                                     monkeypatch,
+                                     pipeline_no_history: Pipeline) -> None:
+
+        """
+        Tests that load_latest_run works successfully with fully mocked data. 
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes, 
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+        """
+
+        expected_run = mock.MagicMock(spec=PipelineRun)
+        run_id = "2026-08-10_100000_abc12345"
+        monkeypatch.setattr(
+            pipeline_no_history.logger,
+            "extract_historical_run_ids", 
+            lambda _: [{
+                "run_id": run_id,
+                "timestamp": "2026-08-10 10:00:00,000",
+                "run_dir": Path("/path/to/run")
+            }]
+        )
+
+        mock_load_historical_run = mock.MagicMock(return_value=expected_run)
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", 
+                            mock_load_historical_run)
+
+        result = pipeline_no_history._load_latest_run()
+
+        assert result is expected_run
+
+        expected_path = pipeline_no_history.run_output / run_id
+        mock_load_historical_run.assert_called_once_with(run_dir = expected_path)
+
+    def test_which_run_is_selected_load_latest_run(self,
+                                                   monkeypatch,
+                                                   pipeline_no_history: Pipeline
+                                                   ) -> None:
+
+        """
+        Checks that the first item is selected from the list of historical runs 
+        returned by extract_historical_run_ids.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes, 
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+        """
+        expected_run = mock.MagicMock(spec=PipelineRun)
+        run_id_1 = "2026-08-10_100000_abc12345"
+        run_id_2 = "2026-08-10_100000_def67890"
+        monkeypatch.setattr(
+            pipeline_no_history.logger,
+            "extract_historical_run_ids", 
+            lambda _: [
+                {
+                "run_id": run_id_1,
+                "timestamp": "2026-08-10 10:00:00,000",
+                "run_dir": "run_A"
+            },
+            {
+            "run_id": run_id_2,
+            "timestamp": "2026-08-10 10:00:00,000",
+            "run_dir": "run_B"
+            }
+            ]
+        )
+
+        mock_load_historical_run = mock.MagicMock(return_value=expected_run)
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", 
+                            mock_load_historical_run)
+
+        pipeline_no_history._load_latest_run()
+
+        expected_path = pipeline_no_history.run_output / run_id_1
+        mock_load_historical_run.assert_called_once_with(run_dir = expected_path)
+
+        #does not refer to run_dir in the extract_historical_run_ids list but the 
+        #parameter required in load_historical_run.
+        assert mock_load_historical_run.call_args.kwargs["run_dir"].name == run_id_1
+
+    def test_no_errors_raised_success_load_latest_run(self,
+                                         monkeypatch,
+                                         pipeline_no_history: Pipeline) -> None:
+    
+        """
+        Tests that no errors are raised when load_latest_run is successful. 
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes, 
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+        """
+
+        expected_run = mock.MagicMock(spec=PipelineRun)
+        run_id = "2026-08-10_100000_abc12345"
+        monkeypatch.setattr(
+            pipeline_no_history.logger,
+            "extract_historical_run_ids", 
+            lambda _: [{
+                "run_id": run_id,
+                "timestamp": "2026-08-10 10:00:00,000",
+                "run_dir": Path("/path/to/run")
+            }]
+        )
+
+        mock_load_historical_run = mock.MagicMock(return_value=expected_run)
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", 
+                            mock_load_historical_run)
+
+        with warnings.catch_warnings(record=True) as w:
+            pipeline_no_history._load_latest_run()
+
+        assert not any(issubclass(warning.category, PipelineConfigurationWarning) 
+                       for warning in w)
+
+class TestLoadLatestIntegrationInPipeline(TestLoadLatestRunIntegration):
+    def test_no_previous_runs_pipeline(self, tmp_path: Path) -> None:
+        """
+        Tests that if a Pipeline instance has no previous runs, the _load_latest_run
+        method will return None and raise a warning. Assert that it will also store 
+        None in the last_run attribute of the Pipeline instance.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for creating test files 
+            and directories.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when no previous runs are found for the Pipeline, indicating 
+            that the last_run attribute will be None.
+        """
+        with pytest.warns(PipelineConfigurationWarning):
+            pipeline = Pipeline(
+                config=PipelineConfig(output_dir=tmp_path / "outputs"),
+                stages=[Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())],
+            )
+        pipeline.run_output = tmp_path / "runs"
+        assert pipeline.last_run is None
+
+    def test_last_run_populated_one_run(self,
+                                        tmp_path: Path,
+                                        minimal_pipeline_yaml) -> None:
+        """
+        Tests that if a Pipeline instance has one previous run, this is loaded in 
+        last_run attribute at Pipeline creation. 
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for creating test files 
+            and directories.
+        ``minimal_pipeline_yaml`` : callable
+            A fixture that returns a minimal YAML configuration for a historical run.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there is no stages_to_run parameters to warn the user that 
+            all stages will be run by default.
+        """
+        logs = tmp_path / "logs"
+        logs.mkdir(parents=True, exist_ok=True)
+        (logs / "onsrap.log").write_text(
+            "2026-08-11 10:00:00,000 Pipeline started | "
+            "{\"run_id\": \"2026-08-11_100000_abc12345\", "
+            " \"run_dir\": \"/path/to/run\"}\n"
+        )
+
+        temp_attributes = (tmp_path / "outputs" / "runs" / "2026-08-11_100000_abc12345"
+                            / "pipeline_attributes_for_test.yaml")
+        temp_attributes.parent.mkdir(parents=True, exist_ok=True)
+        temp_attributes.write_text(minimal_pipeline_yaml(
+            run_id = "2026-08-11_100000_abc12345"
+            ), encoding="utf-8")
+
+        with pytest.warns(PipelineConfigurationWarning):
+            pipeline = Pipeline(
+                config=PipelineConfig(output_dir=tmp_path / "outputs",
+                                        log_dir=logs),
+                stages=[Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())],
+            )
+
+        assert pipeline.last_run is not None
+        assert pipeline.last_run.manifest.run_id == "2026-08-11_100000_abc12345"
+
+    def test_last_run_most_recent(self,
+                          tmp_path: Path,
+                          minimal_pipeline_yaml) -> None:
+        """
+        Tests that if a Pipeline instance has multiple previous runs, the most recent
+        run is loaded in last_run attribute at Pipeline creation. 
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for creating test files 
+            and directories.
+        ``minimal_pipeline_yaml`` : callable
+            A fixture that returns a minimal YAML configuration for a historical run.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there is no stages_to_run parameters to warn the user that 
+            all stages will be run by default.
+        """
+
+        logs = tmp_path / "logs"
+        logs.mkdir(parents=True, exist_ok=True)
+        (logs / "onsrap.log").write_text(
+            "2026-08-11 10:00:00,000 Pipeline started | "
+                "{\"run_id\": \"run_older\", "
+                " \"run_dir\": \"/path/to/run\"}\n"
+            "2026-08-11 10:01:00,000 Pipeline started | "
+                "{\"run_id\": \"run_newer\", "
+                " \"run_dir\": \"/path/to/run\"}"
+        )
+
+        temp_attributes_1 = (tmp_path / "outputs" / "runs" / "run_older"
+                            / "pipeline_attributes_for_test.yaml")
+        temp_attributes_1.parent.mkdir(parents=True, exist_ok=True)
+        temp_attributes_1.write_text(minimal_pipeline_yaml(
+            run_id = "run_older"
+            ), encoding="utf-8")
+
+        temp_attributes_2 = (tmp_path / "outputs" / "runs" / "run_newer"
+                            / "pipeline_attributes_for_test.yaml")
+        temp_attributes_2.parent.mkdir(parents=True, exist_ok=True)
+        temp_attributes_2.write_text(minimal_pipeline_yaml(
+            run_id = "run_newer"
+            ), encoding="utf-8")
+
+        with pytest.warns(PipelineConfigurationWarning):
+            pipeline = Pipeline(
+                config=PipelineConfig(output_dir=tmp_path / "outputs",
+                                        log_dir=logs),
+                stages=[Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())],
+            )
+
+        assert pipeline.last_run is not None
+        assert pipeline.last_run.manifest.run_id == "run_newer"
+
+
+    def test_last_run_most_recent(self,
+                              tmp_path: Path,
+                              minimal_pipeline_yaml) -> None:
+        """
+        Checks that only the older run is included when the run directory has been
+        deleted/removed for the most recent run.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for creating test files 
+            and directories.
+        ``minimal_pipeline_yaml`` : callable
+            A fixture that returns a minimal YAML configuration for a historical run.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there is no stages_to_run parameters to warn the user that 
+            all stages will be run by default.
+        """
+
+        logs = tmp_path / "logs"
+        logs.mkdir(parents=True, exist_ok=True)
+        (logs / "onsrap.log").write_text(
+            "2026-08-11 10:00:00,000 Pipeline started | "
+                "{\"run_id\": \"run_older\", "
+                " \"run_dir\": \"/path/to/run\"}\n"
+            "2026-08-11 10:01:00,000 Pipeline started | "
+                "{\"run_id\": \"run_newer\", "
+                " \"run_dir\": \"/path/to/run\"}"
+        )
+
+        temp_attributes_1 = (tmp_path / "outputs" / "runs" / "run_older"
+                            / "pipeline_attributes_for_test.yaml")
+        temp_attributes_1.parent.mkdir(parents=True, exist_ok=True)
+        temp_attributes_1.write_text(minimal_pipeline_yaml(
+            run_id = "run_older"
+            ), encoding="utf-8")
+
+        with pytest.warns(PipelineConfigurationWarning):
+            pipeline = Pipeline(
+                config=PipelineConfig(output_dir=tmp_path / "outputs",
+                                        log_dir=logs),
+                stages=[Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())],
+            )
+
+        assert pipeline.last_run is not None
+        assert pipeline.last_run.manifest.run_id == "run_older"
+
+class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
+    def test_returns_none_when_error_in_extract_historical_runs(self,
+                                                                monkeypatch,
+                                                                pipeline_no_history
+                                                                ) -> None:
+        """
+        Checks that all_runs attribute is None when extract_historical_run_ids
+        raises an error. This is to ensure that the Pipeline instance does not break
+        when there is an issue with extracting historical runs.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there is an issue with extracting historical runs, indicating 
+            that the all_runs attribute will be None.
+        """
+
+        monkeypatch.setattr(pipeline_no_history.logger,
+                            "extract_historical_run_ids",
+                            mock.Mock(side_effect=HistoricalPipelineLoadError("test")))
+
+        with pytest.warns(PipelineConfigurationWarning):
+            assert pipeline_no_history._load_all_runs() is None
+            assert pipeline_no_history.all_runs is None
+
+    def test_returns_none_when_blank_extract_historical_runs(self,
+                                                             monkeypatch,
+                                                             pipeline_no_history
+                                                             ) -> None:
+        """
+        Checks that all_runs attribute is None when extract_historical_run_ids
+        returns a blank list. This ensures that the Pipeline instance does not
+        break when there are no historical runs.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there are no historical runs found, indicating that the 
+            all_runs attribute will be None.
+        """
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids", 
+                            lambda x: [])
+        
+        assert pipeline_no_history.logger.extract_historical_run_ids(
+            pipeline_no_history.run_output
+            ) == []
+        with pytest.warns(PipelineConfigurationWarning):
+            assert pipeline_no_history._load_all_runs() is None
+            assert pipeline_no_history.all_runs is None
+
+    def test_single_entry_dict_single_run(self,
+                                 monkeypatch,
+                                 pipeline_no_history: Pipeline) -> None:
+        """
+        Checks that all_runs attribute is a dictionary with a single entry when
+        extract_historical_run_ids returns a list with one historical run. This
+        ensures that the Pipeline instance correctly loads a single historical run.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there is one historical run found, indicating that the 
+            all_runs attribute will contain a single entry.
+        """
+
+        mock_loader = mock.MagicMock(return_value = mock.sentinel)
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", mock_loader)
+
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids",
+                            lambda x: [{"run_id": "run_A",
+                                        "timestamp": "2026-08-10 10:00:00,000",
+                                        "run_dir": Path("/path/to/run_A")}])
+
+        result = pipeline_no_history._load_all_runs()
+        assert isinstance(result, dict)
+        assert len(result) == 1
+        assert "run_A" in result
+        mock_loader.assert_called_once_with(run_dir = pipeline_no_history.run_output / "run_A")
+                            
+    def test_multiple_entries_dict_multiple_runs(self,
+                                                 monkeypatch,
+                                                 pipeline_no_history: Pipeline) -> None:
+        """
+        Checks that all_runs attribute is a dictionary with multiple entries when
+        extract_historical_run_ids returns a list with multiple historical runs. 
+        This ensures that the Pipeline instance correctly loads multiple historical runs.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there are multiple historical runs found, indicating that the 
+            all_runs attribute will contain multiple entries.
+        """
+
+        mock_loader = mock.MagicMock(side_effect=[mock.sentinel.run_A, mock.sentinel.run_B])
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", mock_loader)
+
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids",
+                            lambda x: [
+                                {"run_id": "run_A",
+                                 "timestamp": "2026-08-10 10:00:00,000",
+                                 "run_dir": Path("/path/to/run_A")},
+                                {"run_id": "run_B",
+                                 "timestamp": "2026-08-10 10:01:00,000",
+                                 "run_dir": Path("/path/to/run_B")}
+                            ])
+
+        result = pipeline_no_history._load_all_runs()
+        assert isinstance(result, dict)
+        assert len(result) == 2
+        assert "run_A" in result and "run_B" in result
+        mock_loader.assert_any_call(run_dir = pipeline_no_history.run_output / "run_A")
+        mock_loader.assert_any_call(run_dir = pipeline_no_history.run_output / "run_B")
+
+    def test_warning_if_no_run_id(self,
+                            monkeypatch,
+                            pipeline_no_history: Pipeline) -> None:
+        """
+        Checks that a warning is raised if extract_historical_run_ids returns a
+        historical run without a run_id. This ensures that the Pipeline instance
+        correctly handles cases where historical runs are missing identifiers.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+        """
+        mock_loader = mock.MagicMock(return_value=mock.sentinel)
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", mock_loader)
+
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids",
+                            lambda x: [
+                                {"run_id": "",
+                                 "timestamp": "2026-08-10 10:00:00,000",
+                                 "run_dir": Path("/path/to/run_A")},
+                                {"run_id": "run_B",
+                                 "timestamp": "2026-08-10 10:01:00,000",
+                                 "run_dir": Path("/path/to/run_B")},
+                                {"run_id": None,
+                                 "timestamp": "2026-08-10 10:00:00,000",
+                                 "run_dir": Path("/path/to/run_A")}
+                            ])
+
+        with pytest.warns(PipelineConfigurationWarning):
+            result = pipeline_no_history._load_all_runs()
+        assert isinstance(result, dict)
+        assert len(result) == 1
+        assert "run_A" not in result and "run_B" in result
+        mock_loader.assert_called_once_with(run_dir = pipeline_no_history.run_output / "run_B")
+
+    def test_None_with_stageloaderror(self,
+                                      monkeypatch,
+                            pipeline_no_history: Pipeline) -> None:
+        """
+        Checks that all_runs attribute is None when load_historical_run raises a
+        StageLoadError. This ensures that the Pipeline instance correctly handles
+        cases where historical runs cannot be loaded due to errors.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there is an issue loading a historical run, indicating that 
+            the all_runs attribute will be None.
+        """
+
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids",
+                            lambda x: [
+                                {"run_id": "good_run",
+                                 "timestamp": "2026-08-10 10:00:00,000",
+                                 "run_dir": Path("/path/to/run_A")},
+                                {"run_id": "bad_run",
+                                 "timestamp": "2026-08-10 10:00:00,000",
+                                 "run_dir": Path("/path/to/run_B")}
+                            ])
+
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", 
+                            mock.Mock(side_effect=[mock.sentinel.good_run,
+                                                   StageLoadError("test")]))
+
+        with pytest.warns(PipelineConfigurationWarning):
+            result = pipeline_no_history._load_all_runs()
+            assert isinstance(result,dict)
+            assert len(result) == 1
+            assert "good_run" in result and "bad_run" not in result
+
+    def test_none_if_all_stageloaderrors(self,
+                                         monkeypatch,
+                                         pipeline_no_history: Pipeline
+                                         ) -> None:
+        """
+        Asserts that all_runs attribute is None when load_historical_run raises a
+        StageLoadError for all historical runs. This ensures that the Pipeline instance
+        correctly handles cases where all historical runs cannot be loaded due to errors.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there is an issue loading all historical runs, indicating that
+            the all_runs attribute will be None.
+        """
+        
+        monkeypatch.setattr(pipeline_no_history.logger, 
+                            "extract_historical_run_ids",
+                            lambda x: [
+                                {"run_id": "bad_run1",
+                                    "timestamp": "2026-08-10 10:00:00,000",
+                                    "run_dir": Path("/path/to/run_A")},
+                                {"run_id": "bad_run2",
+                                    "timestamp": "2026-08-10 10:00:00,000",
+                                    "run_dir": Path("/path/to/run_B")}
+                            ])
+
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", 
+                            mock.Mock(side_effect=[StageLoadError("test"),
+                                                    StageLoadError("test")]))
+
+        with pytest.warns(PipelineConfigurationWarning):
+            result = pipeline_no_history._load_all_runs()
+
+        assert result is None
