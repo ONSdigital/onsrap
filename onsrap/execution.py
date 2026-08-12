@@ -40,7 +40,7 @@ class ExecutionContext:
     """
     Holds information needed to run the pipeline.
 
-    Parameters 
+    Parameters
     ----------
     ``pipeline_name`` : str
         The name of the pipeline.
@@ -596,7 +596,9 @@ class PythonStageExecutor:
 
         return self._execute_subprocess(stage, context)
 
-    def _execute_subprocess(self, stage: Stage, context: ExecutionContext) -> StageResult:
+    def _execute_subprocess(
+        self, stage: Stage, context: ExecutionContext
+    ) -> StageResult:
         """
         Run the entire Python file for the ``Stage`` from the top.
 
@@ -686,7 +688,9 @@ class PythonStageExecutor:
         return result
 
 
-def _invoke_callable(callable_object: Any, stage: Stage, context: ExecutionContext) -> Any:
+def _invoke_callable(
+    callable_object: Any, stage: Stage, context: ExecutionContext
+) -> Any:
     """
     Assigns appropriate parameters for a callable and runs it.
 

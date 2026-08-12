@@ -172,40 +172,51 @@ class Logger:
             A list of dictionaries containing run_id, timestamp, and run_dir for each historical run.
         """
 
-        #ensure that logger is writing to a file and extract filepath
+        # ensure that logger is writing to a file and extract filepath
         if not self._logger.hasHandlers():
-            raise HistoricalPipelineLoadError("The logger does not write to a" \
-            "filepath. Please ensure that your logger writes to a file path so that" \
-            "we can extract the run_id for historical runs.")
+            raise HistoricalPipelineLoadError(
+                "The logger does not write to a"
+                "filepath. Please ensure that your logger writes to a file path so that"
+                "we can extract the run_id for historical runs."
+            )
 
-        logfile_handler = next((h for h in self._logger.handlers if isinstance(h, logging.FileHandler)), None)
+        logfile_handler = next(
+            (h for h in self._logger.handlers if isinstance(h, logging.FileHandler)),
+            None,
+        )
         if logfile_handler is None:
-            raise HistoricalPipelineLoadError("The logger does not have a FileHandler. " \
-            "Please ensure that your logger writes to a file path so that we can extract the run_id "
-            "for historical runs.")
+            raise HistoricalPipelineLoadError(
+                "The logger does not have a FileHandler. "
+                "Please ensure that your logger writes to a file path so that we can extract the run_id "
+                "for historical runs."
+            )
 
         logfile_path = logfile_handler.baseFilename
         if not Path(logfile_path).exists():
-            raise HistoricalPipelineLoadError("The log file does not exist at this location.")
+            raise HistoricalPipelineLoadError(
+                "The log file does not exist at this location."
+            )
 
         matches: list[dict[str, Any]] = []
 
-        #TODO: This method works if the logs are recorded in chronological order. Would there
-        #ever be a case where a record would appear below another and not be chronological?
-        #If so, we may need to sort based on the timestamp rather than the ordering.
-        for raw_line in reversed(Path(logfile_path).read_text(encoding="utf-8").splitlines()):
+        # TODO: This method works if the logs are recorded in chronological order. Would there
+        # ever be a case where a record would appear below another and not be chronological?
+        # If so, we may need to sort based on the timestamp rather than the ordering.
+        for raw_line in reversed(
+            Path(logfile_path).read_text(encoding="utf-8").splitlines()
+        ):
             if "Pipeline started" not in raw_line or " | " not in raw_line:
                 continue
 
             # left: timestamp + message, right: JSON context
             left, right = raw_line.split(" | ", 1)
 
-            #catches where Pipeline started is not recorded in the correct place.
-            if not left.endswith(" Pipeline started"): 
+            # catches where Pipeline started is not recorded in the correct place.
+            if not left.endswith(" Pipeline started"):
                 continue
 
-            #checks that datetime is valid
-            timestamp = left[:-len(" Pipeline started")].strip()
+            # checks that datetime is valid
+            timestamp = left[: -len(" Pipeline started")].strip()
             try:
                 datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S,%f")
             except ValueError:
@@ -228,12 +239,14 @@ class Logger:
 
             run_dir = run_root / run_id
 
-            #only returns run_ids for runs where a run_directory is still present.
+            # only returns run_ids for runs where a run_directory is still present.
             if run_dir.exists():
-                matches.append({
-                    "run_id": run_id,
-                    "timestamp": timestamp,
-                    "run_dir": run_dir,
-                })
-                
+                matches.append(
+                    {
+                        "run_id": run_id,
+                        "timestamp": timestamp,
+                        "run_dir": run_dir,
+                    }
+                )
+
         return matches

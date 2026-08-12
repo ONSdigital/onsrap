@@ -11,11 +11,13 @@ if TYPE_CHECKING:
     from .models import StageResult
 
 
-def _normalize_dependencies(dependencies: Iterable[str] | str | None) -> tuple[str, ...]:
+def _normalize_dependencies(
+    dependencies: Iterable[str] | str | None,
+) -> tuple[str, ...]:
     """
     Standardise the names of any stages dependant on other stages/processes.
 
-    Removes trailing or leading white space from the name of any stage/process dependant 
+    Removes trailing or leading white space from the name of any stage/process dependant
     on another and turns it into a tuple of strings.
 
     Parameters
@@ -55,16 +57,16 @@ class Stage:
     """
     Represents a single unit of work within a pipeline.
 
-    Can be defined by a data source process or a Python script/callable item. 
-    Stages may be dependant on other stages and can hold metadata for themselves. 
+    Can be defined by a data source process or a Python script/callable item.
+    Stages may be dependant on other stages and can hold metadata for themselves.
 
-    Parameters 
+    Parameters
     ----------
     ``name`` : str
-        The name of the Stage being run. 
+        The name of the Stage being run.
     ``source`` : Path, Callable, or None
         Item being implemented in this Stage. E.g. a file path to a Python script
-        or a function being executed directly. The full file path is gathered if 
+        or a function being executed directly. The full file path is gathered if
         a path is used.
     ``dependencies`` : tuple of strings
         Names of stages that must be completed before this stage is attempted. These
@@ -75,12 +77,13 @@ class Stage:
         Name of the starting script to the pipeline.
     ``backend`` : str, default = "python"
         The name of the system that the code runs on.
-    
+
     Raises
     ------
     ``StageConfigurationError``
         If the stage ``name`` is empty or if the source is not a supported type.
     """
+
     name: str
     source: Path | Callable[..., Any] | None = None
     dependencies: tuple[str, ...] = field(default_factory=tuple)
@@ -98,8 +101,10 @@ class Stage:
         elif isinstance(self.source, Path):
             self.source = self.source.expanduser()
         elif self.source is not None and not callable(self.source):
-            raise StageConfigurationError("Stage source must be a path, callable, or None.")
-        
+            raise StageConfigurationError(
+                "Stage source must be a path, callable, or None."
+            )
+
         self.dependencies = _normalize_dependencies(self.dependencies)
         self.metadata = dict(self.metadata or {})
         self.backend = str(self.backend or "python").strip() or "python"
@@ -121,11 +126,11 @@ class Stage:
 
     def __repr__(self) -> str:
         """
-        Representation method that returns a human readable representation of the ``Stage`` class. 
-        This method is structured to be more concise than the ``__str__`` method and is intended for 
+        Representation method that returns a human readable representation of the ``Stage`` class.
+        This method is structured to be more concise than the ``__str__`` method and is intended for
         debugging purposes.
 
-        Returns 
+        Returns
         -------
         str
             A string representation of the ``Stage`` class with its attributes.
@@ -135,7 +140,7 @@ class Stage:
             f"dependencies={self.dependencies}, metadata={self.metadata}, "
             f"entrypoint={self.entrypoint}, backend={self.backend})"
         )
-    
+
     @classmethod
     def from_file(
         cls,
@@ -159,7 +164,7 @@ class Stage:
             The name or file path for the script that the ``Stage`` will be running.
         ``name`` : str
             The name of the ``Stage``
-        ``dependencies`` : Iterable[str], str, or None 
+        ``dependencies`` : Iterable[str], str, or None
             The Stage/s that need to be complete before the ``Stage`` currently attempted.
         ``metadata`` : Mapping[str, Any], or None
             Any supporting information for the ``Stage`` being run.
@@ -175,13 +180,12 @@ class Stage:
 
         Returns
         -------
-        Stage  
+        Stage
             Stage class instance with cleaned/checked file path, dependencies, and metadata
         """
         path = Path(file_path).expanduser()
         if not path.exists():
             raise StageConfigurationError(f"Stage source file does not exist: {path}")
-
 
         return cls(
             name=name or path.stem,
@@ -211,7 +215,7 @@ class Stage:
             The name or file path for the script that the Stage will be running.
         ``name`` : str
             The name of the Stage
-        ``dependencies`` : Iterable[str], str, or None 
+        ``dependencies`` : Iterable[str], str, or None
             The Stage/s that need to be complete before the Stage currently attempted.
         ``metadata`` : Mapping[str, Any], or None
             Any supporting information for the Stage being run.
@@ -222,7 +226,7 @@ class Stage:
 
         Returns
         -------
-        ``Stage`` 
+        ``Stage``
             ``Stage class`` instance with collected Stage ``name``, normalised ``dependencies``
             and ``metadata``, and defined the source as the callable_object.
         """
@@ -246,7 +250,7 @@ class Stage:
         ----------
         ``data`` : any number of key/value pairs of strings
             The information to convert into a Stage class.
-       
+
         Raises
         ------
         ``StageConfigurationError``
@@ -254,7 +258,7 @@ class Stage:
 
         Returns
         -------
-        ``Stage``  
+        ``Stage``
             ``Stage`` class instance with collected ``Stage`` attributes based on the type of ``source``
             provided.
         """
@@ -302,7 +306,9 @@ class Stage:
                 backend=backend,
             )
 
-        raise StageConfigurationError("Stage dictionary must define a source, path, or callable.")
+        raise StageConfigurationError(
+            "Stage dictionary must define a source, path, or callable."
+        )
 
     def with_dependencies(self, *dependencies: str) -> Stage:
         """
@@ -315,7 +321,7 @@ class Stage:
 
         Returns
         -------
-        ``Stage``  
+        ``Stage``
             ``Stage`` class instance with normalised ``dependencies`` attribute.
         """
         unpacked_deps: list[str] = []
@@ -327,8 +333,10 @@ class Stage:
 
         for dependency in unpacked_deps:
             if isinstance(dependency, list):
-                raise StageDependencyError("Nested lists are not valid arguments for this method! " \
-                "Please provided single list or individual string values")
+                raise StageDependencyError(
+                    "Nested lists are not valid arguments for this method! "
+                    "Please provided single list or individual string values"
+                )
 
         return replace(
             self,
@@ -341,16 +349,18 @@ class Stage:
 
         Raises
         -------
-        ``StageConfigurationError``  
+        ``StageConfigurationError``
             If ``source`` attribute does not define a source or does not exist.
         """
         if not (isinstance(self.source, Path) or callable(self.source)):
-            raise StageConfigurationError(f"Stage '{self.name}' must have a Path or Callable source.")
-        
+            raise StageConfigurationError(
+                f"Stage '{self.name}' must have a Path or Callable source."
+            )
+
         if self.source is None or self.source == "":
             raise StageConfigurationError(
                 f"Stage '{self.name}' does not define a source. Source provided: {self.source}"
-                )
+            )
 
         if isinstance(self.source, Path) and not self.source.is_file():
             raise StageConfigurationError(f"Stage source does not exist: {self.source}")
@@ -387,7 +397,7 @@ class Stage:
 
     def run(self, context: ExecutionContext, executor: StageExecutor) -> StageResult:
         """
-        Checks that the ``source`` is valid and then runs the ``source`` 
+        Checks that the ``source`` is valid and then runs the ``source``
 
         Properties
         ----------
@@ -404,4 +414,3 @@ class Stage:
         """
         self.validate()
         return executor.execute(self, context)
-    

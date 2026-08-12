@@ -157,11 +157,9 @@ class PipelineRunner:
             pipeline.manifest = manifest
             pipeline.last_run = run
 
-            #Creates attributes file in the run_directory to log information for later
-            #analysis of pipeline runs
-            _log_pipeline_attributes(pipeline_run = run,
-                                    run_dir = run_dir,
-                                    context = context)
+            # Creates attributes file in the run_directory to log information for later
+            # analysis of pipeline runs
+            _log_pipeline_attributes(pipeline_run=run, run_dir=run_dir, context=context)
 
             self.logger.event(
                 "Pipeline failed",
@@ -184,11 +182,9 @@ class PipelineRunner:
         pipeline.manifest = manifest
         pipeline.last_run = run
 
-        #Creates attributes file in the run_directory to log information for later
-        #analysis of pipeline runs
-        _log_pipeline_attributes(pipeline_run = run,
-                                     run_dir = run_dir,
-                                     context = context)
+        # Creates attributes file in the run_directory to log information for later
+        # analysis of pipeline runs
+        _log_pipeline_attributes(pipeline_run=run, run_dir=run_dir, context=context)
 
         self.logger.event(
             "Pipeline completed",
@@ -242,14 +238,15 @@ def main(argv: list[str] | None = None) -> int:
     pipeline.run()
     return 0
 
-def _log_pipeline_attributes(pipeline_run: PipelineRun,
-                             run_dir: Path,
-                             context: ExecutionContext) -> None:
+
+def _log_pipeline_attributes(
+    pipeline_run: PipelineRun, run_dir: Path, context: ExecutionContext
+) -> None:
     """
     Creates a YAML file within the run directory that contains information
-    regarding PipelineRun and StageResult instances for the run. This is 
+    regarding PipelineRun and StageResult instances for the run. This is
     later used to extract information about previous runs which are not
-    currently stored in memory. 
+    currently stored in memory.
 
     Parameters
     ----------
@@ -260,16 +257,18 @@ def _log_pipeline_attributes(pipeline_run: PipelineRun,
     ``run_dir`` : Path
         The directory where the pipeline run is being currently being executed.
     ``context`` : ExecutionContext
-        The context of the current pipeline run, containing configuration and 
+        The context of the current pipeline run, containing configuration and
         state information.
     """
-    attributes_file = run_dir / f"pipeline_attributes_for_{context.pipeline_name}_{context.run_id[-8:]}.yaml"
+    attributes_file = (
+        run_dir
+        / f"pipeline_attributes_for_{context.pipeline_name}_{context.run_id[-8:]}.yaml"
+    )
     import yaml
+
     with open(attributes_file, "w", encoding="utf-8") as f:
         yaml.safe_dump(
-            pipeline_run._pipeline_run_to_dict(),
-            f,
-            default_flow_style=False
+            pipeline_run._pipeline_run_to_dict(), f, default_flow_style=False
         )
 
 

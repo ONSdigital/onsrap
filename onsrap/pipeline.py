@@ -150,7 +150,6 @@ class Pipeline:
             enabled_stages=[stage.name for stage in self.graph.stages],
         )
 
-
     def __str__(self) -> str:
         """
         String method that returns a human-readable representation of the ``Pipeline`` class.
@@ -533,69 +532,85 @@ class Pipeline:
         if stages is None:
             return ()
 
-        self.logger.event("New dependencies added to Pipeline instance and respective Stage instances",dependencies = dependencies) 
+        self.logger.event(
+            "New dependencies added to Pipeline instance and respective Stage instances",
+            dependencies=dependencies,
+        )
 
-    def _load_latest_run(self) -> PipelineRun | None: 
-            """
-            Load the most recent run of the Pipeline as a PipelineRun instance.
-    
-            Returns
-            -------
-            ``PipelineRun`` or None
-                An instance of ``PipelineRun`` representing the most recent run of the 
-                Pipeline, or None if no previous runs are found.
-            """
-            try:
-                previous_run_logs = self.logger.extract_historical_run_ids(
-                    self.run_output
-                    )
-            except HistoricalPipelineLoadError:
-                warnings.warn("Unable to load previous runs for this Pipeline. Last_run" \
-                " attribute will be None.", PipelineConfigurationWarning)
-                return None
-            
-            if previous_run_logs == []:
-                warnings.warn("No previous runs found for this Pipeline. Last_run attribute" \
-                " will be None.", PipelineConfigurationWarning)
-                return None
-            
-            latest_run_log = previous_run_logs[0] 
-            latest_run_id = latest_run_log["run_id"] 
-            if latest_run_id is None:
-                warnings.warn("No previous runs found for this Pipeline. Last_run attribute" \
-                " will be None.", PipelineConfigurationWarning)
-                return None
+    def _load_latest_run(self) -> PipelineRun | None:
+        """
+        Load the most recent run of the Pipeline as a PipelineRun instance.
 
-            try:
-                return load_historical_run(run_dir=Path(self.run_output) / latest_run_id)
-            except StageLoadError:
-                warnings.warn("Historical run file does not exist. Last_run attribute " \
-                              "will be None.", PipelineConfigurationWarning)
-                return None
+        Returns
+        -------
+        ``PipelineRun`` or None
+            An instance of ``PipelineRun`` representing the most recent run of the
+            Pipeline, or None if no previous runs are found.
+        """
+        try:
+            previous_run_logs = self.logger.extract_historical_run_ids(self.run_output)
+        except HistoricalPipelineLoadError:
+            warnings.warn(
+                "Unable to load previous runs for this Pipeline. Last_run"
+                " attribute will be None.",
+                PipelineConfigurationWarning,
+            )
+            return None
+
+        if previous_run_logs == []:
+            warnings.warn(
+                "No previous runs found for this Pipeline. Last_run attribute"
+                " will be None.",
+                PipelineConfigurationWarning,
+            )
+            return None
+
+        latest_run_log = previous_run_logs[0]
+        latest_run_id = latest_run_log["run_id"]
+        if latest_run_id is None:
+            warnings.warn(
+                "No previous runs found for this Pipeline. Last_run attribute"
+                " will be None.",
+                PipelineConfigurationWarning,
+            )
+            return None
+
+        try:
+            return load_historical_run(run_dir=Path(self.run_output) / latest_run_id)
+        except StageLoadError:
+            warnings.warn(
+                "Historical run file does not exist. Last_run attribute will be None.",
+                PipelineConfigurationWarning,
+            )
+            return None
 
     def _load_all_runs(self) -> dict[str, PipelineRun] | None:
         """
         Loads all previous runs of a Pipeline as a dictionary of PipelineRun instances,
-        keyed by run_id. 
+        keyed by run_id.
 
         Raises
         ------
         ``PipelineConfigurationWarning``
             If there are any errors in loading previous runs, this warning is raised to
-            indicate a None value will be stored in this attribute. 
+            indicate a None value will be stored in this attribute.
         """
         try:
-            previous_run_logs = self.logger.extract_historical_run_ids(
-                self.run_output
-                )
+            previous_run_logs = self.logger.extract_historical_run_ids(self.run_output)
         except HistoricalPipelineLoadError:
-            warnings.warn("Unable to load previous runs for this Pipeline. All_run" \
-            " attribute will be None.", PipelineConfigurationWarning)
+            warnings.warn(
+                "Unable to load previous runs for this Pipeline. All_run"
+                " attribute will be None.",
+                PipelineConfigurationWarning,
+            )
             return None
-        
+
         if previous_run_logs == []:
-            warnings.warn("No previous runs found for this Pipeline. All_run attribute" \
-            " will be None.", PipelineConfigurationWarning)
+            warnings.warn(
+                "No previous runs found for this Pipeline. All_run attribute"
+                " will be None.",
+                PipelineConfigurationWarning,
+            )
             return None
 
         all_runs = {}
@@ -604,14 +619,18 @@ class Pipeline:
             if run_id is None or run_id == "":
                 warnings.warn(
                     f"No run_id found in log for run_dir {run_log.get('run_dir')}. Skipping this run.",
-                    PipelineConfigurationWarning
+                    PipelineConfigurationWarning,
                 )
                 continue
             try:
-                all_runs[run_id] = load_historical_run(run_dir=Path(self.run_output) / run_id)
+                all_runs[run_id] = load_historical_run(
+                    run_dir=Path(self.run_output) / run_id
+                )
             except StageLoadError:
-                warnings.warn(f"Historical run file for run_id {run_id} does not exist. Skipping.",
-                               PipelineConfigurationWarning)
+                warnings.warn(
+                    f"Historical run file for run_id {run_id} does not exist. Skipping.",
+                    PipelineConfigurationWarning,
+                )
         return all_runs if all_runs else None
 
     def _set_run_output(self) -> Path:
@@ -621,28 +640,30 @@ class Pipeline:
         Returns
         -------
         ``Path``
-            The path to the run output directory for the Pipeline. 
+            The path to the run output directory for the Pipeline.
 
         Raises
         ------
         ``StageConfigurationWarning``
             If the output_dir is not specified in the PipelineConfig, a warning is
             raised to show that the project root or work directory will be used as
-            the directory for the run outputs. 
+            the directory for the run outputs.
         """
         if self.config.output_dir is not None:
             run_output = Path(self.config.output_dir)
         else:
             warnings.warn(
                 "Output directory is not specified. Using project root or work directory as the run output.",
-                StageConfigurationWarning
+                StageConfigurationWarning,
             )  # TODO: fill with warnings from Pipeline branch
             run_output = Path(self.config.project_root or self.config.work_dir)
         return run_output / "runs"
 
-    def _assign_dependencies(self, 
-                             dependencies:tuple[str]| dict[str, Sequence[str]] | None = None,
-                             stages: Stage | Sequence[Stage] | None = None,) -> Stage | Sequence[Stage]:
+    def _assign_dependencies(
+        self,
+        dependencies: tuple[str] | dict[str, Sequence[str]] | None = None,
+        stages: Stage | Sequence[Stage] | None = None,
+    ) -> Stage | Sequence[Stage]:
         for stage in stages:
             new_dependencies = self._dependencies_for_stage(
                 stage.name, stage.source, dependencies
@@ -1307,12 +1328,12 @@ class Pipeline:
 
     def _generate_context(self) -> None:
         """
-        Generates the execution context for the Pipeline based on values parsed. 
+        Generates the execution context for the Pipeline based on values parsed.
 
         Validates stage backends and then uses the pipeline backend to generate
-        the expected StageExecutor class. If this class does not exist within 
-        the orchestration tool, an error is raised. If the class does exist, 
-        it is assigned to the executor attribute of the Pipeline instance. 
+        the expected StageExecutor class. If this class does not exist within
+        the orchestration tool, an error is raised. If the class does exist,
+        it is assigned to the executor attribute of the Pipeline instance.
 
         Raises
         ------
@@ -1346,13 +1367,13 @@ class Pipeline:
         Checks the backends that have been assigned to each stage.
 
         Raise an error if the backends for a stage do not match the Pipeline
-        backend or if there are multiple backends across the stages. This 
+        backend or if there are multiple backends across the stages. This
         ensures that the ExecutionContext will run correctly on all stages.
 
         Raises
         ------
         ``PipelineInitialisationError``
-            If there are multiple backends across the stages or if the stage 
+            If there are multiple backends across the stages or if the stage
             backend does not match the Pipeline backend.
         """
         backends = []
@@ -1371,7 +1392,6 @@ class Pipeline:
             raise PipelineInitialisationError(
                 f"Stages have backends '{', '.join(set(backends))}' which do not match pipeline backend '{self.backend}'."
             )
-
 
     @classmethod
     def from_files(

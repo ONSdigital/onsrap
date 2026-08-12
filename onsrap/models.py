@@ -458,7 +458,9 @@ class StageConfig:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_mapping(cls, name: str, data: Mapping[str, Any] | None = None) -> StageConfig:
+    def from_mapping(
+        cls, name: str, data: Mapping[str, Any] | None = None
+    ) -> StageConfig:
         """
         Build a ``StageConfig`` from a mapping loaded from code or configuration files.
 
@@ -720,9 +722,9 @@ class RunManifest:
 
     def _runmanifest_to_dict(self) -> dict[str, Any]:
         """
-        Converts the RunManifest instance into a dictionary representation. 
-        This is needed to allow a RunManifest instance to be serialized into a 
-        JSON format for later methods on RunManifest instances not saved in 
+        Converts the RunManifest instance into a dictionary representation.
+        This is needed to allow a RunManifest instance to be serialized into a
+        JSON format for later methods on RunManifest instances not saved in
         memory.
 
         Returns
@@ -743,25 +745,25 @@ class RunManifest:
             "timestamp": self.timestamp,
             "reason": self.reason,
             "user": self.user,
-            "config": self.config
+            "config": self.config,
         }
 
     @classmethod
     def _runmanifest_from_dict(cls, data: dict[str, Any]) -> RunManifest:
         """
-        Converts a dictionary representation of a RunManifest instance back into a 
+        Converts a dictionary representation of a RunManifest instance back into a
         RunManifest instance. Allows for RunManifest instances to be created from
         a JSON representation of a RunManifest instance.
 
         Parameters
         ----------
         ``data`` : dict[str, Any]
-            A dictionary representation of a RunManifest instance. 
+            A dictionary representation of a RunManifest instance.
 
         Returns
         -------
         ``RunManifest`` class instance
-            A RunManifest instance created from the dictionary representation. 
+            A RunManifest instance created from the dictionary representation.
         """
         return cls(
             rap_name=data.get("rap_name", ""),
@@ -776,7 +778,7 @@ class RunManifest:
             timestamp=data.get("timestamp", ""),
             reason=data.get("reason"),
             user=data.get("user"),
-            config=data.get("config")
+            config=data.get("config"),
         )
 
 
@@ -838,9 +840,9 @@ class StageResult:
 
     def _stage_result_to_dict(self) -> dict[str, Any]:
         """
-        Converts the StageResult instance into a dictionary representation. 
-        This is needed to allow a StageResult instance to be serialized into a 
-        JSON format for later methods on StageResult instances not saved in 
+        Converts the StageResult instance into a dictionary representation.
+        This is needed to allow a StageResult instance to be serialized into a
+        JSON format for later methods on StageResult instances not saved in
         memory.
 
         Returns
@@ -865,19 +867,19 @@ class StageResult:
     @classmethod
     def _stage_result_from_dict(cls, data: dict[str, Any]) -> StageResult:
         """
-        Converts a dictionary representation of a StageResult instance back into a 
+        Converts a dictionary representation of a StageResult instance back into a
         StageResult instance. Allows for StageResult instances to be created from
         a JSON representation of a StageResult instance.
 
         Parameters
         ----------
         ``data`` : dict[str, Any]
-            A dictionary representation of a StageResult instance. 
+            A dictionary representation of a StageResult instance.
 
         Returns
         -------
         ``StageResult`` class instance
-            A StageResult instance created from the dictionary representation. 
+            A StageResult instance created from the dictionary representation.
         """
         return cls(
             name=data["name"],
@@ -955,9 +957,9 @@ class PipelineRun:
 
     def _pipeline_run_to_dict(self) -> dict[str, Any]:
         """
-        Converts the PipelineRun instance into a dictionary representation. 
-        This is needed to allow a PipelineRun instance to be serialized into a 
-        JSON format for later methods on PipelineRun instances not saved in 
+        Converts the PipelineRun instance into a dictionary representation.
+        This is needed to allow a PipelineRun instance to be serialized into a
+        JSON format for later methods on PipelineRun instances not saved in
         memory.
 
         Returns
@@ -970,35 +972,39 @@ class PipelineRun:
             "status": self.status.value,
             "started_at": self.started_at.isoformat(),
             "completed_at": self.completed_at.isoformat(),
-            "stage_results": {result.name:result._stage_result_to_dict() 
-                              for result in self.stage_results},
+            "stage_results": {
+                result.name: result._stage_result_to_dict()
+                for result in self.stage_results
+            },
             "stage_outputs": self.stage_outputs,
         }
 
     @classmethod
     def _pipeline_run_from_dict(cls, data: dict[str, Any]) -> PipelineRun:
         """
-        Converts a dictionary representation of a PipelineRun instance back into a 
+        Converts a dictionary representation of a PipelineRun instance back into a
         PipelineRun instance. Allows for PipelineRun instances to be created from
         a JSON representation of a PipelineRun instance.
 
         Parameters
         ----------
         ``data`` : dict[str, Any]
-            A dictionary representation of a PipelineRun instance. 
+            A dictionary representation of a PipelineRun instance.
 
         Returns
         -------
         ``PipelineRun`` class instance
-            A PipelineRun instance created from the dictionary representation. 
+            A PipelineRun instance created from the dictionary representation.
         """
         return cls(
             manifest=RunManifest._runmanifest_from_dict(data["manifest"]),
             status=PipelineStatus(data["status"]),
             started_at=datetime.fromisoformat(data["started_at"]),
             completed_at=datetime.fromisoformat(data["completed_at"]),
-            stage_results=[StageResult._stage_result_from_dict(result) 
-                           for result in data.get("stage_results", {}).values()],
+            stage_results=[
+                StageResult._stage_result_from_dict(result)
+                for result in data.get("stage_results", {}).values()
+            ],
             stage_outputs=data.get("stage_outputs", {}),
         )
 
