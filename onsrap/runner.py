@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -9,7 +8,6 @@ from .errors import StageExecutionError
 from .execution import ExecutionContext
 from .logger import Logger
 from .models import PipelineRun, PipelineStatus, RunManifest, StageResult, now
-from .warnings import StageConfigurationWarning
 
 if TYPE_CHECKING:
     from .pipeline import Pipeline

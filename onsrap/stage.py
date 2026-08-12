@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, Optional, TYPE_CHECKING
-from datetime import datetime
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Optional
 
 from .errors import StageConfigurationError, StageDependencyError
 

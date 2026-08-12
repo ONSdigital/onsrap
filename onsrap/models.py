@@ -359,7 +359,6 @@ class PipelineConfig:
             "output_dir": str(self.output_dir) if self.output_dir is not None else None,
             "log_dir": str(self.log_dir),
             "data_dir": str(self.data_dir),
-            "output_dir": str(self.output_dir) if self.output_dir is not None else None,
             "allow_subprocess_fallback": self.allow_subprocess_fallback,
             "python_executable": self.python_executable,
         }
