@@ -96,15 +96,6 @@ class Pipeline:
             self.config.name = self.name
 
         self.logger = logger or Logger(log_dir=self.config.log_dir)
-        if executor is not None:
-            self.executor = executor
-        else:
-            if self.backend == "python":
-                self.executor = PythonStageExecutor()
-            else:
-                raise PipelineInitialisationError(
-                    f"Requested backend does not have a compatible executor. Available executors are: {', '.join(AVAILABLE_EXECUTORS)}."
-                )
 
         if stages is not None and configured_stages:
             raise PipelineInitialisationError(
@@ -115,6 +106,11 @@ class Pipeline:
             if stages is None
             else [self._coerce_stage(stage) for stage in stages]
         )
+
+        if executor is not None:
+            self.executor = executor
+        else:
+            self._generate_context()
 
         self.dependencies = self._normalize_dependency_mapping(dependencies)
         if dependencies is not None and stages is None:
