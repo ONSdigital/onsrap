@@ -608,7 +608,9 @@ class GlobalConfig:
     @overload
     def get_attributes(self, keep_exclusion: Literal[False]) -> dict[str, Any]: ...
 
-    def get_attributes(self, keep_exclusion: bool = True) -> tuple[dict[str, Any], dict[str, Any]] | dict[str, Any]:
+    def get_attributes(
+        self, keep_exclusion: bool = True
+    ) -> tuple[dict[str, Any], dict[str, Any]] | dict[str, Any]:
         """
         Return a copy of the global variables, optionally excluding any variables
         specified in the exclusion list.
@@ -1070,7 +1072,7 @@ def _format_dict(d: dict[str, Any] | dict[str, bool] | None, indent: int = 0) ->
     """
     if d is None:
         return ""
-    
+
     lines = []
     for key, value in d.items():
         if isinstance(value, dict):

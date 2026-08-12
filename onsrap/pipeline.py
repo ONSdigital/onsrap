@@ -553,7 +553,9 @@ class Pipeline:
                 raise PipelineInitialisationError(
                     "When assigning dependencies to multiple Stage instances, provide a mapping of stage identifiers to dependency names."
                 )
-            normalized_dependencies = self._normalize_dependency_mapping(dependencies) or {}
+            normalized_dependencies = (
+                self._normalize_dependency_mapping(dependencies) or {}
+            )
 
         if normalized_dependencies and not target_stages:
             raise PipelineInitialisationError(
@@ -578,7 +580,6 @@ class Pipeline:
             )
 
         return normalized_dependencies
-
 
     def _load_latest_run(self) -> PipelineRun | None:
         """
@@ -701,7 +702,6 @@ class Pipeline:
             )  # TODO: fill with warnings from Pipeline branch
             run_output = Path(self.config.project_root or self.config.work_dir)
         return run_output / "runs"
-
 
     def _coerce_stage(
         self,
