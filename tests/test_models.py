@@ -286,8 +286,23 @@ def runmanifest() -> RunManifest:
     )
 
 
+@pytest.fixture
+def stageresult() -> StageResult:
+    """
+    Example StageResult instance for tests that use the module-level fixture.
+    """
+    return StageResult(
+        "stage_test",
+        StageStatus.PENDING,
+        "2024-05-06 15:45:30",
+        "2024-05-07 15:45:30",
+        metadata={},
+        outputs="example output",
+    )
+
+
 class TestStageResult:
-    def test_stage_result(self, stageresult) -> None:
+    def test_stage_result(self, stageresult: StageResult) -> None:
         """
         Uses a StageResult instance created in test_execution to ensure that
         the class instance is created suitably with required defaults.
