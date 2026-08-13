@@ -4,7 +4,6 @@ import csv
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
 
 
 def load_orders(csv_path: Path) -> list[dict[str, str]]:
@@ -31,16 +30,28 @@ def build_summary(rows: list[dict[str, str]]) -> dict[str, object]:
         revenue_by_product[product] += order_value
 
     total_revenue = round(sum(revenue_by_region.values()), 2)
-    top_region = max(revenue_by_region, key=revenue_by_region.get) if revenue_by_region else None
-    top_product = max(revenue_by_product, key=revenue_by_product.get) if revenue_by_product else None
+    top_region = (
+        max(revenue_by_region, key=revenue_by_region.get) if revenue_by_region else None
+    )
+    top_product = (
+        max(revenue_by_product, key=revenue_by_product.get)
+        if revenue_by_product
+        else None
+    )
 
     return {
         "total_orders": len(ordered_rows),
         "total_revenue": total_revenue,
-        "revenue_by_region": {region: round(amount, 2) for region, amount in sorted(revenue_by_region.items())},
+        "revenue_by_region": {
+            region: round(amount, 2)
+            for region, amount in sorted(revenue_by_region.items())
+        },
         "orders_by_region": dict(sorted(orders_by_region.items())),
         "units_by_product": dict(sorted(units_by_product.items())),
-        "revenue_by_product": {product: round(amount, 2) for product, amount in sorted(revenue_by_product.items())},
+        "revenue_by_product": {
+            product: round(amount, 2)
+            for product, amount in sorted(revenue_by_product.items())
+        },
         "top_region": top_region,
         "top_product": top_product,
         "first_order_date": ordered_rows[0]["order_date"] if ordered_rows else None,
@@ -50,7 +61,9 @@ def build_summary(rows: list[dict[str, str]]) -> dict[str, object]:
 
 def write_summary(summary_path: Path, summary: dict[str, object]) -> None:
     summary_path.parent.mkdir(parents=True, exist_ok=True)
-    summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    summary_path.write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def write_region_breakdown(region_path: Path, summary: dict[str, object]) -> None:
@@ -69,11 +82,10 @@ def write_region_breakdown(region_path: Path, summary: dict[str, object]) -> Non
 
 
 def main(context=None) -> dict[str, object]:
-    data_root = context.get_data_dir()
     output_root = context.resolve_output_root()
-    clean_path = context.resolve_given_path("1_preprocessing", "clean_path",
-                                            "1_clean_orders.csv", output_root,
-                                            "interim")
+    clean_path = context.resolve_given_path(
+        "1_preprocessing", "clean_path", "1_clean_orders.csv", output_root, "interim"
+    )
     summary_path = output_root / "processed" / "2_sales_summary.json"
     region_breakdown_path = output_root / "processed" / "2_revenue_by_region.csv"
 

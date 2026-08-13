@@ -4,7 +4,6 @@ import csv
 import json
 from datetime import date
 from pathlib import Path
-from typing import Any
 
 
 def load_orders(csv_path: Path) -> list[dict[str, str]]:
@@ -73,7 +72,9 @@ def write_clean_rows(clean_path: Path, rows: list[dict[str, object]]) -> None:
         writer.writerows(rows)
 
 
-def build_summary(source_path: Path, clean_path: Path, rows: list[dict[str, object]]) -> dict[str, object]:
+def build_summary(
+    source_path: Path, clean_path: Path, rows: list[dict[str, object]]
+) -> dict[str, object]:
     total_revenue = round(sum(float(row["order_value"]) for row in rows), 2)
     return {
         "source_path": str(source_path),
@@ -89,8 +90,9 @@ def build_summary(source_path: Path, clean_path: Path, rows: list[dict[str, obje
 def main(context=None) -> dict[str, object]:
     data_root = context.get_data_dir()
     output_root = context.resolve_output_root()
-    raw_path = context.resolve_given_path("0_data_validation", "raw_path", 
-                                          "orders.csv", data_root)
+    raw_path = context.resolve_given_path(
+        "0_data_validation", "raw_path", "orders.csv", data_root
+    )
     clean_path = output_root / "interim" / "1_clean_orders.csv"
 
     rows = load_orders(raw_path)
@@ -102,4 +104,4 @@ def main(context=None) -> dict[str, object]:
 
 
 if __name__ == "__main__":
-	print(json.dumps(main(), indent=2, sort_keys=True))
+    print(json.dumps(main(), indent=2, sort_keys=True))

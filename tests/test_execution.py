@@ -212,8 +212,8 @@ class TestExecutionContext:
     @pytest.fixture
     def blank_context_with_config_none(self, stageresult) -> ExecutionContext:
         """
-        Fixture that returns a test ExecutionContext instance with a None config for 
-        testing error handling. 
+        Fixture that returns a test ExecutionContext instance with a None config for
+        testing error handling.
 
         Parameters
         ----------
@@ -245,7 +245,7 @@ class TestExecutionContext:
         ``execution`` : ExecutionContext
             An ``ExecutionContext`` object for testing.
         ``blank_context_with_config_none`` : ExecutionContext
-            An ``ExecutionContext`` object with a None config for testing error 
+            An ``ExecutionContext`` object with a None config for testing error
             handling.
 
         Raises
@@ -309,7 +309,7 @@ class TestExecutionContext:
         Raises
         ------
         ``PipelineConfigurationError``
-            Requested a StageConfig instance as with_global = True, the output must 
+            Requested a StageConfig instance as with_global = True, the output must
             be a dictionary however quantifying vars_only as False would demand that
             the entire StageConfig instance is returned.
         """
@@ -394,10 +394,10 @@ class TestExecutionContext:
         Raises
         ------
         ``PipelineConfigurationError``
-            Requested a StageConfig instance as with_global = True, the output must 
+            Requested a StageConfig instance as with_global = True, the output must
             be a dictionary however quantifying vars_only as False would demand that
             the entire StageConfig instance is returned.
-            
+
         """
         assert execution.get_stage_config() == {}
         with pytest.raises(PipelineConfigurationError):
@@ -443,7 +443,7 @@ class TestResolveGivenPath:
     ) -> None:
         """
         Tests the add_folder functionality for lists, single strings, or None type in
-        the resolve_given_path class method as well as when the file_name is a valid 
+        the resolve_given_path class method as well as when the file_name is a valid
         string or None type.
 
         Parameters
@@ -548,7 +548,7 @@ class TestCombineVars:
 
     def test_combine_vars_errors(self, execution) -> None:
         """
-        Test that confirms that a warning is raised if there is a variable defined in 
+        Test that confirms that a warning is raised if there is a variable defined in
         both the global and the stage configurations as well as asserting the correct
         values.
 
@@ -584,7 +584,7 @@ class TestCombineVars:
 
     def test_combine_vars_no_exclusion(self, execution) -> None:
         """
-        Test confirming that a dictionary is returned, combining values from a global 
+        Test confirming that a dictionary is returned, combining values from a global
         configuration and a stage configuration when there are no exclusions defined.
 
         Parameters

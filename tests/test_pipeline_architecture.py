@@ -17,8 +17,10 @@ from onsrap.warnings import PipelineConfigurationWarning, StageConfigurationWarn
 NO_STAGES_SPECIFIED_WARNING = (
     "No stages specified to run. All stages running by default."
 )
-OUTPUT_DIRECTORY_WARNING = "Output directory is not specified. Using project root or " \
-                           "work directory as the run output."
+OUTPUT_DIRECTORY_WARNING = (
+    "Output directory is not specified. Using project root or "
+    "work directory as the run output."
+)
 
 
 def _base_pipeline_config(tmp_path: Path) -> dict:
@@ -49,12 +51,12 @@ class TestPipelineFromFiles:
         Raises
         ------
         'PipelineConfigurationWarning'
-            Expected and asserted as there is no stage run specification in the 
+            Expected and asserted as there is no stage run specification in the
             Pipeline configuration. This does not affect the test capability.
         'StageConfigurationWarning'
             Expected and asserted as there is no output directory specified
             in the configuration. This means that the Pipeline defaults to using
-            the project root or working directory as the run output.    
+            the project root or working directory as the run output.
         """
         first_stage = tmp_path / "first_stage.py"
         first_stage.write_text(
@@ -80,17 +82,12 @@ class TestPipelineFromFiles:
             encoding="utf-8",
         )
 
-        with pytest.warns(
-            PipelineConfigurationWarning
-        ):
-            with pytest.warns(
-                StageConfigurationWarning
-            ):
-                pipeline = Pipeline.from_files(
-                    [first_stage, second_stage],
-                    dependencies={"second_stage": ("first_stage",)},
-                    config=_base_pipeline_config(tmp_path),
-                )
+        with pytest.warns((PipelineConfigurationWarning, StageConfigurationWarning)):
+            pipeline = Pipeline.from_files(
+                [first_stage, second_stage],
+                dependencies={"second_stage": ("first_stage",)},
+                config=_base_pipeline_config(tmp_path),
+            )
 
         run = pipeline.run()
 
@@ -119,7 +116,7 @@ class TestPipelineFromFiles:
         Raises
         ------
         'PipelineConfigurationWarning'
-            Expected and asserted as there is no stage run specification in the 
+            Expected and asserted as there is no stage run specification in the
             Pipeline configuration. This does not affect the test capability.
         'StageConfigurationWarning'
             Expected and asserted as there is no output directory specified
@@ -145,16 +142,11 @@ class TestPipelineFromFiles:
             + "\n",
             encoding="utf-8",
         )
-        with pytest.warns(
-            PipelineConfigurationWarning
-        ):
-            with pytest.warns(
-                StageConfigurationWarning
-            ):
-                pipeline = Pipeline.from_files(
-                    [writer_stage],
-                    config=_base_pipeline_config(tmp_path),
-                )
+        with pytest.warns((PipelineConfigurationWarning, StageConfigurationWarning)):
+            pipeline = Pipeline.from_files(
+                [writer_stage],
+                config=_base_pipeline_config(tmp_path),
+            )
 
         first_run = pipeline.run()
         second_run = pipeline.run()
@@ -173,7 +165,7 @@ class TestPipelineFromFiles:
         self, tmp_path: Path
     ) -> None:
         """
-        Checks that a pipeline will run with a non-module based Python script by 
+        Checks that a pipeline will run with a non-module based Python script by
         running the entire script.
 
         Parameters
@@ -184,7 +176,7 @@ class TestPipelineFromFiles:
         Raises
         ------
         'PipelineConfigurationWarning'
-            Expected and asserted as there is no stage run specification in the 
+            Expected and asserted as there is no stage run specification in the
             Pipeline configuration. This does not affect the test capability.
         'StageConfigurationWarning'
             Expected and asserted as there is no output directory specified
@@ -193,17 +185,12 @@ class TestPipelineFromFiles:
         script_stage = tmp_path / "script_stage.py"
         script_stage.write_text("print('script fallback works')\n", encoding="utf-8")
 
-        with pytest.warns(
-            PipelineConfigurationWarning
-        ):
-            with pytest.warns(
-                StageConfigurationWarning
-            ):
-                pipeline = Pipeline.from_files(
-                    [script_stage],
-                    name="script-pipeline",
-                    config=_base_pipeline_config(tmp_path),
-                )
+        with pytest.warns((PipelineConfigurationWarning, StageConfigurationWarning)):
+            pipeline = Pipeline.from_files(
+                [script_stage],
+                name="script-pipeline",
+                config=_base_pipeline_config(tmp_path),
+            )
 
         run = pipeline.run()
 
@@ -250,11 +237,11 @@ class TestPipelineFromConfig:
         ----------
         ``tmp_path`` : Path
             A temporary directory provided by pytest for testing.
-        
+
         Raises
         ------
         'PipelineConfigurationWarning'
-            Expected and asserted as there is no stage run specification in the 
+            Expected and asserted as there is no stage run specification in the
             Pipeline configuration. This does not affect the test capability.
         'StageConfigurationWarning'
             Expected and asserted as there is no output directory specified
@@ -294,8 +281,8 @@ class TestPipelineFromConfig:
                   stages:
                     - 0_data_validation:
                         location: "{
-                            (tmp_path / "scripts" / "0_data_validation.py").as_posix()
-                            }"
+                    (tmp_path / "scripts" / "0_data_validation.py").as_posix()
+                }"
                         run: true
                         dependencies: []
 
@@ -312,13 +299,8 @@ class TestPipelineFromConfig:
             encoding="utf-8",
         )
 
-        with pytest.warns(
-            PipelineConfigurationWarning
-        ):
-            with pytest.warns(
-                StageConfigurationWarning
-            ):
-                pipeline = Pipeline.from_config(config_file)
+        with pytest.warns((PipelineConfigurationWarning, StageConfigurationWarning)):
+            pipeline = Pipeline.from_config(config_file)
 
         assert [stage.name for stage in pipeline.stages] == ["0_data_validation"]
         assert pipeline.stage_configs["0_data_validation"].get("years_to_run") == 2017
@@ -340,11 +322,11 @@ class TestPipelineFromConfig:
         ----------
         ``tmp_path`` : Path
             A temporary directory provided by pytest for testing.
-        
+
         Raises
         ------
         'PipelineConfigurationWarning'
-            Expected and asserted as there is no stage run specification in the 
+            Expected and asserted as there is no stage run specification in the
             Pipeline configuration. This does not affect the test capability.
         'StageConfigurationWarning'
             Expected and asserted as there is no output directory specified
@@ -366,16 +348,11 @@ class TestPipelineFromConfig:
         config["stage_configuration"] = {
             "missing_stage": {"years_to_run": 2017},
         }
-        with pytest.warns(
-            PipelineConfigurationWarning
-        ):
-            with pytest.warns(
-                StageConfigurationWarning
-            ):
-                pipeline = Pipeline.from_files(
-                    [stage_file],
-                    config=config,
-                )
+        with pytest.warns((PipelineConfigurationWarning, StageConfigurationWarning)):
+            pipeline = Pipeline.from_files(
+                [stage_file],
+                config=config,
+            )
 
         with pytest.raises(StageConfigurationError, match="unknown stages"):
             pipeline.validate()
@@ -390,14 +367,14 @@ class TestPipelineFromConfig:
         the stage.
 
         Parameters
-        ---------- 
+        ----------
         ``tmp_path`` : Path
             A temporary directory provided by pytest for testing.
 
         Raises
         ------
         'PipelineConfigurationWarning'
-            Expected and asserted as there is no stage run specification in the 
+            Expected and asserted as there is no stage run specification in the
             Pipeline configuration. This does not affect the test capability.
 
         """
@@ -472,13 +449,8 @@ class TestPipelineFromConfig:
             yaml.safe_dump(config_payload, sort_keys=False), encoding="utf-8"
         )
 
-        with pytest.warns(
-            PipelineConfigurationWarning
-        ):
-            with pytest.warns(
-                StageConfigurationWarning
-            ):
-                pipeline = Pipeline.from_config(config_file)
+        with pytest.warns((PipelineConfigurationWarning, StageConfigurationWarning)):
+            pipeline = Pipeline.from_config(config_file)
 
         assert pipeline.name == "parse-test"
         assert pipeline.config.work_dir == tmp_path
@@ -515,7 +487,7 @@ class TestPipelineFromConfig:
         Raises
         ------
         'PipelineConfigurationWarning'
-            Expected and asserted as there is no stage run specification in the 
+            Expected and asserted as there is no stage run specification in the
             Pipeline configuration. This does not affect the test capability.
         'StageConfigurationWarning'
             Expected and asserted as there is no output directory specified
@@ -595,13 +567,8 @@ class TestPipelineFromConfig:
             encoding="utf-8",
         )
 
-        with pytest.warns(
-            PipelineConfigurationWarning
-        ):
-            with pytest.warns(
-                StageConfigurationWarning
-            ):
-                pipeline = Pipeline.from_config(config_file)
+        with pytest.warns((PipelineConfigurationWarning, StageConfigurationWarning)):
+            pipeline = Pipeline.from_config(config_file)
 
         assert [stage.name for stage in pipeline.stages] == stage_names
         assert sorted(pipeline.stage_configs) == stage_names
@@ -661,11 +628,11 @@ class TestPipelineRunConfigurationLogging:
         self, tmp_path: Path
     ) -> None:
         """
-        Integration test that checks that the _log_config method is correctly called 
-        within PipelineRunner.run() and that the information is parsed in a suitable 
+        Integration test that checks that the _log_config method is correctly called
+        within PipelineRunner.run() and that the information is parsed in a suitable
         format to a YAML file in the run directory.
 
-        This test also captures that _combine_configs() correctly converts all 
+        This test also captures that _combine_configs() correctly converts all
         configuration information into a single dictionary that can be serialized
         to YAML.
 
@@ -677,7 +644,7 @@ class TestPipelineRunConfigurationLogging:
         Raises
         ------
         'PipelineConfigurationWarning'
-            Expected and asserted as there is no stage run specification in the 
+            Expected and asserted as there is no stage run specification in the
             Pipeline configuration. This does not affect the test capability.
         'StageConfigurationWarning'
             Expected and asserted as there is no output directory specified
@@ -695,27 +662,22 @@ class TestPipelineRunConfigurationLogging:
             encoding="utf-8",
         )
 
-        with pytest.warns(
-            PipelineConfigurationWarning
-        ):
-            with pytest.warns(
-                StageConfigurationWarning
-            ):
-                pipeline = Pipeline.from_files(
-                    [stage_file],
-                    name="config-export-pipeline",
-                    config={
-                        "pipeline_config": {
-                            "work_dir": tmp_path,
-                            "project_root": tmp_path,
-                            "log_dir": tmp_path / "logs",
-                        },
-                        "stage_configuration": {},
-                        "global_configuration": {
-                            "dry_run": True,
-                        },
+        with pytest.warns((PipelineConfigurationWarning, StageConfigurationWarning)):
+            pipeline = Pipeline.from_files(
+                [stage_file],
+                name="config-export-pipeline",
+                config={
+                    "pipeline_config": {
+                        "work_dir": tmp_path,
+                        "project_root": tmp_path,
+                        "log_dir": tmp_path / "logs",
                     },
-                )
+                    "stage_configuration": {},
+                    "global_configuration": {
+                        "dry_run": True,
+                    },
+                },
+            )
 
         run = pipeline.run()
 

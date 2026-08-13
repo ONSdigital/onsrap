@@ -30,22 +30,21 @@ class TestNormalizeDependencies:
         Tests that duplicate values are removed from the normalized dependencies
         whilst preserving first seen order.
         """
-        assert _normalize_dependencies(
-            ["Stage_1.py", "Stage_2.py", "Stage_1.py"]
-        ) == ("Stage_1.py", "Stage_2.py")
+        assert _normalize_dependencies(["Stage_1.py", "Stage_2.py", "Stage_1.py"]) == (
+            "Stage_1.py",
+            "Stage_2.py",
+        )
 
         assert _normalize_dependencies(
-                    ["Stage_2.py","Stage_1.py", "Stage_2.py", "Stage_1.py"]
-                ) == ("Stage_2.py","Stage_1.py")
+            ["Stage_2.py", "Stage_1.py", "Stage_2.py", "Stage_1.py"]
+        ) == ("Stage_2.py", "Stage_1.py")
 
     def test_normalize_dependencies_whitespace_handling(self) -> None:
         """
-        Tests that whitespace only or blank dependency values are removed from 
+        Tests that whitespace only or blank dependency values are removed from
         the normalised dependencies.
         """
-        assert _normalize_dependencies(
-            ["   ", ""]
-        ) == ()
+        assert _normalize_dependencies(["   ", ""]) == ()
 
     def test_normalize_dependencies_type_check(self) -> None:
         """
@@ -69,9 +68,10 @@ class TestNormalizeDependencies:
         dependency iterable.
         """
         assert _normalize_dependencies(["Stage_1.py", 11, "Stage_2.py"]) == (
-            "Stage_1.py", "11", "Stage_2.py"
-            )
-        
+            "Stage_1.py",
+            "11",
+            "Stage_2.py",
+        )
 
 
 @pytest.fixture
@@ -120,14 +120,14 @@ class TestStage:
         Raises
         ------
         ``StageConfigurationError``
-            If the name is left blank or entirely whitespace in a ``Stage`` class 
-            instance. 
+            If the name is left blank or entirely whitespace in a ``Stage`` class
+            instance.
         """
         with pytest.raises(StageConfigurationError):
             Stage("", example_function, ["stage_1"], {"info": "example"})
 
         with pytest.raises(StageConfigurationError):
-                    Stage("      ", example_function, ["stage_1"], {"info": "example"})
+            Stage("      ", example_function, ["stage_1"], {"info": "example"})
 
     def test_stage_source_type(self) -> None:
         """
@@ -136,7 +136,7 @@ class TestStage:
         Raises
         ------
         ``StageConfigurationError``
-            If the source is not a valid callable or file path in a ``Stage`` class 
+            If the source is not a valid callable or file path in a ``Stage`` class
             instance.
         """
         with pytest.raises(StageConfigurationError):
@@ -195,41 +195,39 @@ class TestStage:
         )
 
         stage_blank = Stage(
-                    "callable_stage",
-                    example_function,
-                    ["stage_1"],
-                    {"info": "example"},
-                    backend="   ",
-                )
+            "callable_stage",
+            example_function,
+            ["stage_1"],
+            {"info": "example"},
+            backend="   ",
+        )
         stage_non_string = Stage(
-                "callable_stage",
-                example_function,
-                ["stage_1"],
-                {"info": "example"},
-                backend=11,
-                )
-            
+            "callable_stage",
+            example_function,
+            ["stage_1"],
+            {"info": "example"},
+            backend=11,
+        )
+
         assert stage_none.backend == "python"
         assert stage_blank.backend == "python"
         assert stage_non_string.backend == "11"
-        
 
     def test_stage_constructor_expands_string_source_with_home(
-            self, 
-            monkeypatch, 
-            tmp_path):
+        self, monkeypatch, tmp_path
+    ):
         """
-        Check that a string source is converted to a Path and expanded with 
+        Check that a string source is converted to a Path and expanded with
         expanduser(). This uses fake environmental variables to make sure that the
         tests are not dependent on the actual user's home directory.
 
         Parameters
         ----------
         ``monkeypatch`` : pytest.MonkeyPatch
-            A pytest fixture that allows for temporary modification of environment 
+            A pytest fixture that allows for temporary modification of environment
             variables and other attributes during testing.
         ``tmp_path`` : Path
-            A temporary path provided by pytest for testing file creation and 
+            A temporary path provided by pytest for testing file creation and
             manipulation.
         """
         fake_home = tmp_path / "fake_home"
@@ -249,23 +247,21 @@ class TestStage:
         assert isinstance(stage.source, Path)
         assert stage.source == expected
 
-
     def test_stage_constructor_expands_path_source_with_home(
-            self, 
-            monkeypatch, 
-            tmp_path):
+        self, monkeypatch, tmp_path
+    ):
         """
-        Check that a Path source is expanded with expanduser(). This uses fake 
-        environmental variables to make sure that the tests are not dependent on the 
+        Check that a Path source is expanded with expanduser(). This uses fake
+        environmental variables to make sure that the tests are not dependent on the
         actual user's home directory.
 
         Parameters
         ----------
         ``monkeypatch`` : pytest.MonkeyPatch
-            A pytest fixture that allows for temporary modification of environment 
+            A pytest fixture that allows for temporary modification of environment
             variables and other attributes during testing.
         ``tmp_path`` : Path
-            A temporary path provided by pytest for testing file creation and 
+            A temporary path provided by pytest for testing file creation and
             manipulation.
         """
         fake_home = tmp_path / "fake_home"
@@ -285,10 +281,10 @@ class TestStage:
         assert isinstance(stage.source, Path)
         assert stage.source == expected
 
-    def test_normalise_dependencies_within_stage_init(self, example_function) -> None: 
+    def test_normalise_dependencies_within_stage_init(self, example_function) -> None:
         """
-        Thin smoke test to check that _normalize_dependencies is called within the Stage 
-        post_init method. 
+        Thin smoke test to check that _normalize_dependencies is called within the Stage
+        post_init method.
 
         Parameters
         ----------
@@ -305,7 +301,7 @@ class TestStage:
 
     def test_source_path(self, stage_test, tmp_path, example_function) -> None:
         """
-        Tests whether source_path detects a path vs other valid and invalid source 
+        Tests whether source_path detects a path vs other valid and invalid source
         types.
 
         Parameters
@@ -313,7 +309,7 @@ class TestStage:
         ``stage_test`` : Stage
             A ``Stage`` object created with a callable source for testing.
         ``tmp_path`` : Path
-            A temporary path provided by pytest for testing file creation and 
+            A temporary path provided by pytest for testing file creation and
             manipulation.
         ``example_function`` : callable
             A callable function to pass as a source for a ``Stage`` class instance.
@@ -338,7 +334,7 @@ class TestStage:
         ``stage_test`` : Stage
             A ``Stage`` object created with a callable source for testing.
         ``tmp_path`` : Path
-            A temporary path provided by pytest for testing file creation and 
+            A temporary path provided by pytest for testing file creation and
             manipulation.
         ``example_function`` : callable
             A callable function to pass as a source for a ``Stage`` class instance.
@@ -356,7 +352,7 @@ class TestStage:
         class NoName:
             def __call__(self):
                 pass
-        
+
         stage_test.source = NoName()
         assert stage_test.source_label == f"tests.test_stage.{stage_test.name}"
 
@@ -365,8 +361,8 @@ class TestStage:
         Checks that if the original metadata dictionary is modified after the Stage
         instance is created, the Stage instance's metadata remains unchanged.
         """
-        #TODO: do we want this to be how it works? Or would the user assume that if
-        #they modify the original dict, it modifies the Stage instance.
+        # TODO: do we want this to be how it works? Or would the user assume that if
+        # they modify the original dict, it modifies the Stage instance.
         original_metadata = {"info": "example"}
         stage = Stage(
             name="callable_stage",
@@ -377,7 +373,7 @@ class TestStage:
         original_metadata["info"] = "modified"
         assert stage.metadata["info"] == "example"
 
-    def test_repr_function(self) -> None: 
+    def test_repr_function(self) -> None:
         """
         Tests that the __repr__ function returns a string representation of the Stage
         instance with the correct attributes.
@@ -423,6 +419,7 @@ class TestStage:
         )
         assert str(stage) == expected_str
 
+
 class TestValidateStage:
     def test_validate(self, stage_test, tmp_path) -> None:
         """
@@ -433,13 +430,13 @@ class TestValidateStage:
         ``stage_test`` : Stage
             A ``Stage`` object created with a callable source for testing.
         ``tmp_path`` : Path
-            A temporary path provided by pytest for testing file creation and 
+            A temporary path provided by pytest for testing file creation and
             manipulation.
 
         Raises
         ------
         ``StageConfigurationError``
-            If the source is not a valid callable or file path in a ``Stage`` class 
+            If the source is not a valid callable or file path in a ``Stage`` class
             instance. In this instance, it raises if the source is None, an empty
             string, or a Path object that is not a file.
         """
@@ -453,11 +450,13 @@ class TestValidateStage:
         stage_test.source = ""
         with pytest.raises(StageConfigurationError):
             stage_test.validate()
-    
-    def test_validate_successes(self, stage_test, example_function, temp_script) -> None: 
+
+    def test_validate_successes(
+        self, stage_test, example_function, temp_script
+    ) -> None:
         """
-        Tests that validate successfully approves of callables and file paths as 
-        sources for a stage instance. 
+        Tests that validate successfully approves of callables and file paths as
+        sources for a stage instance.
 
         Parameters
         ----------
@@ -469,17 +468,18 @@ class TestValidateStage:
             A fixture factory that creates temporary Python scripts.
         """
         stage_test.source = example_function
-        assert stage_test.validate() == None
+        assert stage_test.validate() is None
 
         stage_test.source = temp_script(filename="valid_script.py")
-        assert stage_test.validate() == None
+        assert stage_test.validate() is None
+
 
 class TestWithDependencies:
     def test_with_dependencies_list(self, stage_test) -> None:
         """
         Tests adding different types of dependencies when the original dependency is
         a list. Also checks that the original stage_test instance is not modified when
-        with_dependencies is called. 
+        with_dependencies is called.
 
         Parameters
         ----------
@@ -500,7 +500,7 @@ class TestWithDependencies:
         stage_test.with_dependencies("stage2", "stage3")
         assert stage_test.dependencies == original_deps
 
-    def test_with_dependencies_errors(self, stage_test) -> None: 
+    def test_with_dependencies_errors(self, stage_test) -> None:
         """
         Tests that a StageDependencyError is raised if a nested list is
         provided in dependencies.
@@ -513,7 +513,7 @@ class TestWithDependencies:
         with pytest.raises(StageDependencyError):
             stage_test.with_dependencies(["stage2", ["nested_stage"]])
 
-    def test_with_dependencies_list_positional_args(self, stage_test) -> None: 
+    def test_with_dependencies_list_positional_args(self, stage_test) -> None:
         """
         Tests that with_dependencies can accept a list and positional arguments in the
         same call and combine them into a single normalized dependencies tuple.
@@ -529,7 +529,7 @@ class TestWithDependencies:
             "stage_1",
             "stage2",
             "stage3",
-            "stage4"
+            "stage4",
         )
 
     def test_with_dependencies_duplicates(self, stage_test) -> None:
@@ -537,45 +537,51 @@ class TestWithDependencies:
         Tests that when the same dependency is added through with_dependencies,
         it is not duplicated in the dependencies tuple of the new Stage instance.
 
-        Caution that this only deduplicates due to Stage post_init calling 
-        _normalize_dependencies however if that moves, 
+        Caution that this only deduplicates due to Stage post_init calling
+        _normalize_dependencies however if that moves,
         test_normalise_dependencies_within_stage_init will capture the issue.
 
         Parameters
         ----------
         ``stage_test`` : Stage
             A ``Stage`` object created with a callable source for testing.
-        """ 
+        """
         new_stage = stage_test.with_dependencies(["stage_1"])
         assert new_stage.dependencies == ("stage_1",)
 
 
 # TEST NOT CODED FOR RUN() AS ASSUMED THIS IS COVERED IN PIPELINE_ARCHITECTURE TEST
 
+
 @pytest.fixture
 def temp_script(tmp_path):
     """
     Fixture factory that creates temporary Python scripts.
-    
+
     Usage:
         script = temp_script("def main(): pass")
         script = temp_script("def process(): return 42", "processor.py")
     """
+
     def _create_script(content="def main(): pass\n", filename="temp_script.py"):
         script = tmp_path / filename
         script.write_text(content, encoding="utf-8")
         return script
+
     return _create_script
+
 
 class TestStageFactories:
     """
     Parent class for tests which create Stage class instances from different methods.
     """
 
+
 class TestStageFromFile(TestStageFactories):
     """
     Class which tests the creation of Stage class instances from a file path.
     """
+
     def test_stage_instance_from_file(self, temp_script) -> None:
         """
         Tests that a Stage instance is created from a filepath where name is either
@@ -584,7 +590,7 @@ class TestStageFromFile(TestStageFactories):
         Parameters
         ----------
         ``tmp_path`` : Path
-            A temporary path provided by pytest for testing file creation and 
+            A temporary path provided by pytest for testing file creation and
             manipulation.
         """
         test_stage = temp_script(
@@ -608,24 +614,24 @@ class TestStageFromFile(TestStageFactories):
         )
 
     def test_stage_from_files_error(self, tmp_path: Path) -> None:
-            """
-            Tests that if the file doesn't exist, a StageConfigurationError is raised.
-    
-            Parameters
-            ----------
-            ``tmp_path`` : Path
-                A temporary path provided by pytest for testing file creation and 
-                manipulation.
-            
-            Raises
-            ------
-            ``StageConfigurationError``
-                If the source file doesn't exist when attempting to create a 
-                ``Stage`` instance
-            """
-            source_file = tmp_path / "not_an_actual_file.py"
-            with pytest.raises(StageConfigurationError):
-                Stage.from_file(source_file)
+        """
+        Tests that if the file doesn't exist, a StageConfigurationError is raised.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary path provided by pytest for testing file creation and
+            manipulation.
+
+        Raises
+        ------
+        ``StageConfigurationError``
+            If the source file doesn't exist when attempting to create a
+            ``Stage`` instance
+        """
+        source_file = tmp_path / "not_an_actual_file.py"
+        with pytest.raises(StageConfigurationError):
+            Stage.from_file(source_file)
 
     def test_from_file_resolves_relative_to_absolute(self, temp_script, monkeypatch):
         """
@@ -637,7 +643,7 @@ class TestStageFromFile(TestStageFactories):
         ``temp_script`` : callable
             A fixture factory that creates temporary Python scripts.
         ``monkeypatch`` : pytest.MonkeyPatch
-            A pytest fixture that allows for temporary modification of environment 
+            A pytest fixture that allows for temporary modification of environment
             variables and other attributes during testing.
         """
         script = temp_script()
@@ -652,16 +658,16 @@ class TestStageFromFile(TestStageFactories):
     def test_from_file_expands_source_path(self, tmp_path, monkeypatch):
         """
         Tests that a path with a tilde (~) is expanded to the user's home directory
-        when passed to from_file. Uses monkeypatch to set a fake home directory for 
+        when passed to from_file. Uses monkeypatch to set a fake home directory for
         testing purposes.
 
         Parameters
         ----------
         ``tmp_path`` : Path
-            A temporary path provided by pytest for testing file creation and 
+            A temporary path provided by pytest for testing file creation and
             manipulation.
         ``monkeypatch`` : pytest.MonkeyPatch
-            A pytest fixture that allows for temporary modification of environment 
+            A pytest fixture that allows for temporary modification of environment
             variables and other attributes during testing.
         """
         fake_home = tmp_path / "fake_home"
@@ -684,6 +690,7 @@ class TestStageFromCallable(TestStageFactories):
     """
     Class which tests the creation of Stage class instances from a callable object.
     """
+
     def test_stage_from_callable_name(self, example_function) -> None:
         """
         Tests that a stage name is extracted from a callable object stage.
@@ -701,9 +708,11 @@ class TestStageFromCallable(TestStageFactories):
         Tests that a fallback name is assigned to a stage instance if the callable
         object does not have a name attribute.
         """
+
         class NoName:
-            def __call__(self): pass
-        
+            def __call__(self):
+                pass
+
         stage = Stage.from_callable(NoName())
         assert stage.name == "stage"
 
@@ -719,6 +728,7 @@ class TestStageFromCallable(TestStageFactories):
         test = Stage.from_callable(example_function, name="explicit_name")
         assert test.name == "explicit_name"
 
+
 class TestStageFromDict(TestStageFactories):
     """
     Class which tests the creation of Stage class instances from a dictionary.
@@ -729,7 +739,7 @@ class TestStageFromDict(TestStageFactories):
         Tests that callable sources are correctly used to create a stage instance
         from a dictionary regardless of whether the key is source or callable.
         Also validates that the name is correctly assigned from the dictionary or
-        derived from the callable. 
+        derived from the callable.
 
         Parameters
         ----------
@@ -750,7 +760,7 @@ class TestStageFromDict(TestStageFactories):
     def test_from_dict_aliases(self, temp_script) -> None:
         """
         Tests that a stage instance is created from a dictionary item with aliases
-        source and path as source options. 
+        source and path as source options.
 
         Parameters
         ----------
@@ -801,11 +811,11 @@ class TestStageFromDict(TestStageFactories):
         with pytest.raises(StageConfigurationError):
             Stage.from_dict(data)
 
-    def test_all_keys_from_dict_in_stage(self, example_function) -> None: 
+    def test_all_keys_from_dict_in_stage(self, example_function) -> None:
         """
         Checks that from_dict does not change the originally parsed dictionary so
         that if the dictionary is needed later, it is not permanently changed when
-        creating a stage instance from it. 
+        creating a stage instance from it.
 
         Parameters
         ----------

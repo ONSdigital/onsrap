@@ -69,7 +69,7 @@ value = context.stage_config.get("years_to_run", default=2020)
 value = context.stage_config.require("target_variable")
 
 # All variables at once
-all_vars = context.stage_config.variables   # returns a copy
+all_vars = context.stage_config.variables  # returns a copy
 
 # Selected subset (raises if any are missing)
 subset = context.stage_config.get_variables(["years_to_run", "target_variable"])

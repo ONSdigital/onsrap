@@ -1,5 +1,3 @@
-from onsrap.models import StageResult, StageStatus, PipelineStatus, RuntimeID, RunManifest, PipelineRun, PipelineConfig
-import pytest
 import datetime
 from pathlib import Path
 from textwrap import dedent
@@ -12,10 +10,9 @@ from onsrap.models import (
     PipelineStatus,
     RunManifest,
     RuntimeID,
+    StageResult,
     StageStatus,
 )
-
-from tests.test_execution import stageresult
 
 STARTED_AT = datetime.datetime(2024, 5, 6, 15, 45, 30)
 FINISHED_AT = datetime.datetime(2024, 5, 7, 15, 45, 30)
@@ -115,8 +112,8 @@ def expected_pipeline_config() -> PipelineConfig:
 def pipelineconfig(expected_pipeline_config) -> PipelineConfig:
     """
     Returns a PipelineConfig instance for testing that is derived
-    fromthe expected_pipeline_config fixture. Used as a separate 
-    fixture to ensure that the behaviour of the from_any() method is 
+    fromthe expected_pipeline_config fixture. Used as a separate
+    fixture to ensure that the behaviour of the from_any() method is
     tested correctly in the TestPipelineConfig class.
     """
     return expected_pipeline_config
@@ -146,7 +143,7 @@ class TestPipelineConfig:
     ) -> None:
         """
         Test derivation for a PipelineConfig instance using the from_any() method. This
-        test checks all methods EXCEPT from_file as this will be covered in another 
+        test checks all methods EXCEPT from_file as this will be covered in another
         test due to creation of a mock file being required.
 
         Parameters
@@ -169,12 +166,12 @@ class TestPipelineConfig:
     def test_from_file_errors(self, tmp_path) -> PipelineConfig:
         """
         Checks that a PipelineConfig instance raises the correct exceptions when a
-        file is not found or the file does not contain a dictionary mapping. 
+        file is not found or the file does not contain a dictionary mapping.
 
         Parameters
         ----------
         ``tmp_path`` : Path
-            A temporary path provided by pytest for testing file creation and 
+            A temporary path provided by pytest for testing file creation and
             manipulation.
 
         Raises
@@ -204,25 +201,25 @@ class TestPipelineConfig:
             PipelineConfig.from_file(no_map_pipeline_config)
 
     def test_from_file_success(
-            self, tmp_path, expected_pipeline_config
-            ) -> PipelineConfig:
-            """
-            Checks that a PipelineConfig instance is created successfully from a mock 
-            file.
+        self, tmp_path, expected_pipeline_config
+    ) -> PipelineConfig:
+        """
+        Checks that a PipelineConfig instance is created successfully from a mock
+        file.
 
-            Parameters
-            ----------
-            ``tmp_path`` : Path
-                A temporary path provided by pytest for testing file creation and 
-                manipulation.  
-            ``expected_pipeline_config`` : PipelineConfig
-                A PipelineConfig instance that is expected to be created from the mock
-                file.
-            """
-            pipeline_config = tmp_path / "configuration.py"
-            pipeline_config.write_text(
-                dedent(
-                    """
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary path provided by pytest for testing file creation and
+            manipulation.
+        ``expected_pipeline_config`` : PipelineConfig
+            A PipelineConfig instance that is expected to be created from the mock
+            file.
+        """
+        pipeline_config = tmp_path / "configuration.py"
+        pipeline_config.write_text(
+            dedent(
+                """
                     {"name":"test_rap",
                                      "backend":"python",
                                      "work_dir":"tmp/work",
@@ -235,17 +232,16 @@ class TestPipelineConfig:
                                                  "num_stages":6}
                                                  }
                     """
-                ).strip()
-                + "\n",
-                encoding="utf-8",
-            )
-            configuration = PipelineConfig.from_file(pipeline_config)
-            assert configuration == expected_pipeline_config
-
+            ).strip()
+            + "\n",
+            encoding="utf-8",
+        )
+        configuration = PipelineConfig.from_file(pipeline_config)
+        assert configuration == expected_pipeline_config
 
     def test_to_dict(self, pipelineconfig) -> None:
         """
-        Test of to_dict() class method for PipelineConfig that it outputs the 
+        Test of to_dict() class method for PipelineConfig that it outputs the
         PipelineConfig values as a dictionary.
 
         Parameters
@@ -335,7 +331,7 @@ class TestStageResult:
         ``status_stage`` : StageStatus
             A StageStatus value to set the status of the StageResult instance.
         ``expected_stage`` : bool
-            The expected boolean output from the succeeded() method based on the 
+            The expected boolean output from the succeeded() method based on the
             status of the StageResult instance.
         """
         stageresult.status = status_stage
@@ -379,18 +375,19 @@ def pipelinerun(stageresult, runmanifest) -> PipelineRun:
         {"stage_test": "example output"},
     )
 
+
 class TestPipelineRun:
     def test_pipelinerun_configuration(
         self, pipelinerun, runmanifest, stageresult
     ) -> None:
         """
-        Checks that the PipelineRun instance is created successfully with the correct 
+        Checks that the PipelineRun instance is created successfully with the correct
         attributes and values.
 
         Parameters
         ----------
         ``pipelinerun`` : PipelineRun
-            A PipelineRun instance for testing. 
+            A PipelineRun instance for testing.
         ``runmanifest`` : RunManifest
             A RunManifest instance for testing.
         ``stageresult`` : StageResult
@@ -433,7 +430,7 @@ class TestPipelineRun:
         ``status`` : PipelineStatus
             A PipelineStatus value to set the status of the PipelineRun instance.
         ``expected`` : bool
-            The expected boolean output from the succeeded() method based on the 
+            The expected boolean output from the succeeded() method based on the
             status of the PipelineRun instance.
         """
         pipelinerun.status = status
@@ -442,51 +439,60 @@ class TestPipelineRun:
 
 # TODO: Test _extract_stages_run and all methods in StageConfig class
 
+
 class TestToFromDictMethods:
     """
     Class to store testing methods for to_dict and from_dict, specifically
     for PipelineRun, RunManifest, and StageResult classes.
     """
+
     @pytest.fixture
     def runmanifest(self) -> RunManifest:
-        return RunManifest("pipeline",
-                           "1",
-                           None,
-                           ["stage1","stage2"],
-                           {"uniqueID":"example"},
-                           {"input_path":"input/data/example.csv"},
-                           {"output_path":"output/data/example.csv"},
-                           "python",
-                           ["1.3.2"],
-                           "",
-                           None,
-                           None)
+        return RunManifest(
+            "pipeline",
+            "1",
+            None,
+            ["stage1", "stage2"],
+            {"uniqueID": "example"},
+            {"input_path": "input/data/example.csv"},
+            {"output_path": "output/data/example.csv"},
+            "python",
+            ["1.3.2"],
+            "",
+            None,
+            None,
+        )
+
     @pytest.fixture
     def stageresult(self) -> StageResult:
-        return StageResult("stage_test",
-                           StageStatus.SUCCEEDED,
-                           datetime.datetime(2024,5,6,15,45,30),
-                           datetime.datetime(2024,5,7,15,45,30),
-                           "example output",
-                           "",
-                           "",
-                           None,
-                           {},
-                           None,
-                           None)
+        return StageResult(
+            "stage_test",
+            StageStatus.SUCCEEDED,
+            datetime.datetime(2024, 5, 6, 15, 45, 30),
+            datetime.datetime(2024, 5, 7, 15, 45, 30),
+            "example output",
+            "",
+            "",
+            None,
+            {},
+            None,
+            None,
+        )
 
     @pytest.fixture
     def pipelinerun(self, runmanifest, stageresult) -> PipelineRun:
-        return PipelineRun(runmanifest,
-                           PipelineStatus.SUCCEEDED,
-                           datetime.datetime(2024,5,6,15,45,30),
-                           datetime.datetime(2024,5,7,15,45,30),
-                           [stageresult],
-                           {"stage_test":"example output"})
+        return PipelineRun(
+            runmanifest,
+            PipelineStatus.SUCCEEDED,
+            datetime.datetime(2024, 5, 6, 15, 45, 30),
+            datetime.datetime(2024, 5, 7, 15, 45, 30),
+            [stageresult],
+            {"stage_test": "example output"},
+        )
 
     def test_runmanifest_to_dict(self, runmanifest) -> None:
         """
-        Test that the to_dict method for RunManifest outputs the correct dictionary representation. 
+        Test that the to_dict method for RunManifest outputs the correct dictionary representation.
 
         Parameters
         ----------
@@ -506,13 +512,13 @@ class TestToFromDictMethods:
             "timestamp": "",
             "reason": None,
             "user": None,
-            "config":None
+            "config": None,
         }
         assert runmanifest._runmanifest_to_dict() == expected_dict
 
     def test_runmanifest_from_dict(self, runmanifest) -> None:
         """
-        Test that the from_dict method for RunManifest correctly creates a RunManifest instance from a dictionary representation. 
+        Test that the from_dict method for RunManifest correctly creates a RunManifest instance from a dictionary representation.
 
         Parameters
         ----------
@@ -532,14 +538,14 @@ class TestToFromDictMethods:
             "timestamp": "",
             "reason": None,
             "user": None,
-            "config":None
+            "config": None,
         }
         new_runmanifest = RunManifest._runmanifest_from_dict(runmanifest_dict)
         assert new_runmanifest == runmanifest
 
     def test_stageresult_to_dict(self, stageresult) -> None:
         """
-        Test that the to_dict method for StageResult outputs the correct dictionary representation. 
+        Test that the to_dict method for StageResult outputs the correct dictionary representation.
 
         Parameters
         ----------
@@ -557,13 +563,13 @@ class TestToFromDictMethods:
             "return_code": None,
             "metadata": {},
             "error": None,
-            "source": None
+            "source": None,
         }
         assert stageresult._stage_result_to_dict() == expected_dict
 
     def test_stageresult_from_dict(self, stageresult) -> None:
         """
-        Test that the from_dict method for StageResult correctly creates a StageResult instance from a dictionary representation. 
+        Test that the from_dict method for StageResult correctly creates a StageResult instance from a dictionary representation.
 
         Parameters
         ----------
@@ -581,14 +587,14 @@ class TestToFromDictMethods:
             "return_code": None,
             "metadata": {},
             "error": None,
-            "source": None
+            "source": None,
         }
         new_stageresult = StageResult._stage_result_from_dict(stageresult_dict)
         assert new_stageresult == stageresult
 
     def test_pipelinerun_to_dict(self, pipelinerun) -> None:
         """
-        Test that the to_dict method for PipelineRun outputs the correct dictionary representation. 
+        Test that the to_dict method for PipelineRun outputs the correct dictionary representation.
 
         Parameters
         ----------
@@ -600,14 +606,17 @@ class TestToFromDictMethods:
             "status": "succeeded",
             "started_at": "2024-05-06T15:45:30",
             "completed_at": "2024-05-07T15:45:30",
-            "stage_results": {result.name: result._stage_result_to_dict() for result in pipelinerun.stage_results},
-            "stage_outputs": {"stage_test": "example output"}
+            "stage_results": {
+                result.name: result._stage_result_to_dict()
+                for result in pipelinerun.stage_results
+            },
+            "stage_outputs": {"stage_test": "example output"},
         }
         assert pipelinerun._pipeline_run_to_dict() == expected_dict
 
     def test_pipelinerun_from_dict(self, pipelinerun) -> None:
         """
-        Test that the from_dict method for PipelineRun correctly creates a PipelineRun instance from a dictionary representation. 
+        Test that the from_dict method for PipelineRun correctly creates a PipelineRun instance from a dictionary representation.
 
         Parameters
         ----------
@@ -619,9 +628,11 @@ class TestToFromDictMethods:
             "status": "succeeded",
             "started_at": "2024-05-06T15:45:30",
             "completed_at": "2024-05-07T15:45:30",
-            "stage_results": {result.name: result._stage_result_to_dict() for result in pipelinerun.stage_results},
-            "stage_outputs": {"stage_test": "example output"}
+            "stage_results": {
+                result.name: result._stage_result_to_dict()
+                for result in pipelinerun.stage_results
+            },
+            "stage_outputs": {"stage_test": "example output"},
         }
         new_pipelinerun = PipelineRun._pipeline_run_from_dict(pipelinerun_dict)
         assert new_pipelinerun == pipelinerun
-

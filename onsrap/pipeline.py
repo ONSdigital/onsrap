@@ -1717,7 +1717,6 @@ class Pipeline:
         config: Mapping[str, Any],
         warning: type[Warning],
     ) -> tuple[dict[str, Any], str]:
-
         configuration = Pipeline._extract_keys(keys, config)
         payload = config.get(configuration, {})
         if payload is None:

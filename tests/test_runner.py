@@ -6,8 +6,16 @@ import yaml
 
 from onsrap.execution import ExecutionContext
 from onsrap.logger import Logger
-from onsrap.models import PipelineConfig, PipelineStatus, RunManifest, PipelineRun, StageResult, StageStatus, now
-from onsrap.runner import _log_config, print_config_diffs, _log_pipeline_attributes
+from onsrap.models import (
+    PipelineConfig,
+    PipelineRun,
+    PipelineStatus,
+    RunManifest,
+    StageResult,
+    StageStatus,
+    now,
+)
+from onsrap.runner import _log_config, _log_pipeline_attributes, print_config_diffs
 
 
 class TestLogConfig:
@@ -106,7 +114,7 @@ class TestPrintConfigDiffs:
         Parameters
         ----------
         ``path`` : Path
-            The path where the YAML file will be written.  
+            The path where the YAML file will be written.
         ``content`` : str
             The YAML content to write to the file.
         """
@@ -186,14 +194,19 @@ class TestPrintConfigDiffs:
                     global_config:
                         dry_run: True
                     """).strip()
-                    + "\n",
-                    encoding="utf-8",
-                    )
+            + "\n",
+            encoding="utf-8",
+        )
 
         assert print_config_diffs(test_file_a, test_file_b) == {
-            "changed": {"stage_configs.stage_a.target_variable": ("classification", "identification")},
+            "changed": {
+                "stage_configs.stage_a.target_variable": (
+                    "classification",
+                    "identification",
+                )
+            },
             "added": {"pipeline_config.backend": "python"},
-            "removed": {"pipeline_config.output_dir": "outputs"}
+            "removed": {"pipeline_config.output_dir": "outputs"},
         }
 
         captured = capsys.readouterr()
@@ -201,6 +214,7 @@ class TestPrintConfigDiffs:
         assert "ADDED in second configuration (1)" in captured.out
         assert "REMOVED in second configuration (1)" in captured.out
         assert "stage_configs.stage_a.target_variable" in captured.out
+
 
 class TestRunInfoWriteOut:
     def test_log_pipeline_attributes_writes_YAML(self, tmp_path: Path) -> None:
@@ -226,31 +240,31 @@ class TestRunInfoWriteOut:
         )
 
         context = ExecutionContext(
-                pipeline_name="synthetic_pipeline",
-                run_id="run_1234",
-                config=pipeline_config,
-                logger=Logger(),
-                run_dir=run_dir,
-                working_directory=tmp_path,
-                stage_configs={},
-                global_config=None,
-            )
+            pipeline_name="synthetic_pipeline",
+            run_id="run_1234",
+            config=pipeline_config,
+            logger=Logger(),
+            run_dir=run_dir,
+            working_directory=tmp_path,
+            stage_configs={},
+            global_config=None,
+        )
 
         stage_results = [
-                    StageResult(
-                        name="stage_a",
-                        status=StageStatus.SUCCEEDED,
-                        started_at=now(),
-                        finished_at= now(),
-                        error=None,
-                        source=None,
-                    )
-                ]
-        
+            StageResult(
+                name="stage_a",
+                status=StageStatus.SUCCEEDED,
+                started_at=now(),
+                finished_at=now(),
+                error=None,
+                source=None,
+            )
+        ]
+
         run_manifest = RunManifest(
             rap_name="synthetic_pipeline",
             run_id="run_1234",
-            )
+        )
 
         pipeline_run = PipelineRun(
             manifest=run_manifest,
@@ -262,9 +276,7 @@ class TestRunInfoWriteOut:
         )
 
         _log_pipeline_attributes(
-            pipeline_run=pipeline_run,
-            run_dir=run_dir,
-            context=context
+            pipeline_run=pipeline_run, run_dir=run_dir, context=context
         )
 
         expected_file = run_dir / (
@@ -281,4 +293,3 @@ class TestRunInfoWriteOut:
         assert parsed_yaml == expected_contents
 
         assert PipelineRun._pipeline_run_from_dict(parsed_yaml) == pipeline_run
-

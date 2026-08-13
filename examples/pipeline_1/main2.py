@@ -4,7 +4,6 @@ from pathlib import Path
 
 from onsrap import Pipeline, PipelineConfig
 
-
 PIPELINE_ROOT = Path(__file__).resolve().parent
 SCRIPTS_DIR = PIPELINE_ROOT / "scripts"
 DATA_DIR = PIPELINE_ROOT / "data"
@@ -22,7 +21,7 @@ of the stages, which is defined by the dependencies.
 
 
 def build_pipeline() -> Pipeline:
-    stage_files = [ # Altered Script Order
+    stage_files = [  # Altered Script Order
         SCRIPTS_DIR / "1_preprocessing.py",
         SCRIPTS_DIR / "0_data_validation.py",
         SCRIPTS_DIR / "2_reporting.py",
@@ -59,10 +58,12 @@ def main() -> None:
     run = build_pipeline().run()
     report = run.manifest.outputs["2_reporting"]
 
-    print(f"Pipeline '{run.manifest.rap_name}' completed with {len(run.stage_results)} stages.")
+    print(
+        f"Pipeline '{run.manifest.rap_name}' completed with {len(run.stage_results)} stages."
+    )
     print(f"Summary report written to: {report['report_path']}")
     print(f"Cleaned data written to: {report['clean_path']}")
 
 
 if __name__ == "__main__":
-	main()
+    main()
