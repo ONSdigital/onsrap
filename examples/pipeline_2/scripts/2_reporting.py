@@ -28,7 +28,7 @@ def per_region_quantity(orders, values):
 ##ORDER DAY POP##
 def orders_per_day(orders, values):
     delivery_day_frequency = orders["Order_day"].value_counts()
-    values["highest_delivery_day"] = delivery_day_frequency.idxmin().capitalize()
+    values["highest_delivery_day"] = delivery_day_frequency.idxmax().capitalize()
 
 
 ##ORDER COUNTS##
