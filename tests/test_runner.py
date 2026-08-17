@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 from textwrap import dedent
 
@@ -293,3 +294,78 @@ class TestRunInfoWriteOut:
         assert parsed_yaml == expected_contents
 
         assert PipelineRun._pipeline_run_from_dict(parsed_yaml) == pipeline_run
+
+    def test_log_pipeline_attributes_serializes_arbitrary_stage_outputs(
+        self, tmp_path: Path
+    ) -> None:
+        """
+        Tests that stage outputs containing non-YAML-native Python objects are
+        serialized safely and can be reconstructed for supported types.
+        """
+
+        class CustomOutput:
+            def __repr__(self) -> str:
+                return "CustomOutput(example)"
+
+        run_dir = tmp_path / "runs" / "synthetic_run"
+        run_dir.mkdir(parents=True, exist_ok=True)
+
+        context = ExecutionContext(
+            pipeline_name="synthetic_pipeline",
+            run_id="run_1234",
+            config=PipelineConfig(name="synthetic_pipeline"),
+            logger=Logger(),
+            run_dir=run_dir,
+            working_directory=tmp_path,
+            stage_configs={},
+            global_config=None,
+        )
+
+        run_manifest = RunManifest(
+            rap_name="synthetic_pipeline",
+            run_id="run_1234",
+        )
+
+        pipeline_run = PipelineRun(
+            manifest=run_manifest,
+            status=PipelineStatus.SUCCEEDED,
+            started_at=context.started_at,
+            completed_at=now(),
+            stage_results=[],
+            stage_outputs={
+                "path_value": Path("data/interim/output.csv"),
+                "datetime_value": datetime(2026, 8, 17, 12, 30, 45),
+                "tuple_value": (1, "a"),
+                "set_value": {1, 2},
+                "bytes_value": b"abc",
+                "bytearray_value": bytearray(b"xyz"),
+                "custom_value": CustomOutput(),
+            },
+        )
+
+        _log_pipeline_attributes(
+            pipeline_run=pipeline_run, run_dir=run_dir, context=context
+        )
+
+        expected_file = run_dir / (
+            "pipeline_attributes_for_"
+            f"{context.pipeline_name}_{context.run_id[-8:]}.yaml"
+        )
+        parsed_yaml = yaml.safe_load(expected_file.read_text(encoding="utf-8"))
+
+        assert isinstance(parsed_yaml["stage_outputs"]["path_value"], dict)
+        loaded_pipeline_run = PipelineRun._pipeline_run_from_dict(parsed_yaml)
+
+        assert loaded_pipeline_run.stage_outputs["path_value"] == Path(
+            "data/interim/output.csv"
+        )
+        assert loaded_pipeline_run.stage_outputs["datetime_value"] == datetime(
+            2026, 8, 17, 12, 30, 45
+        )
+        assert loaded_pipeline_run.stage_outputs["tuple_value"] == (1, "a")
+        assert loaded_pipeline_run.stage_outputs["set_value"] == {1, 2}
+        assert loaded_pipeline_run.stage_outputs["bytes_value"] == b"abc"
+        assert loaded_pipeline_run.stage_outputs["bytearray_value"] == bytearray(b"xyz")
+        assert (
+            loaded_pipeline_run.stage_outputs["custom_value"] == "CustomOutput(example)"
+        )

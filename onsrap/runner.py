@@ -7,7 +7,14 @@ from typing import TYPE_CHECKING
 from .errors import StageExecutionError
 from .execution import ExecutionContext
 from .logger import Logger
-from .models import PipelineRun, PipelineStatus, RunManifest, StageResult, now
+from .models import (
+    PipelineRun,
+    PipelineStatus,
+    RunManifest,
+    StageResult,
+    _yaml_safe_encode,
+    now,
+)
 
 if TYPE_CHECKING:
     from .pipeline import Pipeline
@@ -297,8 +304,10 @@ def _log_config(
     )
     import yaml
 
+    config_to_dump = _yaml_safe_encode(manifest.config)
+
     with open(config_file, "w", encoding="utf-8") as f:
-        yaml.safe_dump(manifest.config or {}, f, default_flow_style=False)
+        yaml.safe_dump(config_to_dump or {}, f, default_flow_style=False)
 
 
 def _flatten(obj: dict | list, prefix: str = "", sep: str = ".") -> dict:

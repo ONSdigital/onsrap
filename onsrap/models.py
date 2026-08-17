@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import warnings
-from dataclasses import dataclass, field
-from datetime import datetime
+from base64 import b64decode, b64encode
+from dataclasses import asdict, dataclass, field, is_dataclass
+from datetime import date, datetime, time
 from enum import Enum
 from pathlib import Path
 from typing import Any, Iterable, Literal, Mapping, Optional, overload
@@ -975,10 +976,10 @@ class PipelineRun:
             "started_at": self.started_at.isoformat(),
             "completed_at": self.completed_at.isoformat(),
             "stage_results": {
-                result.name: result._stage_result_to_dict()
+                result.name: _yaml_safe_encode(result._stage_result_to_dict())
                 for result in self.stage_results
             },
-            "stage_outputs": self.stage_outputs,
+            "stage_outputs": _yaml_safe_encode(self.stage_outputs),
         }
 
     @classmethod
@@ -998,16 +999,20 @@ class PipelineRun:
         ``PipelineRun`` class instance
             A PipelineRun instance created from the dictionary representation.
         """
+        manifest_data = _yaml_safe_decode(data["manifest"])
+        stage_results_data = _yaml_safe_decode(data.get("stage_results", {}))
+        stage_outputs_data = _yaml_safe_decode(data.get("stage_outputs", {}))
+
         return cls(
-            manifest=RunManifest._runmanifest_from_dict(data["manifest"]),
+            manifest=RunManifest._runmanifest_from_dict(manifest_data),
             status=PipelineStatus(data["status"]),
             started_at=datetime.fromisoformat(data["started_at"]),
             completed_at=datetime.fromisoformat(data["completed_at"]),
             stage_results=[
                 StageResult._stage_result_from_dict(result)
-                for result in data.get("stage_results", {}).values()
+                for result in stage_results_data.values()
             ],
-            stage_outputs=data.get("stage_outputs", {}),
+            stage_outputs=stage_outputs_data,
         )
 
     @classmethod
@@ -1081,3 +1086,168 @@ def _format_dict(d: dict[str, Any] | dict[str, bool] | None, indent: int = 0) ->
         else:
             lines.append(f"{' ' * indent}{key}: {value}")
     return "\n".join(lines)
+
+
+_YAML_TYPE_KEY = "__onsrap_yaml_type__"
+_YAML_VALUE_KEY = "value"
+
+
+def _yaml_safe_mapping_key(value: Any) -> str | int | float | bool | None:
+    """
+    Convert mapping keys to YAML-safe scalar values.
+
+    Complex key types are coerced to strings because YAML mappings require
+    hashable scalar-like keys to round-trip predictably with ``yaml.safe_load``.
+    """
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, Enum):
+        return str(value.value)
+    if isinstance(value, Path):
+        return str(value)
+    return repr(value)
+
+
+def _yaml_safe_encode(value: Any) -> Any:
+    """
+    Convert arbitrary Python values into structures accepted by ``yaml.safe_dump``.
+    """
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+
+    if isinstance(value, datetime):
+        return {_YAML_TYPE_KEY: "datetime", _YAML_VALUE_KEY: value.isoformat()}
+
+    if isinstance(value, date):
+        return {_YAML_TYPE_KEY: "date", _YAML_VALUE_KEY: value.isoformat()}
+
+    if isinstance(value, time):
+        return {_YAML_TYPE_KEY: "time", _YAML_VALUE_KEY: value.isoformat()}
+
+    if isinstance(value, Path):
+        return {_YAML_TYPE_KEY: "path", _YAML_VALUE_KEY: str(value)}
+
+    if isinstance(value, Enum):
+        return {_YAML_TYPE_KEY: "enum", _YAML_VALUE_KEY: _yaml_safe_encode(value.value)}
+
+    if isinstance(value, bytes):
+        return {
+            _YAML_TYPE_KEY: "bytes",
+            _YAML_VALUE_KEY: b64encode(value).decode("ascii"),
+        }
+
+    if isinstance(value, bytearray):
+        return {
+            _YAML_TYPE_KEY: "bytearray",
+            _YAML_VALUE_KEY: b64encode(bytes(value)).decode("ascii"),
+        }
+
+    if isinstance(value, tuple):
+        return {
+            _YAML_TYPE_KEY: "tuple",
+            _YAML_VALUE_KEY: [_yaml_safe_encode(item) for item in value],
+        }
+
+    if isinstance(value, set):
+        return {
+            _YAML_TYPE_KEY: "set",
+            _YAML_VALUE_KEY: [_yaml_safe_encode(item) for item in value],
+        }
+
+    if isinstance(value, frozenset):
+        return {
+            _YAML_TYPE_KEY: "frozenset",
+            _YAML_VALUE_KEY: [_yaml_safe_encode(item) for item in value],
+        }
+
+    if isinstance(value, list):
+        return [_yaml_safe_encode(item) for item in value]
+
+    if isinstance(value, Mapping):
+        return {
+            _yaml_safe_mapping_key(key): _yaml_safe_encode(item)
+            for key, item in value.items()
+        }
+
+    if is_dataclass(value) and not isinstance(value, type):
+        return {
+            _YAML_TYPE_KEY: "dataclass",
+            "python_type": f"{value.__class__.__module__}.{value.__class__.__qualname__}",
+            _YAML_VALUE_KEY: _yaml_safe_encode(asdict(value)),
+        }
+
+    return {
+        _YAML_TYPE_KEY: "repr",
+        "python_type": f"{value.__class__.__module__}.{value.__class__.__qualname__}",
+        _YAML_VALUE_KEY: repr(value),
+    }
+
+
+def _yaml_safe_decode(value: Any) -> Any:
+    """
+    Decode values previously produced by ``_yaml_safe_encode``.
+    """
+    if isinstance(value, list):
+        return [_yaml_safe_decode(item) for item in value]
+
+    if not isinstance(value, Mapping):
+        return value
+
+    marker = value.get(_YAML_TYPE_KEY)
+    if marker is None:
+        return {key: _yaml_safe_decode(item) for key, item in value.items()}
+
+    encoded_value = value.get(_YAML_VALUE_KEY)
+
+    if marker == "datetime":
+        try:
+            return datetime.fromisoformat(str(encoded_value))
+        except ValueError:
+            return encoded_value
+
+    if marker == "date":
+        try:
+            return date.fromisoformat(str(encoded_value))
+        except ValueError:
+            return encoded_value
+
+    if marker == "time":
+        try:
+            return time.fromisoformat(str(encoded_value))
+        except ValueError:
+            return encoded_value
+
+    if marker == "path":
+        return Path(str(encoded_value))
+
+    if marker == "enum":
+        return _yaml_safe_decode(encoded_value)
+
+    if marker == "bytes":
+        try:
+            return b64decode(str(encoded_value).encode("ascii"))
+        except Exception:
+            return encoded_value
+
+    if marker == "bytearray":
+        try:
+            return bytearray(b64decode(str(encoded_value).encode("ascii")))
+        except Exception:
+            return encoded_value
+
+    if marker == "tuple":
+        return tuple(_yaml_safe_decode(item) for item in encoded_value or [])
+
+    if marker == "set":
+        return set(_yaml_safe_decode(item) for item in encoded_value or [])
+
+    if marker == "frozenset":
+        return frozenset(_yaml_safe_decode(item) for item in encoded_value or [])
+
+    if marker == "dataclass":
+        return _yaml_safe_decode(encoded_value)
+
+    if marker == "repr":
+        return encoded_value
+
+    return {key: _yaml_safe_decode(item) for key, item in value.items()}
