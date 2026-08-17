@@ -31,7 +31,9 @@ class TestExtractHistoricalRunIds(TestLoadLatestRunIntegration):
         logger._logger.handlers.clear()  # Remove all handlers to simulate no file logging
         logger._logger.propagate = False  # Prevent checking root logger handlers
         with pytest.raises(HistoricalPipelineLoadError, match="does not write to a"):
-            logger.extract_historical_run_ids(run_root=tmp_path / "runs")
+            logger.extract_historical_run_ids(
+                run_root=tmp_path / "runs", name="test_pipeline"
+            )
 
     def test_logger_no_file_handler_errors(self, tmp_path: Path) -> None:
         """
@@ -56,7 +58,9 @@ class TestExtractHistoricalRunIds(TestLoadLatestRunIntegration):
         with pytest.raises(
             HistoricalPipelineLoadError, match="does not have a FileHandler"
         ):
-            logger.extract_historical_run_ids(run_root=tmp_path / "runs")
+            logger.extract_historical_run_ids(
+                run_root=tmp_path / "runs", name="test_pipeline"
+            )
 
     def test_logger_does_not_exist(self, tmp_path: Path) -> None:
         """
@@ -85,7 +89,9 @@ class TestExtractHistoricalRunIds(TestLoadLatestRunIntegration):
         with pytest.raises(
             HistoricalPipelineLoadError, match="does not exist at this location"
         ):
-            logger.extract_historical_run_ids(run_root=tmp_path / "runs")
+            logger.extract_historical_run_ids(
+                run_root=tmp_path / "runs", name="test_pipeline"
+            )
 
     def test_return_blank_list_no_matches_in_log(self, tmp_path) -> None:
         """
@@ -112,7 +118,9 @@ class TestExtractHistoricalRunIds(TestLoadLatestRunIntegration):
             "2026-08-10 10:00:02,000 Pipeline Started\n"
         )
 
-        result = logger.extract_historical_run_ids(run_root=tmp_path / "runs")
+        result = logger.extract_historical_run_ids(
+            run_root=tmp_path / "runs", name="test_pipeline"
+        )
         assert result == []
 
     def test_skips_poor_json_in_log(self, tmp_path: Path) -> None:
@@ -138,8 +146,10 @@ class TestExtractHistoricalRunIds(TestLoadLatestRunIntegration):
 
         log_path.write_text(
             "2026-08-10 10:00:00,000 Pipeline started | not_valid_json\n"
-            '2026-08-10 10:00:01,000 Pipeline started | {"run_id": "2026-06-23_101719_878fcb33"}\n'
-            '2026-08-10 10:00:02,000 Pipeline started | {"run_id": "2026-06-23_101719_abc1234"}\n'
+            '2026-08-10 10:00:01,000 Pipeline started | {"name": "test_pipeline", '
+            '"run_id": "2026-06-23_101719_878fcb33"}\n'
+            '2026-08-10 10:00:02,000 Pipeline started | {"name": "test_pipeline", '
+            '"run_id": "2026-06-23_101719_abc1234"}\n'
         )
 
         create_run_dir_1 = tmp_path / "runs" / "2026-06-23_101719_878fcb33"
@@ -148,7 +158,9 @@ class TestExtractHistoricalRunIds(TestLoadLatestRunIntegration):
         create_run_dir_2 = tmp_path / "runs" / "2026-06-23_101719_abc1234"
         create_run_dir_2.mkdir(parents=True, exist_ok=True)
 
-        result = logger.extract_historical_run_ids(run_root=tmp_path / "runs")
+        result = logger.extract_historical_run_ids(
+            run_root=tmp_path / "runs", name="test_pipeline"
+        )
         assert result == [
             {
                 "run_id": "2026-06-23_101719_abc1234",
@@ -163,7 +175,7 @@ class TestExtractHistoricalRunIds(TestLoadLatestRunIntegration):
         ]
 
     @pytest.mark.parametrize(
-        "string, expected", [('{"some_key":"some_value"}', []), ('{"run_id":""}', [])]
+        "string, expected", [('{"name":"test_pipeline"}', []), ('{"run_id":""}', [])]
     )
     def test_run_id_absent_falsy(
         self, tmp_path: Path, string: str, expected: list
@@ -197,7 +209,9 @@ class TestExtractHistoricalRunIds(TestLoadLatestRunIntegration):
         # creates directory for runs to avoid removal given the directory doesn't exist
         (tmp_path / "runs").mkdir(parents=True, exist_ok=True)
 
-        result = logger.extract_historical_run_ids(run_root=tmp_path / "runs")
+        result = logger.extract_historical_run_ids(
+            run_root=tmp_path / "runs", name="test_pipeline"
+        )
         assert result == expected
 
     def test_records_only_if_directory_exists(self, tmp_path) -> None:
@@ -220,14 +234,18 @@ class TestExtractHistoricalRunIds(TestLoadLatestRunIntegration):
         log_path = Path(file_handler.baseFilename)
 
         log_path.write_text(
-            '2026-08-10 10:00:01,000 Pipeline started | {"run_id": "2026-06-23_101719_878fcb33"}\n'
-            '2026-08-10 10:00:02,000 Pipeline started | {"run_id": "2026-06-23_101719_abc1234"}\n'
+            '2026-08-10 10:00:01,000 Pipeline started | {"name": "test_pipeline", '
+            '"run_id": "2026-06-23_101719_878fcb33"}\n'
+            '2026-08-10 10:00:02,000 Pipeline started | {"name": "test_pipeline", '
+            '"run_id": "2026-06-23_101719_abc1234"}\n'
         )
 
         create_run_dir_1 = tmp_path / "runs" / "2026-06-23_101719_878fcb33"
         create_run_dir_1.mkdir(parents=True, exist_ok=True)
 
-        result = logger.extract_historical_run_ids(run_root=tmp_path / "runs")
+        result = logger.extract_historical_run_ids(
+            run_root=tmp_path / "runs", name="test_pipeline"
+        )
         assert result == [
             {
                 "run_id": "2026-06-23_101719_878fcb33",
@@ -256,8 +274,10 @@ class TestExtractHistoricalRunIds(TestLoadLatestRunIntegration):
         log_path = Path(file_handler.baseFilename)
 
         log_path.write_text(
-            '2026-08-10 10:00:01,000 Pipeline started | {"run_id": "2026-06-23_101719_878fcb33"}\n'
-            '2026-08-10 10:00:02,000 Pipeline started | {"run_id": "2026-06-23_101719_abc1234"}\n'
+            '2026-08-10 10:00:01,000 Pipeline started | {"name": "test_pipeline",'
+            '"run_id": "2026-06-23_101719_878fcb33"}\n'
+            '2026-08-10 10:00:02,000 Pipeline started | {"name": "test_pipeline", '
+            '"run_id": "2026-06-23_101719_abc1234"}\n'
         )
 
         create_run_dir_1 = tmp_path / "runs" / "2026-06-23_101719_878fcb33"
@@ -266,7 +286,9 @@ class TestExtractHistoricalRunIds(TestLoadLatestRunIntegration):
         create_run_dir_2 = tmp_path / "runs" / "2026-06-23_101719_abc1234"
         create_run_dir_2.mkdir(parents=True, exist_ok=True)
 
-        result = logger.extract_historical_run_ids(run_root=tmp_path / "runs")
+        result = logger.extract_historical_run_ids(
+            run_root=tmp_path / "runs", name="test_pipeline"
+        )
         assert result[0]["run_id"] == "2026-06-23_101719_abc1234"
         assert result[1]["run_id"] == "2026-06-23_101719_878fcb33"
 
@@ -289,11 +311,14 @@ class TestExtractHistoricalRunIds(TestLoadLatestRunIntegration):
         log_path = Path(file_handler.baseFilename)
 
         log_path.write_text(
-            'BADTIMESTAMP Pipeline started | {"run_id": "2026-06-23_101719_878fcb33"}\n'
+            'BADTIMESTAMP Pipeline started | {"name": "test_pipeline", '
+            '"run_id": "2026-06-23_101719_878fcb33"}\n'
         )
 
         create_run_dir_1 = tmp_path / "runs" / "2026-06-23_101719_878fcb33"
         create_run_dir_1.mkdir(parents=True, exist_ok=True)
 
-        result = logger.extract_historical_run_ids(run_root=tmp_path / "runs")
+        result = logger.extract_historical_run_ids(
+            run_root=tmp_path / "runs", name="test_pipeline"
+        )
         assert result == []

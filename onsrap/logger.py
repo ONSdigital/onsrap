@@ -157,7 +157,9 @@ class Logger:
         else:
             self._logger.warning(message)
 
-    def extract_historical_run_ids(self, run_root: Path) -> list[dict[str, Any]]:
+    def extract_historical_run_ids(
+        self, run_root: Path, name: str
+    ) -> list[dict[str, Any]]:
         """
         Extracts historical run IDs from the log files.
 
@@ -165,6 +167,8 @@ class Logger:
         ----------
         ``run_root`` : Path
             The root directory where the historical runs are stored.
+        ``name`` : str
+            The name of the pipeline for which to extract historical run IDs.
 
         Returns
         -------
@@ -238,9 +242,10 @@ class Logger:
             timestamp = f"{parts[0]} {parts[1]}"
 
             run_dir = run_root / run_id
-
             # only returns run_ids for runs where a run_directory is still present.
-            if run_dir.exists():
+
+            log_name = payload.get("name")
+            if run_dir.exists() and log_name == name:
                 matches.append(
                     {
                         "run_id": run_id,

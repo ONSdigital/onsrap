@@ -749,6 +749,7 @@ class TestLoadLatestRunIntegration:
         """
         with pytest.warns(PipelineConfigurationWarning):
             pipeline = Pipeline(
+                name="test_pipeline",
                 config=PipelineConfig(
                     output_dir=tmp_path / "outputs",
                 ),
@@ -785,11 +786,11 @@ class TestLoadLatestRun(TestLoadLatestRunIntegration):
             that the last_run attribute will be None.
         """
         monkeypatch.setattr(
-            pipeline_no_history.logger, "extract_historical_run_ids", lambda x: []
+            pipeline_no_history.logger, "extract_historical_run_ids", lambda x, y: []
         )
         assert (
             pipeline_no_history.logger.extract_historical_run_ids(
-                pipeline_no_history.run_output
+                pipeline_no_history.run_output, pipeline_no_history.name
             )
             == []
         )
@@ -824,7 +825,7 @@ class TestLoadLatestRun(TestLoadLatestRunIntegration):
         monkeypatch.setattr(
             pipeline_no_history.logger,
             "extract_historical_run_ids",
-            lambda x: [
+            lambda x, y: [
                 {
                     "run_id": None,
                     "timestamp": "2026-08-10 10:00:00,000",
@@ -833,7 +834,7 @@ class TestLoadLatestRun(TestLoadLatestRunIntegration):
             ],
         )
         assert pipeline_no_history.logger.extract_historical_run_ids(
-            pipeline_no_history.run_output
+            pipeline_no_history.run_output, pipeline_no_history.name
         ) == [
             {
                 "run_id": None,
@@ -869,7 +870,7 @@ class TestLoadLatestRun(TestLoadLatestRunIntegration):
         monkeypatch.setattr(
             pipeline_no_history.logger,
             "extract_historical_run_ids",
-            lambda _: [
+            lambda x, y: [
                 {
                     "run_id": run_id,
                     "timestamp": "2026-08-10 10:00:00,000",
@@ -911,7 +912,7 @@ class TestLoadLatestRun(TestLoadLatestRunIntegration):
         monkeypatch.setattr(
             pipeline_no_history.logger,
             "extract_historical_run_ids",
-            lambda _: [
+            lambda x, y: [
                 {
                     "run_id": run_id_1,
                     "timestamp": "2026-08-10 10:00:00,000",
@@ -959,7 +960,7 @@ class TestLoadLatestRun(TestLoadLatestRunIntegration):
         monkeypatch.setattr(
             pipeline_no_history.logger,
             "extract_historical_run_ids",
-            lambda _: [
+            lambda x, y: [
                 {
                     "run_id": run_id,
                     "timestamp": "2026-08-10 10:00:00,000",
@@ -1036,6 +1037,7 @@ class TestLoadLatestIntegrationInPipeline(TestLoadLatestRunIntegration):
         (logs / "onsrap.log").write_text(
             "2026-08-11 10:00:00,000 Pipeline started | "
             '{"run_id": "2026-08-11_100000_abc12345", '
+            '"name": "test_pipeline", '
             ' "run_dir": "/path/to/run"}\n'
         )
 
@@ -1053,6 +1055,7 @@ class TestLoadLatestIntegrationInPipeline(TestLoadLatestRunIntegration):
 
         with pytest.warns(PipelineConfigurationWarning):
             pipeline = Pipeline(
+                name="test_pipeline",
                 config=PipelineConfig(output_dir=tmp_path / "outputs", log_dir=logs),
                 stages=[
                     Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())
@@ -1087,9 +1090,11 @@ class TestLoadLatestIntegrationInPipeline(TestLoadLatestRunIntegration):
         (logs / "onsrap.log").write_text(
             "2026-08-11 10:00:00,000 Pipeline started | "
             '{"run_id": "run_older", '
+            '"name": "test_pipeline", '
             ' "run_dir": "/path/to/run"}\n'
             "2026-08-11 10:01:00,000 Pipeline started | "
             '{"run_id": "run_newer", '
+            '"name": "test_pipeline", '
             ' "run_dir": "/path/to/run"}'
         )
 
@@ -1119,6 +1124,7 @@ class TestLoadLatestIntegrationInPipeline(TestLoadLatestRunIntegration):
 
         with pytest.warns(PipelineConfigurationWarning):
             pipeline = Pipeline(
+                name="test_pipeline",
                 config=PipelineConfig(output_dir=tmp_path / "outputs", log_dir=logs),
                 stages=[
                     Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())
@@ -1154,10 +1160,10 @@ class TestLoadLatestIntegrationInPipeline(TestLoadLatestRunIntegration):
         logs.mkdir(parents=True, exist_ok=True)
         (logs / "onsrap.log").write_text(
             "2026-08-11 10:00:00,000 Pipeline started | "
-            '{"run_id": "run_older", '
+            '{"name": "test_pipeline", "run_id": "run_older", '
             ' "run_dir": "/path/to/run"}\n'
             "2026-08-11 10:01:00,000 Pipeline started | "
-            '{"run_id": "run_newer", '
+            '{"name": "test_pipeline", "run_id": "run_newer", '
             ' "run_dir": "/path/to/run"}'
         )
 
@@ -1175,6 +1181,7 @@ class TestLoadLatestIntegrationInPipeline(TestLoadLatestRunIntegration):
 
         with pytest.warns(PipelineConfigurationWarning):
             pipeline = Pipeline(
+                name="test_pipeline",
                 config=PipelineConfig(output_dir=tmp_path / "outputs", log_dir=logs),
                 stages=[
                     Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())
@@ -1242,12 +1249,12 @@ class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
             all_runs attribute will be None.
         """
         monkeypatch.setattr(
-            pipeline_no_history.logger, "extract_historical_run_ids", lambda x: []
+            pipeline_no_history.logger, "extract_historical_run_ids", lambda x, y: []
         )
 
         assert (
             pipeline_no_history.logger.extract_historical_run_ids(
-                pipeline_no_history.run_output
+                pipeline_no_history.run_output, pipeline_no_history.name
             )
             == []
         )
@@ -1284,7 +1291,7 @@ class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
         monkeypatch.setattr(
             pipeline_no_history.logger,
             "extract_historical_run_ids",
-            lambda x: [
+            lambda x, y: [
                 {
                     "run_id": "run_A",
                     "timestamp": "2026-08-10 10:00:00,000",
@@ -1332,7 +1339,7 @@ class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
         monkeypatch.setattr(
             pipeline_no_history.logger,
             "extract_historical_run_ids",
-            lambda x: [
+            lambda x, y: [
                 {
                     "run_id": "run_A",
                     "timestamp": "2026-08-10 10:00:00,000",
@@ -1375,7 +1382,7 @@ class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
         monkeypatch.setattr(
             pipeline_no_history.logger,
             "extract_historical_run_ids",
-            lambda x: [
+            lambda x, y: [
                 {
                     "run_id": "",
                     "timestamp": "2026-08-10 10:00:00,000",
@@ -1429,7 +1436,7 @@ class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
         monkeypatch.setattr(
             pipeline_no_history.logger,
             "extract_historical_run_ids",
-            lambda x: [
+            lambda x, y: [
                 {
                     "run_id": "good_run",
                     "timestamp": "2026-08-10 10:00:00,000",
@@ -1480,7 +1487,7 @@ class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
         monkeypatch.setattr(
             pipeline_no_history.logger,
             "extract_historical_run_ids",
-            lambda x: [
+            lambda x, y: [
                 {
                     "run_id": "bad_run1",
                     "timestamp": "2026-08-10 10:00:00,000",

@@ -592,7 +592,9 @@ class Pipeline:
             Pipeline, or None if no previous runs are found.
         """
         try:
-            previous_run_logs = self.logger.extract_historical_run_ids(self.run_output)
+            previous_run_logs = self.logger.extract_historical_run_ids(
+                self.run_output, self.name
+            )
         except HistoricalPipelineLoadError:
             warnings.warn(
                 "Unable to load previous runs for this Pipeline. Last_run"
@@ -640,7 +642,9 @@ class Pipeline:
             indicate a None value will be stored in this attribute.
         """
         try:
-            previous_run_logs = self.logger.extract_historical_run_ids(self.run_output)
+            previous_run_logs = self.logger.extract_historical_run_ids(
+                self.run_output, self.name
+            )
         except HistoricalPipelineLoadError:
             warnings.warn(
                 "Unable to load previous runs for this Pipeline. All_run"
