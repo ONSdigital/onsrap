@@ -117,7 +117,10 @@ class TestPipelineNamingAndInit:
             "example_function": ("Stage_1.py",),
         }
 
-        with pytest.raises((PipelineInitialisationError, PipelineConfigurationWarning)):
+        with (
+            pytest.raises(PipelineInitialisationError),
+            pytest.warns(PipelineConfigurationWarning),
+        ):
             Pipeline(stages=None, dependencies=dependencies_single)
 
         with pytest.warns((PipelineConfigurationWarning, StageConfigurationWarning)):
@@ -131,6 +134,7 @@ class TestPipelineNamingAndInit:
                 dependencies=dependencies_multiple,
             )
 
+        with pytest.warns((PipelineConfigurationWarning, StageConfigurationWarning)):
             pipeline_2 = Pipeline(
                 name="pipeline_2",
                 stages=[
@@ -241,7 +245,8 @@ class TestPipelineNamingAndInit:
         with pytest.raises(PipelineInitialisationError):
             pipeline_dict.add_dependencies(dep_tuple)
 
-        pipeline_dict.add_dependencies(dep_dict)
+        with pytest.warns(PipelineConfigurationWarning):
+            pipeline_dict.add_dependencies(dep_dict)
         assert stage_1.dependencies == ("Stage_0",)
         assert stage_2.dependencies == (
             "Stage_1",
