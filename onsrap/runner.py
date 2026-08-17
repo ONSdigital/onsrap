@@ -33,33 +33,33 @@ class PipelineRunner:
     def __init__(self, logger: Logger | None = None):
         self.logger = logger or Logger()
 
-        def __str__(self) -> str:
-            """
-            String method that returns a human-readable representation of the ``PipelineRunner`` class.
+    def __str__(self) -> str:
+        """
+        String method that returns a human-readable representation of the ``PipelineRunner`` class.
 
-            Returns
-            -------
-            str
-                A string representation of the ``PipelineRunner`` class with its attributes.
-            """
-            return (
-                f"PipelineRunner Instance Attributes\n"
-                f"--------------------------\n"
-                f"Logger: {self.logger} \n"
-            )
+        Returns
+        -------
+        str
+            A string representation of the ``PipelineRunner`` class with its attributes.
+        """
+        return (
+            f"PipelineRunner Instance Attributes\n"
+            f"--------------------------\n"
+            f"Logger: {self.logger} \n"
+        )
 
-        def __repr__(self) -> str:
-            """
-            Representation method that returns a human readable representation of the ``PipelineRunner`` class.
-            This method is structured to be more concise than the ``__str__`` method and is
-            intended for debugging purposes.
+    def __repr__(self) -> str:
+        """
+        Representation method that returns a human readable representation of the ``PipelineRunner`` class.
+        This method is structured to be more concise than the ``__str__`` method and is
+        intended for debugging purposes.
 
-            Returns
-            -------
-            str
-                A string representation of the ``PipelineRunner`` class with its attributes.
-            """
-            return f"PipelineRunner(logger={self.logger})"
+        Returns
+        -------
+        str
+            A string representation of the ``PipelineRunner`` class with its attributes.
+        """
+        return f"PipelineRunner(logger={self.logger})"
 
     def run(self, pipeline: Pipeline) -> PipelineRun:
         """

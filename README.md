@@ -31,7 +31,7 @@ requirements.
 It's suggested that you install this package and its requirements within
 a virtual environment.
 
-Stages must be written in functional programming. A ``stage`` can be a file or a callable item, such as a function. If the ``stage`` is a file, it must have an entrypoint function (a function that, when called, runs the entirety of the stage). The ``stage`` file can run without an entrypoint, however the package has less control over the implementation and therefore best practice is inclusion of an entrypoint. 
+Stages should use a functional style. A ``stage`` can be a file or a callable item, such as a function. File stages should define an entrypoint function that runs the stage; files without an entrypoint can use subprocess fallback, but the package has less control over that execution mode.
 
 There should be a parent file that sets out configuration, required directories and file paths, and builds the ``Pipeline`` instance. It is recommended that this is named something similar to ``main.py`` so that it is easy for users to see where the ``Pipeline`` starts. This file will be what is run through the terminal to run the entire pipeline.    
 

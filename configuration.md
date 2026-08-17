@@ -8,11 +8,12 @@ point where individual stage scripts read their own variables at execution time.
 
 ## Overview
 
-onsrap uses two distinct levels of configuration.
+onsrap uses three distinct levels of configuration.
 
 | Level | Object | Scope |
 |---|---|---|
 | Pipeline | `PipelineConfig` | Execution environment, directories, backend, run metadata |
+| Global | `GlobalConfig` | Variables shared across stages, with per-stage exclusions |
 | Stage | `StageConfig` | Per-stage variables injected at execution time |
 
 Both objects are constructed during `Pipeline` initialisation and are immutable

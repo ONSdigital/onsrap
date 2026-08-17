@@ -54,13 +54,12 @@ class Logger:
         self.config = LogConfig(log_dir=str(log_dir), log_level=log_level)
         self.log_dir = Path(self.config.log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
-
         logger_name = f"{self.config.logger_name}:{self.log_dir.resolve()}"
         self._logger = logging.getLogger(logger_name)
+        self._logger.setLevel(
+            getattr(logging, self.config.log_level.upper(), logging.INFO)
+        )
         if logger_name not in self._configured_loggers:
-            self._logger.setLevel(
-                getattr(logging, self.config.log_level.upper(), logging.INFO)
-            )
             self._logger.propagate = False
 
             stream_handler = logging.StreamHandler()
