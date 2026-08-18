@@ -6,8 +6,10 @@ import importlib.util
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 from .errors import StageConfigurationError, StageLoadError
+from .models import PipelineRun
 
 PREFERRED_ENTRYPOINTS = ("run", "main", "execute")
 
@@ -23,14 +25,30 @@ def discover_python_entrypoint(path: Path) -> str | None:
     the module. That keeps discovery fast and avoids running stage code just to
     learn how it should be invoked.
 
-    Returns ``None`` when the file exists but does not define a preferred
+    Parameters
+    ----------
+    ``path`` : Path
+        File path for the stage being run.
+
+    Returns
+    -------
+    String item containing the name of the ``PREFERRED_ENTRYPOINTS`` item relevant
+    for the stages.
+    ``None`` when the file exists but does not define a preferred
     callable, which signals to the executor that it should treat the file as a
     script-style stage instead.
+
+    Raises
+    ------
+    ``StageConfigurationError``
+        If the file path requested for the ``Stage`` does not exist.
     """
-    
+
     file_path = Path(path)
     if not file_path.exists():
-        raise StageConfigurationError("Stage source file does not exist: {0}".format(file_path))
+        raise StageConfigurationError(
+            "Stage source file does not exist: {0}".format(file_path)
+        )
 
     try:
         tree = ast.parse(file_path.read_text(encoding="utf-8"), filename=str(file_path))
@@ -51,7 +69,7 @@ def discover_python_entrypoint(path: Path) -> str | None:
     return None
 
 
-def load_python_callable(path: Path, entrypoint: str):
+def load_python_callable(path: Path, entrypoint: str) -> Any:
     """
     Import a stage module and return the named callable from it.
 
@@ -61,9 +79,23 @@ def load_python_callable(path: Path, entrypoint: str):
     receive the execution context. It is kept separate from module loading so
     the executor can reuse the same import path for multiple runtime strategies.
 
-    A ``StageConfigurationError`` is raised if the chosen entrypoint does not
-    exist or is not callable, because that means the stage definition and the
-    executable surface no longer agree.
+    Parameters
+    ----------
+    ``path`` : Path
+        The file path for the stage being run.
+    ``entrypoint`` : str
+        The name of the entrypoint function defined in the stage script.
+
+    Raises
+    ------
+    ``StageConfigurationError``
+    If the chosen entrypoint does not exist or is not callable, because that means
+    the stage definition and the executable surface no longer agree.
+
+    Returns
+    -------
+    ``target``
+        The ``entrypoint`` attribute of the module called to run the stage.
     """
     module = load_python_module(path)
     target = getattr(module, entrypoint, None)
@@ -87,9 +119,23 @@ def load_python_module(path: Path) -> ModuleType:
 
     The generated name is derived from the file path so repeated loads of the
     same stage remain stable during a run, while still avoiding collisions with
-    other Python modules. Import failures are converted into ``StageLoadError``
-    so callers can report a stage-specific problem rather than a raw import
-    exception.
+    other Python modules.
+
+    Parameters
+    ----------
+    ``path`` : Path
+        The path for the stage.
+
+    Returns
+    -------
+    ``module``
+        The set of code being run for the stage.
+
+    Raises
+    ------
+    ``StageLoadError``
+        If the file is unable to be imported so callers can report a stage-specific
+        problem rather than a raw import exception.
     """
     file_path = Path(path)
     if not file_path.exists():
@@ -97,7 +143,7 @@ def load_python_module(path: Path) -> ModuleType:
 
     module_name = "onsrap_stage_{0}_{1}".format(
         file_path.stem,
-        hashlib.sha1(str(file_path.resolve()).encode("utf-8")).hexdigest()[:12],
+        hashlib.sha256(str(file_path.resolve()).encode("utf-8")).hexdigest()[:12],
     )
     spec = importlib.util.spec_from_file_location(module_name, str(file_path))
     if spec is None or spec.loader is None:
@@ -115,3 +161,29 @@ def load_python_module(path: Path) -> ModuleType:
         ) from exc
 
     return module
+
+
+def load_historical_run(run_dir: Path) -> PipelineRun:
+    """
+    Load a previously executed pipeline run from a YAML file.
+
+    Returns
+    -------
+    ``PipelineRun``
+        An instance of ``PipelineRun`` representing the historical run.
+    """
+    import glob
+
+    files = glob.glob(str(run_dir / "pipeline_attributes_for_*.yaml"))
+    if not files:
+        raise StageLoadError(
+            "Historical run file does not exist in: {0}".format(run_dir)
+        )
+    file_path = Path(files[0])
+
+    import yaml
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+
+    return PipelineRun._pipeline_run_from_dict(data)

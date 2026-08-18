@@ -4,32 +4,6 @@ import csv
 import json
 from datetime import date
 from pathlib import Path
-from typing import Any
-
-
-def resolve_data_root(context: Any | None = None) -> Path:
-    if context is not None:
-        return Path(context.config.data_dir)
-
-    return Path(__file__).resolve().parents[1] / "data"
-
-
-def resolve_output_root(context: Any | None = None) -> Path:
-    if context is not None and getattr(context, "run_dir", None) is not None:
-        return Path(context.run_dir) / "data"
-
-    return Path(__file__).resolve().parents[1] / "data"
-
-
-def resolve_raw_path(context: Any | None, data_root: Path) -> Path:
-    if context is not None:
-        validation_result = context.result_for("0_data_validation")
-        if validation_result is not None:
-            raw_path = validation_result.outputs.get("raw_path")
-            if raw_path:
-                return Path(raw_path)
-
-    return data_root / "orders.csv"
 
 
 def load_orders(csv_path: Path) -> list[dict[str, str]]:
@@ -98,7 +72,9 @@ def write_clean_rows(clean_path: Path, rows: list[dict[str, object]]) -> None:
         writer.writerows(rows)
 
 
-def build_summary(source_path: Path, clean_path: Path, rows: list[dict[str, object]]) -> dict[str, object]:
+def build_summary(
+    source_path: Path, clean_path: Path, rows: list[dict[str, object]]
+) -> dict[str, object]:
     total_revenue = round(sum(float(row["order_value"]) for row in rows), 2)
     return {
         "source_path": str(source_path),
@@ -112,9 +88,11 @@ def build_summary(source_path: Path, clean_path: Path, rows: list[dict[str, obje
 
 
 def main(context=None) -> dict[str, object]:
-    data_root = resolve_data_root(context)
-    output_root = resolve_output_root(context)
-    raw_path = resolve_raw_path(context, data_root)
+    data_root = context.get_data_dir()
+    output_root = context.resolve_output_root()
+    raw_path = context.resolve_given_path(
+        "0_data_validation", "raw_path", "orders.csv", data_root
+    )
     clean_path = output_root / "interim" / "1_clean_orders.csv"
 
     rows = load_orders(raw_path)
@@ -126,4 +104,4 @@ def main(context=None) -> dict[str, object]:
 
 
 if __name__ == "__main__":
-	print(json.dumps(main(), indent=2, sort_keys=True))
+    print(json.dumps(main(), indent=2, sort_keys=True))

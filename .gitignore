@@ -895,14 +895,11 @@ docs/_linkcheck/
 !examples/
 !examples/**
 
-# Allow logs folders and their contents inside examples
-!examples/**/logs/
-!examples/**/logs/**
-!examples/**/*.log
 
 # Allow scripts folders and their contents inside examples
 !examples/**/scripts/
 !examples/**/scripts/**
+examples/**/scripts/__pycache__/
 
 # Allow example data files
 !examples/**/*.csv
@@ -910,3 +907,12 @@ docs/_linkcheck/
 !examples/**/*.xlsx
 
 examples/**/runs/**/
+
+# Ignore coding playground
+tests/playground/
+tests/sandbox/
+
+# Allow logs folders and their contents inside examples
+examples/**/logs/
+examples/**/logs/**
+examples/**/*.log

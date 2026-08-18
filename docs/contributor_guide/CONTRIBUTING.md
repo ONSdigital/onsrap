@@ -28,8 +28,12 @@ documentation such as [detect-secrets][detect-secrets-repo] or [nbstripout][nbst
 
 ## Code conventions
 
-We mainly follow [PEP8 standards][pep8] in our code conventions, and use flake8 and black
+We mainly follow [PEP8 standards][pep8] in our code conventions, and use ruff
 pre-commit hook for linting and formatting.
+
+We use [MyPy](https://mypy.readthedocs.io/en/stable/) to enforce type-checking to ensure the 
+rigidity of our framework and [bandit](http://bandit.readthedocs.io/en/latest/) for vulnerability 
+checking as a point of best practice. These are also pre-commit hooks in the project.
 
 ### Git and GitHub
 

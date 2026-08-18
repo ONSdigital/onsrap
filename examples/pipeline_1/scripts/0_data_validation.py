@@ -3,32 +3,16 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import Any
-
 
 REQUIRED_COLUMNS = (
-	"order_id",
-	"customer_name",
-	"region",
-	"product",
-	"quantity",
-	"unit_price",
-	"order_date",
+    "order_id",
+    "customer_name",
+    "region",
+    "product",
+    "quantity",
+    "unit_price",
+    "order_date",
 )
-
-
-def resolve_data_root(context: Any | None = None) -> Path:
-    if context is not None:
-        return Path(context.config.data_dir)
-
-    return Path(__file__).resolve().parents[1] / "data"
-
-
-def resolve_output_root(context: Any | None = None) -> Path:
-    if context is not None and getattr(context, "run_dir", None) is not None:
-        return Path(context.run_dir) / "data"
-
-    return Path(__file__).resolve().parents[1] / "data"
 
 
 def load_orders(csv_path: Path) -> list[dict[str, str]]:
@@ -66,11 +50,11 @@ def validate_rows(rows: list[dict[str, str]]) -> list[str]:
     return issues
 
 
-def build_report(raw_path: Path, rows: list[dict[str, str]], issues: list[str]) -> dict[str, object]:
+def build_report(
+    raw_path: Path, rows: list[dict[str, str]], issues: list[str]
+) -> dict[str, object]:
     order_dates = sorted(
-        row["order_date"].strip()
-        for row in rows
-        if not is_blank(row.get("order_date"))
+        row["order_date"].strip() for row in rows if not is_blank(row.get("order_date"))
     )
     unique_regions = sorted(
         {
@@ -95,12 +79,14 @@ def build_report(raw_path: Path, rows: list[dict[str, str]], issues: list[str]) 
 
 def write_report(report_path: Path, report: dict[str, object]) -> None:
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    report_path.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def main(context=None) -> dict[str, object]:
-    data_root = resolve_data_root(context)
-    output_root = resolve_output_root(context)
+    data_root = context.get_data_dir()
+    output_root = context.resolve_output_root()
     raw_path = data_root / "orders.csv"
     report_path = output_root / "interim" / "0_validation_report.json"
 
@@ -120,4 +106,4 @@ def main(context=None) -> dict[str, object]:
 
 
 if __name__ == "__main__":
-	print(json.dumps(main(), indent=2, sort_keys=True))
+    print(json.dumps(main(), indent=2, sort_keys=True))
