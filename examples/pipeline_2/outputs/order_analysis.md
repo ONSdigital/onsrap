@@ -26,7 +26,7 @@ Lowest profit: **Pen** at **£-1.90**
 
 ## Order Analysis
 
-The most orders occured on a **Tuesday**.
+The most orders occured on a **Monday**.
 
 **2** order/s were Large (greater than 75% of orders for the period).
 

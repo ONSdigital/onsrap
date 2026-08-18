@@ -1540,7 +1540,7 @@ class TestLoadAllRunsUnitTests(TestLoadLatestRunIntegration):
         monkeypatch.setattr(
             pipeline_no_history.logger,
             "extract_historical_run_ids",
-            lambda x: [
+            lambda x, y: [
                 {
                     "run_id": "run_A",
                     "timestamp": "2026-08-10 10:00:00,000",
@@ -1588,7 +1588,7 @@ class TestLoadAllRunsUnitTests(TestLoadLatestRunIntegration):
         monkeypatch.setattr(
             pipeline_no_history.logger,
             "extract_historical_run_ids",
-            lambda x: [
+            lambda x, y: [
                 {
                     "run_id": "",
                     "timestamp": "2026-08-10 10:00:00,000",
@@ -1636,7 +1636,7 @@ class TestLoadAllRunsUnitTests(TestLoadLatestRunIntegration):
         monkeypatch.setattr(
             pipeline_no_history.logger,
             "extract_historical_run_ids",
-            lambda x: [
+            lambda x, y: [
                 {
                     "run_id": "run_A",
                     "timestamp": "2026-08-10 10:00:00,000",
@@ -1684,6 +1684,7 @@ class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
 
         with pytest.warns(PipelineConfigurationWarning):
             pipeline = Pipeline(
+                name="test_pipeline",
                 config=PipelineConfig(output_dir=tmp_path / "outputs"),
                 stages=[
                     Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())
@@ -1713,9 +1714,11 @@ class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
         (logs / "onsrap.log").write_text(
             "2026-08-11 10:00:00,000 Pipeline started | "
             '{"run_id": "run_older", '
+            ' "name": "test_pipeline",'
             ' "run_dir": "/path/to/run"}\n'
             "2026-08-11 10:01:00,000 Pipeline started | "
             '{"run_id": "run_newer", '
+            ' "name": "test_pipeline",'
             ' "run_dir": "/path/to/run"}'
         )
 
@@ -1745,6 +1748,7 @@ class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
 
         with pytest.warns(PipelineConfigurationWarning):
             pipeline = Pipeline(
+                name="test_pipeline",
                 config=PipelineConfig(output_dir=tmp_path / "outputs", log_dir=logs),
                 stages=[
                     Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())
@@ -1784,9 +1788,11 @@ class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
         (logs / "onsrap.log").write_text(
             "2026-08-11 10:00:00,000 Pipeline started | "
             '{"run_id": "run_older", '
+            '"name": "test_pipeline",'
             ' "run_dir": "/path/to/run"}\n'
             "2026-08-11 10:01:00,000 Pipeline started | "
             '{"run_id": "run_newer", '
+            '"name": "test_pipeline",'
             ' "run_dir": "/path/to/run"}'
         )
 
@@ -1804,6 +1810,7 @@ class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
 
         with pytest.warns(PipelineConfigurationWarning):
             pipeline = Pipeline(
+                name="test_pipeline",
                 config=PipelineConfig(output_dir=tmp_path / "outputs", log_dir=logs),
                 stages=[
                     Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())
