@@ -1192,7 +1192,7 @@ class TestLoadLatestIntegrationInPipeline(TestLoadLatestRunIntegration):
         assert pipeline.last_run.manifest.run_id == "run_older"
 
 
-class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
+class TestLoadAllRunsUnitTests(TestLoadLatestRunIntegration):
     def test_returns_none_when_error_in_extract_historical_runs(
         self, monkeypatch, pipeline_no_history
     ) -> None:
@@ -1510,3 +1510,314 @@ class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
             result = pipeline_no_history._load_all_runs()
 
         assert result is None
+        assert pipeline_no_history.all_runs is None
+
+    def test_success_run_no_errors(
+        self, monkeypatch, pipeline_no_history: Pipeline
+    ) -> None:
+        """
+        Asserts that the pipeline correctly loads all historical runs without errors.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised if there is an issue loading historical runs, which should not
+            happen in this test.
+        """
+        mock_loader = mock.MagicMock(
+            side_effect=[mock.sentinel.run_A, mock.sentinel.run_B]
+        )
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", mock_loader)
+
+        monkeypatch.setattr(
+            pipeline_no_history.logger,
+            "extract_historical_run_ids",
+            lambda x, y: [
+                {
+                    "run_id": "run_A",
+                    "timestamp": "2026-08-10 10:00:00,000",
+                    "run_dir": Path("/path/to/run_A"),
+                },
+                {
+                    "run_id": "run_B",
+                    "timestamp": "2026-08-10 10:01:00,000",
+                    "run_dir": Path("/path/to/run_B"),
+                },
+            ],
+        )
+
+        with warnings.catch_warnings(record=True) as w:
+            result = pipeline_no_history._load_all_runs()
+
+        assert not any(
+            issubclass(warning.category, PipelineConfigurationWarning) for warning in w
+        )
+        assert result == {"run_A": mock.sentinel.run_A, "run_B": mock.sentinel.run_B}
+        assert mock_loader.call_count == 2
+    def test_all_log_entries_invalid_ids(
+        self, monkeypatch, pipeline_no_history: Pipeline
+    ) -> None:
+        """
+        Asserts that the pipeline returns None for all_runs when all historical
+        runs have an invalid run_id (either empty or None).
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when all historical runs have invalid run_ids, indicating that
+            the all_runs attribute will be None.
+        """
+        mock_loader = mock.MagicMock(return_value=mock.sentinel)
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", mock_loader)
+
+        monkeypatch.setattr(
+            pipeline_no_history.logger,
+            "extract_historical_run_ids",
+            lambda x, y: [
+                {
+                    "run_id": "",
+                    "timestamp": "2026-08-10 10:00:00,000",
+                    "run_dir": Path("/path/to/run_A"),
+                },
+                {
+                    "run_id": None,
+                    "timestamp": "2026-08-10 10:00:00,000",
+                    "run_dir": Path("/path/to/run_A"),
+                },
+            ],
+        )
+
+        with pytest.warns(PipelineConfigurationWarning):
+            result = pipeline_no_history._load_all_runs()
+        assert result is None
+        assert pipeline_no_history.all_runs is None
+
+    def test_duplicate_run_ids_overwrite(
+        self, monkeypatch, pipeline_no_history: Pipeline
+    ) -> None:
+        """
+        Asserts that when duplicate run_ids are found, the last one in the list
+        overwrites the previous one in the all_runs dictionary.
+
+        Parameters
+        ----------
+        ``monkeypatch`` : pytest.MonkeyPatch
+            A pytest fixture that allows for dynamic modification of attributes,
+            methods, or classes during testing.
+        ``pipeline_no_history`` : Pipeline
+            A Pipeline instance with no historical runs.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when duplicate run_ids are found, indicating that the last one
+            will overwrite the previous one in the all_runs dictionary.
+        """
+        mock_loader = mock.MagicMock(
+            side_effect=[mock.sentinel.first_loaded, mock.sentinel.second_loaded]
+        )
+        monkeypatch.setattr("onsrap.pipeline.load_historical_run", mock_loader)
+
+        monkeypatch.setattr(
+            pipeline_no_history.logger,
+            "extract_historical_run_ids",
+            lambda x, y: [
+                {
+                    "run_id": "run_A",
+                    "timestamp": "2026-08-10 10:00:00,000",
+                    "run_dir": Path("/path/to/first_loaded"),
+                },
+                {
+                    "run_id": "run_A",
+                    "timestamp": "2026-08-10 10:01:00,000",
+                    "run_dir": Path("/path/to/second_loaded"),
+                },
+            ],
+        )
+
+        with warnings.catch_warnings(record=True) as w:
+            result = pipeline_no_history._load_all_runs()
+
+        assert not any(
+            issubclass(warning.category, PipelineConfigurationWarning) for warning in w
+        )
+
+        assert result is not None
+        assert isinstance(result, dict)
+        assert len(result) == 1
+        assert result["run_A"] is mock.sentinel.second_loaded
+
+
+class TestLoadAllRunsIntegration(TestLoadLatestRunIntegration):
+    def test_all_runs_none_first_run(self, tmp_path: Path) -> None:
+        """
+        Tests that when a Pipeline instance has no previous runs, the all_runs
+        attribute is None.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for creating test files
+            and directories.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when no previous runs are found for the Pipeline, indicating
+            that the all_runs attribute will be None.
+        """
+
+        with pytest.warns(PipelineConfigurationWarning):
+            pipeline = Pipeline(
+                name="test_pipeline",
+                config=PipelineConfig(output_dir=tmp_path / "outputs"),
+                stages=[
+                    Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())
+                ],
+            )
+        pipeline.run_output = tmp_path / "runs"
+        assert pipeline.all_runs is None
+
+    def test_all_runs_populated_multiple_runs(
+        self, tmp_path: Path, minimal_pipeline_yaml
+    ) -> None:
+        """
+        Tests that when a Pipeline instance has multiple previous runs, the all_runs
+        attribute is populated with all historical runs.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for creating test files
+            and directories.
+        ``minimal_pipeline_yaml`` : callable
+            A fixture that returns a minimal YAML configuration for a historical run.
+        """
+
+        logs = tmp_path / "logs"
+        logs.mkdir(parents=True, exist_ok=True)
+        (logs / "onsrap.log").write_text(
+            "2026-08-11 10:00:00,000 Pipeline started | "
+            '{"run_id": "run_older", '
+            ' "name": "test_pipeline",'
+            ' "run_dir": "/path/to/run"}\n'
+            "2026-08-11 10:01:00,000 Pipeline started | "
+            '{"run_id": "run_newer", '
+            ' "name": "test_pipeline",'
+            ' "run_dir": "/path/to/run"}'
+        )
+
+        temp_attributes_1 = (
+            tmp_path
+            / "outputs"
+            / "runs"
+            / "run_older"
+            / "pipeline_attributes_for_test.yaml"
+        )
+        temp_attributes_1.parent.mkdir(parents=True, exist_ok=True)
+        temp_attributes_1.write_text(
+            minimal_pipeline_yaml(run_id="run_older"), encoding="utf-8"
+        )
+
+        temp_attributes_2 = (
+            tmp_path
+            / "outputs"
+            / "runs"
+            / "run_newer"
+            / "pipeline_attributes_for_test.yaml"
+        )
+        temp_attributes_2.parent.mkdir(parents=True, exist_ok=True)
+        temp_attributes_2.write_text(
+            minimal_pipeline_yaml(run_id="run_newer"), encoding="utf-8"
+        )
+
+        with pytest.warns(PipelineConfigurationWarning):
+            pipeline = Pipeline(
+                name="test_pipeline",
+                config=PipelineConfig(output_dir=tmp_path / "outputs", log_dir=logs),
+                stages=[
+                    Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())
+                ],
+            )
+
+        assert pipeline.all_runs is not None
+        assert pipeline.all_runs["run_newer"].manifest.run_id == "run_newer"
+        assert pipeline.all_runs["run_older"].manifest.run_id == "run_older"
+        assert len(pipeline.all_runs) == 2
+
+    def test_deleted_run_not_populated_all_runs(
+        self, tmp_path: Path, minimal_pipeline_yaml
+    ) -> None:
+        """
+        Tests that when a Pipeline instance has multiple previous runs but one of those
+        runs have been deleted/removed, the all_runs attribute is populated only
+        with the existing historical runs.
+
+        Parameters
+        ----------
+        ``tmp_path`` : Path
+            A temporary directory provided by pytest for creating test files
+            and directories.
+        ``minimal_pipeline_yaml`` : callable
+            A fixture that returns a minimal YAML configuration for a historical run.
+
+        Raises
+        ------
+        ``PipelineConfigurationWarning``
+            Raised when there is no stages_to_run parameters to warn the user that
+            all stages will be run by default.
+        """
+
+        logs = tmp_path / "logs"
+        logs.mkdir(parents=True, exist_ok=True)
+        (logs / "onsrap.log").write_text(
+            "2026-08-11 10:00:00,000 Pipeline started | "
+            '{"run_id": "run_older", '
+            '"name": "test_pipeline",'
+            ' "run_dir": "/path/to/run"}\n'
+            "2026-08-11 10:01:00,000 Pipeline started | "
+            '{"run_id": "run_newer", '
+            '"name": "test_pipeline",'
+            ' "run_dir": "/path/to/run"}'
+        )
+
+        temp_attributes_1 = (
+            tmp_path
+            / "outputs"
+            / "runs"
+            / "run_older"
+            / "pipeline_attributes_for_test.yaml"
+        )
+        temp_attributes_1.parent.mkdir(parents=True, exist_ok=True)
+        temp_attributes_1.write_text(
+            minimal_pipeline_yaml(run_id="run_older"), encoding="utf-8"
+        )
+
+        with pytest.warns(PipelineConfigurationWarning):
+            pipeline = Pipeline(
+                name="test_pipeline",
+                config=PipelineConfig(output_dir=tmp_path / "outputs", log_dir=logs),
+                stages=[
+                    Stage("Stage_0", source=tmp_path / "Stage_0.py", dependencies=())
+                ],
+            )
+
+        assert pipeline.all_runs is not None
+        assert pipeline.all_runs["run_older"].manifest.run_id == "run_older"
+        assert len(pipeline.all_runs) == 1
