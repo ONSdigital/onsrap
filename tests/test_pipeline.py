@@ -1555,12 +1555,13 @@ class TestLoadAllRunsUnitTests(TestLoadLatestRunIntegration):
         )
 
         with warnings.catch_warnings(record=True) as w:
-            pipeline_no_history._load_all_runs()
+            result = pipeline_no_history._load_all_runs()
 
         assert not any(
             issubclass(warning.category, PipelineConfigurationWarning) for warning in w
         )
-
+        assert result == {"run_A": mock.sentinel.run_A, "run_B": mock.sentinel.run_B}
+        assert mock_loader.call_count == 2
     def test_all_log_entries_invalid_ids(
         self, monkeypatch, pipeline_no_history: Pipeline
     ) -> None:
