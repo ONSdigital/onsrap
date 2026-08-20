@@ -1562,6 +1562,7 @@ class TestLoadAllRunsUnitTests(TestLoadLatestRunIntegration):
         )
         assert result == {"run_A": mock.sentinel.run_A, "run_B": mock.sentinel.run_B}
         assert mock_loader.call_count == 2
+
     def test_all_log_entries_invalid_ids(
         self, monkeypatch, pipeline_no_history: Pipeline
     ) -> None:
