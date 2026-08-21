@@ -41,6 +41,6 @@ jobs:
                 fi
                 TAG_NAME="${INPUT_TAG_NAME:-${GITHUB_REF#refs/tags/}}"
                 git commit -m "Update changelog for ${TAG_NAME}"
-                git push origin HEAD:main
+                git push origin HEAD:release_staging
                 git tag -f "${TAG_NAME}"
                 git push origin -f "${TAG_NAME}"
