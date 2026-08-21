@@ -1,30 +1,433 @@
 # Changelog
 
-All notable changes to this project will be tracked here.
+All notable changes to this project will be documented in this file.
 
-## [0.1.1] - 2026-06-24
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-This release adds run-scoped output handling for the example pipeline and aligns runtime timestamps with local time.
-
-### Added
-
-- Introduced per-run output directories so each pipeline execution writes into its own `runs/<run_id>/` tree.
-- Anchored the example pipeline to its own `main.py` directory so runs stay inside `examples/pipeline_1/` instead of the repository working directory.
-- Routed stage output paths through `ExecutionContext.run_dir` so stages can record artifacts in the active run directory.
-- Switched runtime timestamp generation to local time and kept a compatibility alias for the previous helper.
-- Added regression coverage for repeated runs and run-specific output paths.
-
-
-## [0.1.0] - 2026-06-22
-
-First tracked version of `onsrap`.
-
-This release establishes the initial package structure, the core pipeline orchestration model, the example pipeline deployment, and the first round of project documentation and tests.
+## [0.1.2] - 2026-08-21
 
 ### Added
+- Add GitHub action to automatically update CHANGELOG.md
+- Add full commit SHA to workflows to follow new guidance (deploy-docs excluded as other work going on re this workflow)
+- Added api documentation to sphix through extension and additional step in docs workflow.
+- Added development to valid branches that trigger documentation deployment.
+- Added automatic ruff format changes
+- Added py.typed for best practice downstream type-checking information. added whitespace to toml
+- Workflows: added pandas install for dependency requirement prior to pytests
+- Added Ruff fix suggestions
+- Add development branch to workflow triggers and update Python versions
+- Add integration tests for load_latest_run
+- Add fixture for integration testing
+- Added stages to the fixture Pipeline so that it passes the generate_execution_context function
+- Adds potential issue for review in PR
+- Add testing for load_latest_run method with fully mocked data
+- Added in methods to load the latest run from a cold run log into the last_run attribute of a Pipeline
+- Add method that allows historical runs to be loaded as PipelineRun instances
+- Add a function that reviews the log file and extracts all run_ids and timestamps for every run where a log entry  contains "Pipeline started"
+- Add an error message to cover where historical pipeline runs load incorrectly
+- Add leading _ to runmanifest_to_dict and runmanifest_from_dict methods
+- Add test to check that log_pipeline_attributes correctly writes out to a YAML and the contents of that YAML can be correctly parsed back to a PipelineRun instance.
+- Adds tests for to_dict and from_dict methods for PipelineRun, StageResult, RunManifest
+- Adds to_dict and from_dict methods to PipelineRun, StageResult, and RunManifest in prep for saving out to a YAML. Also added documentation to _format_dict()
+- Adds potential issue for review in PR
+- Add testing for load_latest_run method with fully mocked data
+- Added in methods to load the latest run from a cold run log into the last_run attribute of a Pipeline
+- Add method that allows historical runs to be loaded as PipelineRun instances
+- Add a function that reviews the log file and extracts all run_ids and timestamps for every run where a log entry  contains "Pipeline started"
+- Add an error message to cover where historical pipeline runs load incorrectly
+- Add leading _ to runmanifest_to_dict and runmanifest_from_dict methods
+- Add test to check that log_pipeline_attributes correctly writes out to a YAML and the contents of that YAML can be correctly parsed back to a PipelineRun instance.
+- Adds tests for to_dict and from_dict methods for PipelineRun, StageResult, RunManifest
+- Adds to_dict and from_dict methods to PipelineRun, StageResult, and RunManifest in prep for saving out to a YAML. Also added documentation to _format_dict()
+- Add example_function fixture into TestStage
+- Added additional tests to test_stage.py on recommendation from CoPilot. Some tests not added and these are detailed in issue #40
+- Add parameters and raises sections to docstrings of all test files
+- Add doc strings to test_runner.py methods
+- Add docstrings for all tests in test_pipeline_architecture.py
+- Added docstrings to tests in test_execution.py
+- Add doc strings for each test in test_pipeline
+- Added additional tests to test_stage.py on recommendation from CoPilot. Some tests not added and these are detailed in issue #40
+- Add parameters and raises sections to docstrings of all test files
+- Add doc strings to test_runner.py methods
+- Add docstrings for all tests in test_pipeline_architecture.py
+- Added docstrings to tests in test_execution.py
+- Add doc strings for each test in test_pipeline
+- Add warning if no stages are defined in a Pipeline
+- Add test for generate_context()
+- Add method to generate an ExecutionContext type for a pipeline based on the backend and validates stage backends to ensure compatability through a second method
+- Commit-hooks: added mypy checks for static type checking
+- Added init values and changed code and documentation style to be more consistent. Added stricter typing enforcement
+- Add output_dir_regex as a module level global variable
+- Add inline comment on what the regex covers
+- Add documentation for _output_dir_conflict_check()
+- Add logging for error message with _output_dir_conflict_check() method and amend pipeline_2 config to incl. overwrite
+- Add overwrite attribute to __str__ method and __repr method for PipelineConfig
+- Add _output_dir_conflict_check() method and apply it to Pipeline.validate()
+- Add overwrite parameter to PipelineConfig that defaults to False
+- Add warnings to _resolve_config() that alerts when an output location key is present within the stage_configuration. This is allowed to keep running however will warn that it will likely result in overwriting.
+- Added a function to differentiate two configuration files and print the differences into the terminal as well as provide them as a dictionary
+- Add documentation to pytests for configuration logging
+- Added warning messages into integration test for logging config
+- Add formatting unit test for _log_config to check that the correct file is created and the correct information included
+- Add a _log_config() method and implement through PipelineRunner
+- Add config attribute to RunManifest, implement through _create_manifest method in Pipeline and created new method _combine_configs to collate all configurations together into a cohesive dictionary
+- Added "global_variables" and "global_vars" as options for keys in the configuration file
+- Added GlobalConfig to init file to allow importing
+- Add GlobalConfig instantiation into _resolve_config method
+- Add global_config parameter to ExecutionContext creation within PipelineRunner
+- Add getter method for GlobalConfig and tweak from_dict method documentation
+- Add GlobalConfig and from_dict method. add GlobalConfig to StageConfig as attribute
+- Added __name__==__main__ behaviour to fix main() being called at Module import erroring out
+- Added enable_stages to allow users to immediate enable added stages
+- Added 'sandbox' in tests for ignore
+- Added TODO for models
+- Added global variables section for example 2 config for later implementation of global variables for Stages
+- Added simple context injection for example 2 (doesn't currently work due to ExecutionContext getting issue)
+- Added space for a local playground to dynamically test systems
+- Add pytest to check that example pipelines 1 and 2 run properly. Copilot utilised - targets issue #26
+- Add pytest to check that example pipelines 1 and 2 run properly. Copilot utilised - targets issue #26
+- Add __str__ and __repr__ methods to additional classes used in initialisation of Pipeline class as per issue #37
+- Add docstrings for __str__ and __repr__ for stage class
+- Add __str__ method and __repr__ method to Stage class
+- Added normalized aliases for stages_to_run - further may be needed at a later date
+- Add a new class method to Pipeline - add_dependencies()
+- Add error messages for TODOs regarding Pipeline backend, executor conflict, and stages parsed through Pipeline init and configuration file
+- Added TODO for conf.yaml in example2 pipeline to handle different bool value types if YAML doesn't already
+- Added TODOs, tweaked pipeline construction logic
+- Adding a second pipeline example
+- Added whitespace and todo
+- Added custom warning
+- Added get_stage_config() method to return the dict(self._variables) or StageConfig if optional argument is parsed. Preferred access point over stage_config @property method
+- Added StageConfig/config-parsing related tests
+- Added StageConfig to __init__ export
+- Add testing for resolve_paths class functions
+- Add class methods to ExecutionContext that allow file paths to be created/extracted for I/O
+- Added warnings module
+- Added Logger.warning() support for Pipeline runtime warning info logging
+- Add StageConfig class with getter method for _variables attribute
+- Add StageConfig class with getter method for _variables attribute
+- Add testing for resolve_paths class functions
+- Add class methods to ExecutionContext that allow file paths to be created/extracted for I/O
+- Add testing for resolve_paths class functions
+- Add class methods to ExecutionContext that allow file paths to be created/extracted for I/O
+- Added docstrings to stage.py
+- Add development branch to workflow triggers and update Python versions
+- Adding pipeline 3 documentation/main structure
+- Added empty Example markdown files for richer example explanation later
+- Added run output directories to gitignore and added a README.md note about locally running to produce pipeline results.
+- Added pytest for specific output directory
+- Added Run-specific director outputs and fixed time error using utc not local time
+- Added changelog and updated package version for next release. by @BelowBayesline
+- Added initial example pipeline for this version. by @BelowBayesline
+- Added structural design document for visual explanation of structure. by @BelowBayesline
+- Added documentation for StageGraph class functions by @BelowBayesline
+- Added docstrings to loader functions by @BelowBayesline
+- Added first architecture tests. by @BelowBayesline
+- Added ExecutionContext, StageExecutor class, PythonStageExecutor with helper functions. by @BelowBayesline
+- Added free functions for loading, calling, and detecting Python entry points. by @BelowBayesline
+- Added models.py containing Status classes and dataclasses by @BelowBayesline
+- Added files from old repo. Unblocked example files from .gitignore by @BelowBayesline
 
-- Core orchestration pieces for building and running simple pipelines.
-- A realistic example pipeline under `examples/pipeline_1/`.
-- Architecture and implementation notes to explain how the package fits together.
-- Initial test coverage for the main package behavior.
+### Changed
+- Updated tag changes to push to release_staging
+- Merge pull request #80 from ONSdigital/fix/add_action_sha
+- Apply suggestions from code review
+- Adjust now workflow_dispatch does not contain variables
+- Adjust workflow_dispatch options in changelog action
+- Merge pull request #75 from ONSdigital/test/all_runs_attribute
+- Apply suggestions from code review
+- Merge branch 'test/all_runs_attribute' of https://github.com/ONSdigital/onsrap into test/all_runs_attribute
+- Merge pull request #66 from ONSdigital/feat/config
+- Merge branch 'feat/config' of https://github.com/ONSdigital/onsrap into feat/config
+- Resolve conflicts for feat/config -> dev merge
+- Merge pull request #5 from ONSdigital/skeleton
+- Merge pull request #1 from ONSdigital/skeleton by @BelowBayesline in [#1](https://github.com/ONSdigital/onsrap/pull/1)
+- Merge branch 'feat/run_history' into feat/config
+- Provide warning message if a particular run directory does not have a run_id associated with it
+- Adjusted tests in test_pipeline_architecture to account for warnings
+- Slight changes made to method names and processing for last_run attribute which allows the Pipeine to continue running even if no file was found for last attribute - warning is raised in this case
+- Merge branch 'feat/config' into feat/run_history
+- Adjust load_latest_run to account for errors in importing historical runs and returns None if any of these errors are reached
+- Merge branch 'feat/run_history' of https://github.com/ONSdigital/onsrap into feat/run_history
+- Extract_historical_run_ids to exclude if the timestamp is incorrect
+- Edit documentation to clarify what the parameters refer to
+- Correct error message in _load_latest_run
+- Reorder _load_latest_run method in pipeline.py to sit with rest of private methods
+- Move run_output derivation into Pipeline init phase
+- Move load_pipeline_run_for_historical_run() method into PipelineRun class as a class method rather than in loader.py
+- Method for loading a PipelineRun instance from a previous run file
+- Minor change to _log_pipeline_attributes() to remove StageResult parameter as this is covered in PipelineRun already
+- Tidy up test_pipeline.py imports
+- Extract_historical_run_ids to exclude if the timestamp is incorrect
+- Edit documentation to clarify what the parameters refer to
+- Correct error message in _load_latest_run
+- Reorder _load_latest_run method in pipeline.py to sit with rest of private methods
+- Move run_output derivation into Pipeline init phase
+- Move load_pipeline_run_for_historical_run() method into PipelineRun class as a class method rather than in loader.py
+- Method for loading a PipelineRun instance from a previous run file
+- Minor change to _log_pipeline_attributes() to remove StageResult parameter as this is covered in PipelineRun already
+- Eof whitespace addition
+- Changed Pipeline to utilise _generate_context properly.
+- Merge branch 'feat/config' into feat/refactor
+- Merge pull request #64 from ONSdigital/fix/testing_checkpoint
+- Adjust gitignore for example scripts
+- Apply suggestions from code review
+- Correct failed tests given merge with execution context work
+- Merge branch 'fix/testing_checkpoint' of https://github.com/ONSdigital/onsrap into fix/testing_checkpoint
+- Switch around tests in test_stage.py to more logically fit the class structure
+- Ruff formatting and checking on test_runner.py
+- Refactor test_runner.py with CoPilot (human review) to be structured as classes
+- Ruff format and check test_pipeline_architecture.py
+- Refactor with CoPilot to structure tests as classes
+- Complete docstrings for test_models.py
+- Split test_from_file into two methods to act as singular unit tests rather than doing multiple tasks in one function
+- Test_models.py refactor tests into classes with CoPilot, utilises Ruff formatting and checking
+- CoPilot refactor (human review) of test_execution to add class structure. Ruff formatting and checking completed
+- Ruff format and check test_stage.py
+- Refactor test_stage.py to class structure
+- Ruff formatting and linting applied
+- CoPilot refactor (human review) tests into class structure
+- Switch around tests in test_stage.py to more logically fit the class structure
+- Ruff formatting and checking on test_runner.py
+- Refactor test_runner.py with CoPilot (human review) to be structured as classes
+- Ruff format and check test_pipeline_architecture.py
+- Refactor with CoPilot to structure tests as classes
+- Complete docstrings for test_models.py
+- Split test_from_file into two methods to act as singular unit tests rather than doing multiple tasks in one function
+- Test_models.py refactor tests into classes with CoPilot, utilises Ruff formatting and checking
+- CoPilot refactor (human review) of test_execution to add class structure. Ruff formatting and checking completed
+- Ruff format and check test_stage.py
+- Refactor test_stage.py to class structure
+- Ruff formatting and linting applied
+- CoPilot refactor (human review) tests into class structure
+- Merge pull request #63 from ONSdigital/fix/generate_execution_context
+- Apply suggestions from code review
+- Reorder where _generate_context is called to allow for stage parsing
+- Added workflows for package build testing and doc deployment.
+- Changes to Pipeline docs and code structure.
+- Minor changes in code style and specificities.
+- Tweaked approach to loggers to improve memory efficiency
+- Stricter typing and code/documentation standardised style
+- Updated python package yaml
+- Correct indenting error in add_stage_config
+- Merge pull request #62 from ONSdigital/fix/output_locations
+- Apply suggestions from code review
+- Combine _check_output_dir_in_stage_configs into _output_dir_conflict_check. Call _output_dir_conflict_check in Pipeline.validate() and remove mention to _check_output_dir_in_stage_configs in earlier Pipeline init stage
+- Adjusted output directory search to cover regex
+- Minor changes to output checking method
+- Correct name of resolve_output_root() method in warning for _check_output_dir_in_stage_configs
+- Created a new method that assesses for output directories in stage_configs rather than being done at _resolve_config stage
+- Merge pull request #60 from ONSdigital/config_logging
+- Apply suggestions from code review
+- Documentation added for test created for config differencing functions.
+- Documentation for configuration differencing functions
+- Adjusted _combine_configs to force the output of global_config.get_attributes() to be a dictionary rather than a tuple
+- Merge pull request #58 from ONSdigital/fix/example_2
+- Tweaked stageConfig.from_mapping()
+- Documentation added for tests from previous commit.
+- Adjust order of attributes for ExecutionContext and add initialisation for global_configs in Pipeline instance
+- Move _combine_vars() method from StageConfig class to ExecutionContext class and add utilisation of exclusion attribute.
+- Adjust StageConfig so global variables aren't stored as an attribute but are instead used as a method to extract all variables required for the stage.
+- Combine_vars method to combine global variables and stage variables. This function should be called by the end user when they are implementing the configuration.
+- Merge pull request #54 from ONSdigital/test_warning_resolutions
+- Redid stage_config_for() method
+- Initial implementation of dynamic Stage adjustment in Pipeline altering StageGraph and runtime behaviour with tests
+- Merge branch 'test_warning_resolutions' of https://github.com/ONSdigital/onsrap into test_warning_resolutions
+- Merge pull request #39 from ONSdigital/feat/dunder_str_methods
+- Mild adjustments to all __str__ and __repr__ methods to tidy up. Related to issues #32, #33, #34, and #37
+- __str__ and __repr__ methods for PipelineRunner class actioning issue #33
+- __str__ and __repr__ functions for Pipeline class
+- Merge pull request #36 from ONSdigital/pipeline_handling
+- Merge pull request #31 from ONSdigital/resolve_todos
+- Resolved comments from PR on returned error message richness.
+- Added enabled stage initial structure but with TODOs to handle stages_to_run logic from PipelineConfig
+- Indentation
+- Visual changes
+- Changed constructor stage definition logic. Added Method to handle stages_to_run logic prior to self.graph definition.
+- Example pipeline 2 to enable logs to work
+- Updated example pipeline 2 to run off a config file. Further work needed to impute stage configurations into stages and extract logs
+- Adjusted _extract_stages_run method to return None value if no stages are set to true and subsequent process in pipeline.py init to run all stages in this instance
+- Improves _split_config_sections method and adds _extract_keys method to support
+- Improve error messaging in _load_config_mapping() method
+- Add methods to allow stages_to_run configuration to be parsed through PipelineConfig to Pipeline and subsequently through StageGraph for validation
+- Reordered methods in Pipeline Class to suitable order
+- Added TODOs for approaching Config, with initial config structure
+- Merge branch 'example_2' into pipeline_handling
+- Removed Union[] and replaced with | operator
+- Created main2.py in example 1 to show order of stages provided is less relevant than dependencies.
+- Tweaked file paths for example_2 pipeline
+- Stage configs written for example pipeline 2
+- Finalise stage 2 of example Pipeline_2
+- Filled out stages for example pipeline 2
+- Merge branch 'example_2' of https://github.com/ONSdigital/onsrap into example_2
+- Documented PipelineRunner.run() method to try to provide a little more context for developers
+- Standardised future references/typing across codebase
+- Added a configuration.md file to summarise configuration changes in this current state
+- Added StageConfig and configuration handling to Pipeline architecture. Implemented through numerous new methods and concepts, with documentation.
+- Modified PipelineRunner to account for StageConfig & changes to ExecutionContext
+- Modified ExecutionContext to account for StageConfig objects
+- Initiali sketch of StageConfig use in Pipeline class.
+- Resolved union change
+- Tweaked testing for exection and models to reflect changes with output directory defintion
+- Actioned comments from PR #21
+- Apply suggestion from @BelowBayesline
+- Apply suggestion from @BelowBayesline
+- Apply suggestion from @BelowBayesline
+- Apply suggestion from @BelowBayesline
+- Apply suggestion from @BelowBayesline
+- Apply suggestion from @BelowBayesline
+- Updated README to cover issue #16
+- Add docstrings and finish testing suite for stage.py.
+- Completed testing suite for models.py
+- Applied fix for bug #20 and implemented a test for fix.
+- Fix bug #22 and implements test to ensure this works
+- Tests for models.py and bug fixes within models.py
+- Partial testing established for execution.py
+- Commiting before rebase
+- Minor testing implemented
+- Partial testing established for execution.py
+- Script for testing stage.py and minor change to documentation in execution.py
+- Initiali sketch of StageConfig use in Pipeline class.
+- Merge branch 'feat/config' of https://github.com/ONSdigital/onsrap into feat/config
+- Removal of one incorrect forward reference in Pipeline
+- Instantiated example structure
+- Removal of one incorrect forward reference in Pipeline
+- Instantiated example structure
+- Merge pull request #21 from ONSdigital/sophie_testing
+- Resolved union change
+- Tweaked testing for exection and models to reflect changes with output directory defintion
+- Actioned comments from PR #21
+- Merge branch 'sophie_testing' of https://github.com/ONSdigital/onsrap into sophie_testing
+- Apply suggestion from @BelowBayesline
+- Apply suggestion from @BelowBayesline
+- Apply suggestion from @BelowBayesline
+- Apply suggestion from @BelowBayesline
+- Apply suggestion from @BelowBayesline
+- Apply suggestion from @BelowBayesline
+- Updated README to cover issue #16
+- Add docstrings and finish testing suite for stage.py.
+- Completed testing suite for models.py
+- Applied fix for bug #20 and implemented a test for fix.
+- Fix bug #22 and implements test to ensure this works
+- Tests for models.py and bug fixes within models.py
+- Merge branch 'sophie_testing' of https://github.com/ONSdigital/onsrap into sophie_testing
+- Minor testing implemented
+- Partial testing established for execution.py
+- Script for testing stage.py and minor change to documentation in execution.py
+- Commiting before rebase
+- Minor testing implemented
+- Partial testing established for execution.py
+- Script for testing stage.py and minor change to documentation in execution.py
+- Fixed persistent docstring issuel.
+- Merge pull request #11 from ONSdigital/documenting
+- Merge branch 'documenting' of https://github.com/ONSdigital/onsrap into documenting
+- Merge branch 'documenting' of https://github.com/ONSdigital/onsrap into documenting
+- Completed docstrings for pipeline.py, runner.py, run_pipeline.py, logger.py, and models.py. Few points remain to pick up later
+- Graph.py and loader.py docstrings updated
+- Completed docstrings for pipeline.py, runner.py, run_pipeline.py, logger.py, and models.py. Few points remain to pick up later
+- Graph.py and loader.py docstrings updated
+- Merge pull request #7 from ONSdigital/documenting
+- Apply suggestions from code review
+- Apply suggestion from @pikes-ons
+- Update onsrap/execution.py
+- Docstrings for errors.py and execution.py
+- Merging tweaks from previous reviews
+- Update onsrap/graph.py to use fstring not .format
+- Changed test to record logs in tmp_path location not in CWD location.
+- Minor doc tweak, added graceful missing dependency exception handling.
+- Changed logger creation to resolve name first so that a different logger is used based on different runitmes
+- Updated package setup.cfg to remove Python version 3.9 due to potential syntax issues.
+- Small tweaks to Example README to finish sentence and add minor amount of context.
+- Updated changelog for v0.1.1
+- Tweaked Readme wording for pipeline run readme
+- Tweaked test to use temp file locations not broader repo locations
+- Edited version to 0.1.1 to in setup.cfg to represent upcoming version with run directory outputs and further inclusions.
+- Misc cpython updates
+- Fixed example pipeline 1 to use pipeline root for run outputs
+- Tweaked runner to reference THE pipeline ID not the new one created and assigned at PipelineRunner run() call. by @BelowBayesline
+- README Tweak by @BelowBayesline
+- Updated README to include example by @BelowBayesline
+- Updated setup.cfg by @BelowBayesline
+- Improved __init__ for RAP package module by @BelowBayesline
+- Modified Logger, Pipeline, Runner, and Stage modules to fit the structure. by @BelowBayesline
+- Instantiated StageGraph class in graph.py with the hope to use DAG logic for validation by @BelowBayesline
+- Set up simple Exception classes for more meaningful exception handling. by @BelowBayesline
+- Filled out empty directories with dummy examples by @BelowBayesline
+- Updated Python version capabilities in setup by @BelowBayesline
+- Initial commit by @BelowBayesline
 
+### Fixed
+- Correct tests for all_runs given changes to extract_historical_run_ids
+- Complete unit and integration tests for all_runs attribute of Pipeline
+- Complete unit and integration tests for all_runs attribute of Pipeline
+- Set orders_per_day to use idxmax not idxmin for greatest value.
+- Dedented dunder methods for PipelineRunner. Changed Logger._logger.setLevel to outside if-statement scope so Logging level is consistent.
+- Readme.md language around Stage tweaked to better reflect use case.
+- Change configuration.md to better reflect Configuration structure
+- Action comment on PR #66 to check that run_ids compare names against the Pipeline as well to add assurance that only these pipeline runs are returned
+- Assert warnings in test_pipeline TestPipelineNamingAndInit
+- Fix as part of copilot review for PR #66 - implement a safe encode/decode methodology that reviews values typed as Any and codes them into a YAML safe input. The decoder then puts it back into the appropriate typing for use back in the pipeline
+- Added fixture to allow StageResult testing to work properly.
+- Ruff check: Resolved safe and unsafe ruff errors
+- Update to documentation on contributing.md to include more info on MyPy and Bandit and pre-commit hooks.
+- Updated f-string usage to work with older versions of Python.
+- Ruff: format tweaks.
+- Mypy: resolved type problems, refactored how dependencies are assigned and contract between public and private methods.
+- Added Ruff Format changes
+- Started integration tests for all_runs
+- Separate some of the tests for run_history work into test_loader and test_logger to fit module level testing method
+- Finish implementation tests for run_history
+- Adjust tests to account for warnings raised
+- Produce tests for load_historical_run method and minor tweak on method call for _runmanifest_from_dict
+- Implement tests for extract_historical_run_ids
+- Implement tests for extract_historical_run_ids
+- Improved formatting in workflows yaml files
+- Correct errors in test_pipeline and test_pipeline_architecture caused by adding global_config requirement in configuration files.
+- Correct errors in test_pipeline and test_pipeline_architecture caused by adding global_config requirement in configuration files.
+- Implement test for _validate_stage_backends()
+- Overhauled & updated Package metadata files
+- Implement integration test for _log_configs method within PipelineRunner.run()
+- Changes to execution and tests
+- Tweaks to Stage and Global Configuration handling in Pipeline
+- Tests implemented for _combine_vars method and minor tweak to show Warning message rather than Error message
+- Resolved get_stage_config() behaviour and data-parsing contracts. added test.
+- Warning wasn't printing full message due to structure.
+- Updated _rebuild_graph to remove redundant code and clarified documentation.
+- Updated __repr__ methods that had inconsistent spacing
+- Tweaked tests to resolve issues with KeyErrors making assertions fail.
+- New tests added for test_execution and test_models
+- Tests fixed for test_pipeline.py and test_pipeline_architecture.py to account for default errors. Second set of eyes would be useful to ensure that the warnings are appropriately raised. Affects issue #29
+- New tests added for test_execution and test_models
+- Tests fixed for test_pipeline.py and test_pipeline_architecture.py to account for default errors. Second set of eyes would be useful to ensure that the warnings are appropriately raised. Affects issue #29
+- Pytests in test_pipeline_architecture.py
+- Fix pytests in test_pipeline.py and test_stage.py
+- Correct pytests in test_stage.py. Removed run parameter in stage class instance
+- Correct all tests in test_execution.py to run with changes
+- Removed RAPConfig and touchpoints - deprecated and misdirective
+- Now allow users to define where their output location is in PipelineConfig and that works downstream in the ExecutionContext with the resolve_output_root()
+- Tests for stage.py and bug fixes for stage.py incl. minor changes to models.py
+- Now allow users to define where their output location is in PipelineConfig and that works downstream in the ExecutionContext with the resolve_output_root()
+- Tests for stage.py and bug fixes for stage.py incl. minor changes to models.py
+
+### Removed
+- Workflows: remove Sphinx build from python-package.yml due to duplication in documentation workflow.
+- Remove mention of global variables from StageConfig instance as this is handled in execution context
+- Removed TODO from Stage
+- Removed Union[] calls
+- Removed a blank line but clearing all changes before next commit
+- Removed RAPConfig references after branch merges
+- Removed StageConfig from stage.py and embellished it in models.py
+- Removed useless stage import
+- Removed empty file
+- Removed unused variable in for loop.
+- Removed unused imports from Pipeline.py
+- Removed utcnow and unused import
+- Removed reference to raw directory in example stages which caused runtime error
+- Removed redundant example pipeline data and moved raw data to data directory
+- Removed cookiecutter clutter by @BelowBayesline
+- Removed spark references by @BelowBayesline
+
+[0.1.2]: https://github.com/ONSdigital/onsrap/compare/v0.1.0...v0.1.2
+
+<!-- generated by git-cliff -->
