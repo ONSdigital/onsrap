@@ -207,6 +207,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update changelog for v0.1.2
 - Update changelog for v0.1.2
 - Update changelog for v0.1.2
+- Update changelog for v0.1.2
 - Updated tag changes to push to release_staging
 - Merge pull request #80 from ONSdigital/fix/add_action_sha
 - Apply suggestions from code review
