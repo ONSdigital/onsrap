@@ -130,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added files from old repo. Unblocked example files from .gitignore by @BelowBayesline
 
 ### Changed
+- Update changelog for v0.1.2
 - Updated tag changes to push to release_staging
 - Merge pull request #80 from ONSdigital/fix/add_action_sha
 - Apply suggestions from code review
