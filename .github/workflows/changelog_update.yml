@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
     change_log:
-        if: github.actor != 'github-actions[bot]'
+        if: "!startsWith(github.event.head_commit.message, 'Update changelog for')"
         runs-on: ubuntu-latest
         steps:
             - name: Checkout Branch
