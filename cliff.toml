@@ -27,7 +27,7 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
     ### {{ group | upper_first }}
     {%- for commit in commits %}
-        - {% if commit.body and commit.body | trim != "" %}{{ commit.body | trim | upper_first }}{% else %}{{ commit.message | split(pat="\n") | first | upper_first | trim }}{% endif %}\
+        - {{ commit.message | split(pat="\n\n") | last | trim | upper_first }}\
             {% if commit.remote.username %} by @{{ commit.remote.username }}{%- endif -%}
             {% if commit.remote.pr_number %} in \
             [#{{ commit.remote.pr_number }}]({{ self::remote_url() }}/pull/{{ commit.remote.pr_number }}) \
