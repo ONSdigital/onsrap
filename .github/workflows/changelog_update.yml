@@ -30,8 +30,9 @@ jobs:
               uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5
               with:
                 config: cliff.toml
-                args: --verbose --latest --prepend CHANGELOG.md
+                args: --verbose --latest 
               env:
+                OUTPUT: CHANGELOG.md
                 GITHUB_REPO: ${{ github.repository }}
 
             - name: Commit and retag
