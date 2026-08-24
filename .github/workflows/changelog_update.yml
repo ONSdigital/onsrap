@@ -12,8 +12,13 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: changelog-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
     change_log:
+        if: github.actor != 'github-actions[bot]'
         runs-on: ubuntu-latest
         steps:
             - name: Checkout Branch
