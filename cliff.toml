@@ -27,7 +27,7 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
     ### {{ group | upper_first }}
     {%- for commit in commits %}
-        - {{ commit.message | split(pat="\n") | first | upper_first | trim }}\
+        - {% if commit.body and commit.body | trim != "" %}{{ commit.body | trim | upper_first }}{% else %}{{ commit.message | split(pat="\n") | first | upper_first | trim }}{% endif %}\
             {% if commit.remote.username %} by @{{ commit.remote.username }}{%- endif -%}
             {% if commit.remote.pr_number %} in \
             [#{{ commit.remote.pr_number }}]({{ self::remote_url() }}/pull/{{ commit.remote.pr_number }}) \
@@ -74,32 +74,37 @@ trim = true
 [git]
 # Parse commits according to the conventional commits specification.
 # See https://www.conventionalcommits.org
-conventional_commits = true
+conventional_commits = false
 # Exclude commits that do not match the conventional commits specification.
 filter_unconventional = false
-# An array of regex based parsers to modify commit messages prior to further processing.
-commit_preprocessors = [
-  # Remove issue numbers.
-  { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "" },
-]
+
 # An array of regex based parsers for extracting data from the commit message.
 # Assigns commits to groups.
 # Optionally sets the commit's scope and can decide to exclude commits from further processing.
 commit_parsers = [
-  { message = "^[Aa]dd", group = "Added" },
-  { message = "^[Ss]upport", group = "Added" },
-  { message = "^[Rr]emove", group = "Removed" },
-  { message = "^.*: add", group = "Added" },
-  { message = "^.*: support", group = "Added" },
-  { message = "^.*: remove", group = "Removed" },
-  { message = "^.*: delete", group = "Removed" },
-  { message = "^test", group = "Fixed" },
-  { message = "^fix", group = "Fixed" },
-  { message = "^.*: fix", group = "Fixed" },
-  { message = "^.*", group = "Changed" },
+  # Skip same-name remote syncs — "Merge branch 'X' of https://..."
+  # Git only generates this format when syncing a branch with its own remote counterpart.
+  { message = "^Merge branch '.*' of https?://", skip = true },
+
+  # Skip conflict resolution housekeeping commits
+  { message = "^Resolve conflicts", skip = true },
+
+  # Keep PR merges — group by branch prefix
+  { message = "^Merge pull request #\\d+ from [^/]+/feat/", group = "Added" },
+  { message = "^Merge pull request #\\d+ from [^/]+/fix/",  group = "Fixed" },
+  { message = "^Merge pull request #\\d+ from [^/]+/test/", group = "Changed" },
+  { message = "^Merge pull request #\\d+ from [^/]+/docs/", group = "Changed" },
+  { message = "^Merge pull request #\\d+ from [^/]+/",      group = "Changed" },
+
+  # Keep cross-branch merges where X ≠ Y — "Merge branch 'X' into Y"
+  # These represent genuine consolidation work between named branches.
+  { message = "^Merge branch '.*' into ", group = "Changed" },
+
+  # Drop anything else (regular non-merge commits)
+  { message = "^.*", skip = true },
 ]
 # Exclude commits that are not matched by any commit parser.
-filter_commits = false
+filter_commits = true
 # Order releases topologically instead of chronologically.
 topo_order = false
 # Order of commits in each group/release within the changelog.
